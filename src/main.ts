@@ -3,17 +3,23 @@ import { GUTTER, groupSteps, render, type Rendered, type Step } from './core/ren
 import type { Bit, Protocol } from './core/types';
 import { formatTime } from './core/util';
 import { categoryOf } from './catalog';
-import { mountHome } from './home';
+import { FACTS } from './facts';
+import { mountGuide } from './guide';
 import { mountMenu } from './menu';
 import { protocols } from './protocols';
+import { mountThemeToggle } from './theme';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-const homeView = $('#home');
-const vizView = $('#viz');
 const crumbCat = $('#crumb-cat');
 const title = $('#proto-name');
 const summary = $('#proto-summary');
+const usedIn = $('#proto-used');
+const vizView = $('#viz');
+const guideView = $('#guide');
+const glance = $('#glance');
+const strengths = $('#strengths');
+const limits = $('#limits');
 const controls = $('#controls');
 const scope = $('#scope');
 const error = $('#error');
@@ -90,10 +96,25 @@ function buildControls() {
   }
 }
 
+/** The spec sheet under the diagram. Each label links to its section in the guide. */
+function buildSpecs() {
+  glance.replaceChildren(...FACTS.flatMap(({ key, label }) => {
+    const dt = document.createElement('dt');
+    dt.append(Object.assign(document.createElement('a'), { href: `?p=basics#${key}`, textContent: label }));
+    dt.firstElementChild!.setAttribute('data-nav', '');
+    return [dt, Object.assign(document.createElement('dd'), { textContent: proto.facts[key] })];
+  }));
+  const items = (list: string[]) => list.map((t) => Object.assign(document.createElement('li'), { textContent: t }));
+  strengths.replaceChildren(...items(proto.strengths));
+  limits.replaceChildren(...items(proto.limits));
+}
+
 function buildAll() {
   title.textContent = proto.name;
   crumbCat.textContent = categoryOf(proto.id)?.name ?? '';
   summary.textContent = proto.summary;
+  usedIn.textContent = proto.usedIn;
+  buildSpecs();
   document.title = `${proto.name} · bitbang`;
   buildControls();
   update();
@@ -172,6 +193,9 @@ function hideTip() {
   tooltip.hidden = true;
 }
 
+const svg = (d: string) => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${d}"/></svg>`;
+const icon = { play: svg('M5 3l8 5-8 5z'), pause: svg('M4 3h3v10H4zM9 3h3v10H9z') };
+
 // ---- copy link ----
 
 copyBtn.addEventListener('click', async () => {
@@ -212,7 +236,7 @@ function go(i: number) {
 function play() {
   if (timer !== undefined) return stop();
   if (current >= steps.length - 1) go(-1);
-  playBtn.textContent = '❚❚ Pause';
+  playBtn.innerHTML = `${icon.pause}Pause`;
   timer = window.setInterval(() => {
     if (current >= steps.length - 1) return stop();
     go(current + 1);
@@ -223,7 +247,7 @@ function stop() {
   if (timer === undefined) return;
   clearInterval(timer);
   timer = undefined;
-  playBtn.textContent = '▶ Play';
+  playBtn.innerHTML = `${icon.play}Play`;
 }
 
 prevBtn.addEventListener('click', () => { stop(); go(Math.max(0, current - 1)); });
@@ -255,38 +279,32 @@ document.addEventListener('keydown', (e) => {
 let resizeTimer: number | undefined;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = window.setTimeout(() => (vizView.hidden ? home.start() : update()), 150);
+  resizeTimer = window.setTimeout(() => !vizView.hidden && update(), 150);
 });
 
-// ---- routing: no ?p shows the home page, ?p=<id> shows that protocol ----
+// ---- routing: ?p=<id> picks the protocol; anything else opens UART ----
 
-const home = mountHome(homeView);
-const menuEl = $<HTMLDetailsElement>('#menu');
-const menu = mountMenu(menuEl);
+const menu = mountMenu($<HTMLDetailsElement>('#menu'));
+mountThemeToggle($<HTMLButtonElement>('#theme'));
 
-// "Browse protocols" on the home page just opens the header menu.
-document.addEventListener('click', (e) => {
-  if (!(e.target instanceof Element) || !e.target.closest('[data-open-menu]')) return;
-  e.stopPropagation();
-  menuEl.open = true;
-  menuEl.querySelector('a')?.focus();
-}, true);
+mountGuide(guideView);
 
 function route() {
   const q = new URLSearchParams(location.search);
-  const p = protocols.find((x) => x.id === q.get('p'));
-  homeView.hidden = !!p;
-  vizView.hidden = !p;
-  menu.setCurrent(p?.id ?? null);
-  if (p) {
-    home.stop();
+  const showGuide = q.get('p') === 'basics';
+  vizView.hidden = showGuide;
+  guideView.hidden = !showGuide;
+  if (showGuide) {
+    stop();
+    menu.setCurrent('basics');
+    document.title = 'How protocols work · bitbang';
+  } else {
+    const p = protocols.find((x) => x.id === q.get('p')) ?? protocols[0];
+    menu.setCurrent(p.id);
     readUrl(q, p);
     buildAll();
-  } else {
-    stop();
-    document.title = 'bitbang';
-    home.start();
   }
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
 }
 
 // In-site links swap views without a page load; the back button still works.
@@ -297,8 +315,8 @@ document.addEventListener('click', (e) => {
   history.pushState(null, '', a.href);
   current = -1;
   zoom = 'fit';
-  route();
   window.scrollTo(0, 0);
+  route();
 });
 window.addEventListener('popstate', route);
 

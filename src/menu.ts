@@ -7,7 +7,8 @@ const live = new Set(protocols.map((p) => p.id));
 /** Fills the header's Protocols dropdown from the catalog. Unbuilt protocols are listed but not linked. */
 export function mountMenu(menu: HTMLDetailsElement) {
   const panel = menu.querySelector('.menu-panel')!;
-  panel.innerHTML = catalog
+  const guide = `<div class="menu-group"><h3>Start here</h3><ul><li><a href="?p=basics" data-nav>How protocols work</a></li></ul></div>`;
+  panel.innerHTML = guide + catalog
     .map((cat) => {
       const items = cat.entries.map((e) =>
         live.has(e.id)

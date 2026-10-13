@@ -1,4 +1,4 @@
-import type { Bit, Driver, Field, Kind, Protocol } from '../core/types';
+import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
 import { TraceBuilder, hex, parseBytes, printable } from '../core/util';
 
 export const i2c: Protocol = {
@@ -7,6 +7,30 @@ export const i2c: Protocol = {
   summary:
     'Two wires with pull-up resistors. Devices can pull a line low but never drive it high. Each ' +
     'target has a 7-bit address, and whoever receives a byte answers with an ACK.',
+  usedIn: 'Temperature and motion sensors, EEPROMs, real-time clocks, and small OLED displays, often many of them on the same two wires.',
+  facts: {
+    clock: 'Synchronous. The controller drives SCL, but a target can hold it low to pause the transfer (clock stretching).',
+    wires: 'SCL and SDA, plus ground, shared by every device. One pull-up resistor on each line.',
+    drive: 'Open-drain. Devices can only pull a line low; the pull-up resistor brings it back high, which is why the rising edges are slow.',
+    duplex: 'Half duplex. SDA carries data in one direction at a time.',
+    topology: 'Multi-drop bus: many targets, and optionally several controllers, on the same two wires.',
+    addressing: '7-bit addresses sent at the start of each transfer, so about 112 usable. A rarely used 10-bit mode exists.',
+    flow: 'ACK/NACK after every byte, plus clock stretching when a target needs more time.',
+    errors: 'ACK only shows that someone received a byte, not that it was right. There\'s no checksum (SMBus adds an optional CRC-8, called PEC).',
+    speed: '100 kHz (Standard), 400 kHz (Fast), 1 MHz (Fast-mode Plus), and 3.4 MHz (High-speed, rarely used).',
+    reach: 'Board level. The spec allows at most 400 pF on the bus, which is roughly a meter of wiring plus the devices.',
+  },
+  strengths: [
+    'Two wires for any number of devices. Adding a sensor costs no extra pins.',
+    'Addressing and acknowledgments are built in, so you can tell when a device is missing.',
+    'Several controllers can share one bus. Arbitration on SDA decides who wins without corrupting anything.',
+  ],
+  limits: [
+    'Slow. The pull-up resistor has to charge the line\'s capacitance on every rising edge, which caps the speed.',
+    'Choosing the pull-up is a trade-off: smaller resistors give faster edges but waste more current.',
+    'Many parts have fixed or barely configurable addresses, so two identical sensors can collide.',
+    'One stuck device holding SDA low can hang the entire bus until it\'s reset.',
+  ],
   params: [
     { key: 'addr', label: 'Address', type: 'text', default: '50', placeholder: '50 (hex, 7-bit)' },
     {
@@ -41,10 +65,14 @@ export const i2c: Protocol = {
     const present = p.present === 'yes';
     const bytes = parseBytes(p.data, p.format);
 
-    const scl = new TraceBuilder('SCL', 1);
-    const sda = new TraceBuilder('SDA', 1);
+    const scl = new TraceBuilder('SCL', 1, true);
+    const sda = new TraceBuilder('SDA', 1, true);
     const bits: Bit[] = [];
     const fields: Field[] = [];
+    const notes: Note[] = [
+      { lane: 0, t: 2, text: 'slow rise: only a pull-up resistor pulls it high' },
+      { lane: 1, t: 1, text: 'START: SDA falls while SCL is high' },
+    ];
 
     // START: SDA falls while SCL is high, which is never allowed during normal data.
     sda.set(1, 0);
@@ -77,6 +105,7 @@ export const i2c: Protocol = {
       'really the 7-bit address shifted left.');
     fields.push({ lane: 1, t0: addrStart, t1: t, label: `${hex(addr)} ${read ? 'R' : 'W'}`, kind: 'addr' });
 
+    notes.push({ lane: 1, t: t + 0.25, text: present ? 'target pulls SDA low: ACK' : 'nobody answers: NACK' });
     if (present) {
       slot(0, 'ACK', 'ack', 'target',
         `ACK: the target at ${hex(addr)} recognized its address and pulls SDA low during this clock cycle. The controller ` +
@@ -116,12 +145,13 @@ export const i2c: Protocol = {
     sda.set(t + 0.25, 0);
     scl.set(t + 0.5, 1);
     sda.set(t + 0.75, 1);
+    notes.push({ lane: 1, t: t + 0.75, text: 'STOP: SDA rises while SCL is high' });
     bits.push({
       lane: 1, t0: t + 0.25, t1: t + 1.25, label: 'P', kind: 'stop',
       info: 'STOP condition: SDA rises while SCL is high, the mirror image of START. Both lines are released and the ' +
         'bus is free for any controller to use.',
     });
 
-    return { traces: [scl.trace, sda.trace], bits, fields, duration: t + 1.75, unitTime: 1 / +p.speed };
+    return { traces: [scl.trace, sda.trace], bits, fields, notes, duration: t + 1.75, unitTime: 1 / +p.speed };
   },
 };

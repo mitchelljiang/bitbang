@@ -5,41 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>bitbang</title>
     <meta name="description" content="Timing diagrams for UART, SPI and I²C, drawn from the bytes you type in. Click any bit to see what it does." />
+    <script>
+      try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 12h3V4h4v8h4V4h3' fill='none' stroke='%23b69cf0' stroke-width='2'/%3E%3C/svg%3E" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 12h3V4h4v8h4V4h3' fill='none' stroke='%236a3fd1' stroke-width='2'/%3E%3C/svg%3E" />
   </head>
   <body>
+    <a class="skip" href="#content">Skip to content</a>
     <header class="top">
       <a class="logo" href="./" data-nav>
         <svg viewBox="0 0 32 16" aria-hidden="true"><path d="M1 13h5V3h7v10h6V3h7v10h5" /></svg>
         bitbang<span>.fyi</span>
       </a>
+      <div class="top-right">
+      <button class="theme" id="theme" type="button" aria-label="Switch to dark theme">
+        <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></svg>
+        <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 0v2.5M8 13.5V16M0 8h2.5M13.5 8H16M2.3 2.3l1.8 1.8M11.9 11.9l1.8 1.8M2.3 13.7l1.8-1.8M11.9 4.1l1.8-1.8"/></svg>
+      </button>
       <details class="menu" id="menu">
         <summary>Protocols</summary>
         <nav class="menu-panel" aria-label="Protocols"></nav>
       </details>
+      </div>
     </header>
 
-    <main id="home" hidden></main>
-
-    <main id="viz" hidden>
+    <div id="content" tabindex="-1">
+    <main id="viz">
       <section class="intro">
-        <nav class="crumbs"><a href="./" data-nav>← All protocols</a><span id="crumb-cat"></span></nav>
+        <p class="crumbs" id="crumb-cat"></p>
         <h1 id="proto-name"></h1>
         <p id="proto-summary"></p>
+        <p class="used"><b>Used in</b> <span id="proto-used"></span></p>
       </section>
 
-      <section class="controls panel" id="controls" aria-label="Settings"></section>
+      <section class="controls" id="controls" aria-label="Settings"></section>
       <p class="error" id="error" role="alert" hidden></p>
 
-      <section class="instrument panel">
+      <section class="instrument">
         <div class="toolbar">
           <div class="group">
-            <button id="prev" aria-label="Previous bit" title="Previous bit (←)">◀</button>
-            <button id="play" title="Play (space)">▶ Play</button>
-            <button id="next" aria-label="Next bit" title="Next bit (→)">▶</button>
+            <button id="prev" aria-label="Previous bit" title="Previous bit (←)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg></button>
+            <button id="play" title="Play (space)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z"/></svg>Play</button>
+            <button id="next" aria-label="Next bit" title="Next bit (→)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
             <span id="step-label"></span>
           </div>
           <div class="group">
@@ -55,21 +65,36 @@
       </section>
 
       <section class="legend" aria-label="Legend">
-        <span><i class="tag k-start"></i>start</span>
-        <span><i class="tag k-addr"></i>address</span>
-        <span><i class="tag k-rw"></i>read/write</span>
+        <span><i class="tag k-start"></i>start / stop</span>
+        <span><i class="tag k-addr"></i>address / R/W</span>
         <span><i class="tag k-data"></i>data</span>
         <span><i class="tag k-parity"></i>parity</span>
         <span><i class="tag k-ack"></i>ACK</span>
         <span><i class="tag k-nack"></i>NACK</span>
-        <span><i class="tag k-stop"></i>stop</span>
         <span><i class="tag dashed"></i>driven by target</span>
         <span><i class="dot"></i>sample point</span>
       </section>
+
+      <section class="specs" aria-labelledby="specs-title">
+        <div>
+          <h2 id="specs-title">At a glance</h2>
+          <dl class="glance" id="glance"></dl>
+        </div>
+        <div>
+          <h2>Trade-offs</h2>
+          <h3>Strengths</h3>
+          <ul class="pros" id="strengths"></ul>
+          <h3>Limits</h3>
+          <ul class="cons" id="limits"></ul>
+        </div>
+      </section>
     </main>
+    <main id="guide" hidden></main>
+    </div>
 
     <footer>
-      bitbang.fyi · <a href="https://github.com/mitchelljiang/bitbang">source</a>
+      <span>bitbang.fyi</span>
+      <a href="https://github.com/mitchelljiang/bitbang">Source on GitHub</a>
     </footer>
 
     <script type="module" src="/src/main.ts"></script>

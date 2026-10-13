@@ -1,4 +1,4 @@
-import type { Bit, Field, Protocol } from '../core/types';
+import type { Bit, Field, Note, Protocol } from '../core/types';
 import { TraceBuilder, bin, hex, parseBytes, printable } from '../core/util';
 
 export const uart: Protocol = {
@@ -7,6 +7,30 @@ export const uart: Protocol = {
   summary:
     'One wire each way and no clock. Both sides agree on a baud rate in advance. The line sits high ' +
     'when idle, and the receiver times everything from the falling edge of the start bit.',
+  usedIn: 'Debug consoles, GPS modules, Bluetooth and Wi-Fi serial modules, and the USB-to-serial chip on most dev boards.',
+  facts: {
+    clock: 'None (asynchronous). Both sides run their own clock at an agreed baud rate and resync on every start bit.',
+    wires: 'TX and RX, plus a shared ground. Optional RTS/CTS for flow control.',
+    drive: 'Push-pull. Each TX pin is the only thing driving its wire.',
+    duplex: 'Full duplex. TX and RX are separate wires, so both directions can talk at once.',
+    topology: 'Point-to-point. One device on each end.',
+    addressing: 'None. There is only one possible receiver.',
+    flow: 'None by default. Optional hardware (RTS/CTS) or software (XON/XOFF) flow control.',
+    errors: 'Optional parity bit (catches any odd number of flipped bits). A 0 where the stop bit should be is a framing error.',
+    speed: '9600 and 115200 baud are the usual rates. Many chips manage 1 to 3 Mbaud or more; the limit is clock accuracy, not the protocol.',
+    reach: 'A meter or so at 3.3 V logic levels. About 15 m as RS-232, and over 1 km as differential RS-485.',
+  },
+  strengths: [
+    'Only two signal wires, and no clock line to route.',
+    'Nearly every microcontroller has one, and a cheap USB adapter lets a computer talk to it.',
+    'Human-readable when you send text, which is why it\'s the default debug console.',
+  ],
+  limits: [
+    'Both sides must be set to the same baud rate. Their clocks may drift apart by only about 2% each before bits are misread.',
+    'Start and stop bits cost 20% of the bandwidth with 8N1 (10 bits on the wire per 8 bits of data).',
+    'No addressing: each pair of wires connects exactly two devices.',
+    'Parity misses two flipped bits in the same byte, and there\'s no acknowledgment that anything was received.',
+  ],
   params: [
     { key: 'data', label: 'Data', type: 'text', default: 'Hi', placeholder: 'Hi' },
     {
@@ -40,6 +64,7 @@ export const uart: Protocol = {
     const tx = new TraceBuilder('TX', 1);
     const bits: Bit[] = [];
     const fields: Field[] = [];
+    const notes: Note[] = [{ lane: 0, t: 0.15, text: 'idle (high)' }];
     let t = 1;
 
     for (const raw of bytes) {
@@ -47,6 +72,7 @@ export const uart: Protocol = {
       const frameStart = t;
       const truncated = b !== raw ? ` (${hex(raw)} doesn't fit in ${nBits} bits, so only the low bits are sent)` : '';
 
+      if (!notes[1]) notes.push({ lane: 0, t, text: 'start bit pulls the line low' });
       tx.set(t, 0);
       bits.push({
         lane: 0, t0: t, t1: t + 1, label: 'S', kind: 'start', sample: t + 0.5,
@@ -80,6 +106,7 @@ export const uart: Protocol = {
         t++;
       }
 
+      if (notes.length === 2) notes.push({ lane: 0, t, text: 'stop bit: back to idle' });
       tx.set(t, 1);
       for (let s = 0; s < nStop; s++) {
         bits.push({
@@ -94,6 +121,6 @@ export const uart: Protocol = {
       t += 1; // a little idle time between frames, for readability
     }
 
-    return { traces: [tx.trace], bits, fields, duration: t, unitTime: 1 / +p.baud };
+    return { traces: [tx.trace], bits, fields, notes, duration: t, unitTime: 1 / +p.baud };
   },
 };

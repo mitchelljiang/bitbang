@@ -6,6 +6,7 @@ const TOP = 30;
 const LANE_H = 44;
 const ROW_H = 24;
 const GAP = 18;
+const NOTE_H = 22;
 /** Below this, "fit" would be unreadable (e.g. on a phone), so we scroll instead. */
 const MIN_FIT_PPU = 22;
 
@@ -46,11 +47,45 @@ function levelAt(trace: Trace, t: number): Level {
 /** Rough width of monospace text at 11px, to decide whether a label fits in its cell. */
 const fits = (label: string, width: number) => label.length * 6.8 + 6 <= width;
 
-/** SVG path for a trace, given time→x and level→y mappings. */
+/** Time an open-drain line takes to rise, in protocol units; shortened if the next edge comes sooner. */
+const RISE = 0.2;
+const rank = (v: Level) => (v === 0 ? 0 : v === 'z' ? 1 : 2);
+
+function riseTime(trace: Trace, i: number) {
+  const next = trace.points[i + 1];
+  return next ? Math.min(RISE, (next.t - trace.points[i].t) * 0.8) : RISE;
+}
+
+/**
+ * SVG path for a trace. Push-pull lines are drawn as square waves. Open-drain lines fall sharply but rise along
+ * an RC charging curve (the "shark fin"), because only a pull-up resistor brings them back high.
+ */
 function tracePath(trace: Trace, duration: number, x: (t: number) => number, y: (v: Level) => number) {
-  let d = `M ${x(0)} ${y(trace.points[0].v)}`;
-  for (const pt of trace.points.slice(1)) d += ` H ${x(pt.t)} V ${y(pt.v)}`;
+  const pts = trace.points;
+  let d = `M ${x(0)} ${y(pts[0].v)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const { t, v } = pts[i];
+    d += ` H ${x(t)}`;
+    if (trace.openDrain && rank(v) > rank(pts[i - 1].v)) {
+      const y0 = y(pts[i - 1].v);
+      const y1 = y(v);
+      const w = x(t + riseTime(trace, i)) - x(t);
+      for (let k = 1; k <= 12; k++) {
+        const s = k / 12;
+        d += ` L ${x(t) + s * w} ${y0 + (y1 - y0) * ((1 - Math.exp(-5 * s)) / (1 - Math.exp(-5)))}`;
+      }
+    } else {
+      d += ` V ${y(v)}`;
+    }
+  }
   return d + ` H ${x(duration)}`;
+}
+
+/** Where an edge visibly reaches its new level: the end of the curve for an open-drain rise, otherwise the edge itself. */
+function edgeEnd(trace: Trace, t: number) {
+  const i = trace.points.findIndex((p) => p.t === t);
+  if (i > 0 && trace.openDrain && rank(trace.points[i].v) > rank(trace.points[i - 1].v)) return t + riseTime(trace, i);
+  return t;
 }
 
 export interface RenderOptions {
@@ -74,9 +109,11 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   const width = Math.ceil(x(w.duration) + 8);
 
   // Lay out each lane: the trace, then an optional bit row and field row.
-  const layout = w.traces.map(() => ({ y: 0, bitY: -1, fieldY: -1 }));
+  const notes = w.notes ?? [];
+  const layout = w.traces.map(() => ({ y: 0, bitY: -1, fieldY: -1, noteY: -1 }));
   let y = TOP;
   w.traces.forEach((_, i) => {
+    if (notes.some((n) => n.lane === i)) { layout[i].noteY = y; y += NOTE_H; }
     layout[i].y = y;
     y += LANE_H;
     if (w.bits.some((b) => b.lane === i)) { layout[i].bitY = y; y += ROW_H; }
@@ -106,6 +143,30 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     parts.push(`<text class="lane-name" x="8" y="${ly + LANE_H / 2 + 4}">${esc(trace.name)}</text>`);
     parts.push(`<path class="trace" d="${tracePath(trace, w.duration, x, (v) => yOf(i, v))}"/>`);
   });
+
+  // Callouts: a label above the lane with a thin leader down to the wire. Skipped when it would overlap the previous one.
+  const noteEnd = new Map<number, number>();
+  for (const n of [...notes].sort((a, b) => a.t - b.t)) {
+    const nx = x(n.t);
+    const textW = n.text.length * 6.2;
+    const anchorEnd = nx + textW > width - 4;
+    const left = anchorEnd ? nx - textW : nx;
+    if (left < (noteEnd.get(n.lane) ?? 0) + 10) continue;
+    noteEnd.set(n.lane, left + textW);
+    const ny = layout[n.lane].noteY;
+    // Point at the top corner of the edge (or at the wire, if nothing changes there).
+    const trace = w.traces[n.lane];
+    const before = yOf(n.lane, levelAt(trace, n.t - 1e-6));
+    const after = yOf(n.lane, levelAt(trace, n.t));
+    const tipX = before > after ? x(edgeEnd(trace, n.t)) : nx;
+    const tipY = Math.min(before, after);
+    const textX = anchorEnd ? tipX + 4 : tipX - 4;
+    parts.push(
+      `<g class="note"><line x1="${tipX}" x2="${tipX}" y1="${ny + NOTE_H - 4}" y2="${tipY - 3}"/>` +
+      `<circle cx="${tipX}" cy="${tipY}" r="2.5"/>` +
+      `<text x="${textX}" y="${ny + NOTE_H - 8}" text-anchor="${anchorEnd ? 'end' : 'start'}">${esc(n.text)}</text></g>`,
+    );
+  }
 
   // Sample points: a dot on the wire where the receiver reads each bit.
   for (const bit of w.bits) {

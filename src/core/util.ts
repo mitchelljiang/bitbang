@@ -6,8 +6,8 @@ export const MAX_BYTES = 16;
 export class TraceBuilder {
   trace: Trace;
 
-  constructor(name: string, initial: Level) {
-    this.trace = { name, points: [{ t: 0, v: initial }] };
+  constructor(name: string, initial: Level, openDrain = false) {
+    this.trace = { name, points: [{ t: 0, v: initial }], ...(openDrain && { openDrain }) };
   }
 
   set(t: number, v: Level): void {

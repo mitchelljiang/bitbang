@@ -1,4 +1,4 @@
-import type { Bit, Field, Protocol } from '../core/types';
+import type { Bit, Field, Note, Protocol } from '../core/types';
 import { TraceBuilder, hex, parseBytes, printable } from '../core/util';
 
 const MODE_INFO = [
@@ -14,6 +14,30 @@ export const spi: Protocol = {
   summary:
     'The controller drives the clock and pulls CS low to pick a device. Each clock cycle moves one ' +
     'bit out on MOSI and one bit back on MISO, at the same time.',
+  usedIn: 'Flash memory, SD cards, small displays, fast ADCs and DACs, and some radio chips.',
+  facts: {
+    clock: 'Synchronous. The controller drives SCLK, and data is sampled on one of its edges (set by the SPI mode).',
+    wires: 'SCLK, MOSI and MISO, shared by all targets, plus one CS line per target. 4 wires for one target, 3 + N for N targets.',
+    drive: 'Push-pull. A target only drives MISO while its CS is low and leaves it released (high-Z) otherwise.',
+    duplex: 'Full duplex. Every clock cycle shifts one bit out on MOSI and one bit in on MISO.',
+    topology: 'One controller, one or more targets, each picked by its own chip select. Some parts can be daisy-chained instead.',
+    addressing: 'By wire: the CS line is the address. No address bits go over the bus.',
+    flow: 'None. The controller sets the pace, and a target has no way to say "wait".',
+    errors: 'None in the protocol. Some devices add their own CRC or status bytes.',
+    speed: 'Commonly 1 to 50 MHz. Quad SPI flash runs above 100 MHz using four data lines.',
+    reach: 'Board level: centimeters, maybe a short cable. Fast edges and clock-to-data skew limit longer runs.',
+  },
+  strengths: [
+    'Fast, and simple to build: underneath it\'s just two shift registers and a clock.',
+    'Full duplex, with no address or acknowledgment overhead. Every clock cycle carries data.',
+    'Any word length and any data rate the target can handle; no fixed framing.',
+  ],
+  limits: [
+    'Pin count grows with every target, because each one needs its own CS line.',
+    'No acknowledgment. If no target is connected, the controller just reads back whatever is on MISO, usually all 1s or all 0s.',
+    'Not really a single standard: clock mode, bit order, word size and max speed vary from chip to chip, so you check each datasheet.',
+    'Only works over short distances.',
+  ],
   params: [
     { key: 'data', label: 'MOSI', type: 'text', default: '9F 00 00', placeholder: '9F 00 00' },
     { key: 'miso', label: 'MISO', type: 'text', default: 'FF EF 40', placeholder: 'FF EF 40' },
@@ -118,9 +142,16 @@ export const spi: Protocol = {
         'command they received only at this moment.',
     });
 
+    const notes: Note[] = [
+      { lane: 0, t: csLow, text: 'CS low: target selected' },
+      { lane: 0, t: csHigh, text: 'CS high: done' },
+      { lane: 1, t: csLow + 0.5 + (cpha ? 0.5 : 0), text: `both sides sample on this ${cpha === cpol ? 'rising' : 'falling'} edge` },
+      { lane: 3, t: 0.15, text: 'released (high-Z)' },
+    ];
+
     return {
       traces: [cs.trace, sclk.trace, mosi.trace, miso.trace],
-      bits, fields, duration: csHigh + 1, unitTime: 1 / +p.clock,
+      bits, fields, notes, duration: csHigh + 1, unitTime: 1 / +p.clock,
     };
   },
 };

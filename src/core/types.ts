@@ -5,6 +5,8 @@ export type Level = 0 | 1 | 'z';
 export interface Trace {
   name: string;
   points: { t: number; v: Level }[];
+  /** Pulled high by a resistor (I²C), so it rises slowly along an RC curve and falls fast. */
+  openDrain?: boolean;
 }
 
 export type Kind = 'start' | 'stop' | 'data' | 'parity' | 'ack' | 'nack' | 'addr' | 'rw';
@@ -34,10 +36,18 @@ export interface Field {
   kind: Kind;
 }
 
+/** A short callout written above a trace, pointing at one moment (e.g. "idle high"). */
+export interface Note {
+  lane: number;
+  t: number;
+  text: string;
+}
+
 export interface Waveform {
   traces: Trace[];
   bits: Bit[];
   fields: Field[];
+  notes?: Note[];
   duration: number;
   /** Seconds per time unit, for the ruler. */
   unitTime: number;
@@ -47,10 +57,18 @@ export type Param =
   | { key: string; label: string; type: 'select'; options: { value: string; label: string }[]; default: string }
   | { key: string; label: string; type: 'text'; default: string; placeholder?: string };
 
+/** The questions every protocol has to answer. Each one has a section in the guide page. */
+export type FactKey = 'clock' | 'wires' | 'drive' | 'duplex' | 'topology' | 'addressing' | 'flow' | 'errors' | 'speed' | 'reach';
+
 export interface Protocol {
   id: string;
   name: string;
   summary: string;
+  /** Where you'd run into it in practice: a short list of real parts and uses. */
+  usedIn: string;
+  facts: Record<FactKey, string>;
+  strengths: string[];
+  limits: string[];
   params: Param[];
   /** Throws an Error with a user-facing message on invalid input. */
   encode(params: Record<string, string>): Waveform;

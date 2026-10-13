@@ -20,7 +20,7 @@ Each protocol is a single file in `src/protocols/` that exports a `Protocol`. It
 - **bits**: annotated bits (start, data, ACK…) with an explanation and sample time
 - **fields**: higher-level groupings, like bytes and addresses
 
-The renderer and stepper are protocol-agnostic. Add the new protocol to `src/protocols/index.ts` and it appears as a tab.
+The renderer and stepper are protocol-agnostic. Add the new protocol to `src/protocols/index.ts` and it becomes a link in the Protocols menu. The first protocol in that list is what the site opens on.
 
 ## Deploy
 
