@@ -66,7 +66,7 @@ function tracePath(trace: Trace, duration: number, x: (t: number) => number, y: 
   for (let i = 1; i < pts.length; i++) {
     const { t, v } = pts[i];
     d += ` H ${x(t)}`;
-    if (trace.openDrain && rank(v) > rank(pts[i - 1].v)) {
+    if ((trace.openDrain || pts[i].soft) && rank(v) > rank(pts[i - 1].v)) {
       const y0 = y(pts[i - 1].v);
       const y1 = y(v);
       const w = x(t + riseTime(trace, i)) - x(t);
@@ -84,7 +84,8 @@ function tracePath(trace: Trace, duration: number, x: (t: number) => number, y: 
 /** Where an edge visibly reaches its new level: the end of the curve for an open-drain rise, otherwise the edge itself. */
 function edgeEnd(trace: Trace, t: number) {
   const i = trace.points.findIndex((p) => p.t === t);
-  if (i > 0 && trace.openDrain && rank(trace.points[i].v) > rank(trace.points[i - 1].v)) return t + riseTime(trace, i);
+  const p = trace.points[i];
+  if (i > 0 && (trace.openDrain || p.soft) && rank(p.v) > rank(trace.points[i - 1].v)) return t + riseTime(trace, i);
   return t;
 }
 
@@ -184,7 +185,9 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     const ry = layout[bit.lane].bitY;
     const bx = x(bit.t0) + 1;
     const bw = Math.max(1, (bit.t1 - bit.t0) * ppu - 2);
-    const label = fits(bit.label, bw) ? `<text x="${bx + bw / 2}" y="${ry + ROW_H / 2 + 4}">${esc(bit.label)}</text>` : '';
+    // Narrow cells fall back to the first letter (ACK → A), then to no label.
+    const text = fits(bit.label, bw) ? bit.label : fits(bit.label[0], bw) ? bit.label[0] : '';
+    const label = text ? `<text x="${bx + bw / 2}" y="${ry + ROW_H / 2 + 4}">${esc(text)}</text>` : '';
     parts.push(
       `<g class="cell k-${bit.kind}${bit.by ? ' by-' + bit.by : ''}" data-step="${stepOf.get(bit)}" data-bit="${n}">` +
       `<rect x="${bx}" y="${ry + 2}" width="${bw}" height="${ROW_H - 4}" rx="2"/>${label}</g>`,

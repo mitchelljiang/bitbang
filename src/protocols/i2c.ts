@@ -1,12 +1,12 @@
 import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
-import { TraceBuilder, hex, parseBytes, printable } from '../core/util';
+import { TraceBuilder, bin, hex, parseBytes, printable } from '../core/util';
 
 export const i2c: Protocol = {
   id: 'i2c',
   name: 'I²C',
   summary:
     'Two wires with pull-up resistors. Devices can pull a line low but never drive it high. Each ' +
-    'target has a 7-bit address, and whoever receives a byte answers with an ACK.',
+    'target has an address (7 bits, or optionally 10), and whoever receives a byte answers with an ACK.',
   usedIn: 'Temperature and motion sensors, EEPROMs, real-time clocks, and small OLED displays, often many of them on the same two wires.',
   facts: {
     clock: 'Synchronous. The controller drives SCL, but a target can hold it low to pause the transfer (clock stretching).',
@@ -14,7 +14,7 @@ export const i2c: Protocol = {
     drive: 'Open-drain. Devices can only pull a line low; the pull-up resistor brings it back high, which is why the rising edges are slow.',
     duplex: 'Half duplex. SDA carries data in one direction at a time.',
     topology: 'Multi-drop bus: many targets, and optionally several controllers, on the same two wires.',
-    addressing: '7-bit addresses sent at the start of each transfer, so about 112 usable. A rarely used 10-bit mode exists.',
+    addressing: '7-bit addresses sent at the start of each transfer, so about 112 usable. An optional 10-bit mode sends the address in two bytes.',
     flow: 'ACK/NACK after every byte, plus clock stretching when a target needs more time.',
     errors: 'ACK only shows that someone received a byte, not that it was right. There\'s no checksum (SMBus adds an optional CRC-8, called PEC).',
     speed: '100 kHz (Standard), 400 kHz (Fast), 1 MHz (Fast-mode Plus), and 3.4 MHz (High-speed, rarely used).',
@@ -32,7 +32,11 @@ export const i2c: Protocol = {
     'One stuck device holding SDA low can hang the entire bus until it\'s reset.',
   ],
   params: [
-    { key: 'addr', label: 'Address', type: 'text', default: '50', placeholder: '50 (hex, 7-bit)' },
+    { key: 'addr', label: 'Address', type: 'text', default: '50', placeholder: '50 (hex)' },
+    {
+      key: 'addrMode', label: 'Address size', type: 'select', default: '7',
+      options: [{ value: '7', label: '7-bit' }, { value: '10', label: '10-bit' }],
+    },
     {
       key: 'rw', label: 'Direction', type: 'select', default: 'w',
       options: [{ value: 'w', label: 'Write (controller → target)' }, { value: 'r', label: 'Read (target → controller)' }],
@@ -57,10 +61,14 @@ export const i2c: Protocol = {
   ],
 
   encode(p) {
+    const ten = p.addrMode === '10';
     const addrText = p.addr.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,2}$/i.test(addrText)) throw new Error('The address should be a hex number like 50 or 0x3C.');
+    if (!/^[0-9a-f]{1,3}$/i.test(addrText)) throw new Error('The address should be a hex number like 50 or 0x3C.');
     const addr = parseInt(addrText, 16);
-    if (addr > 0x7f) throw new Error(`${hex(addr)} is more than 7 bits. I²C addresses go from 0x00 to 0x7F.`);
+    if (!ten && addr > 0x7f) {
+      throw new Error(`${hex(addr)} is more than 7 bits. 7-bit addresses go from 0x00 to 0x7F. Switch Address size to 10-bit for larger ones.`);
+    }
+    if (ten && addr > 0x3ff) throw new Error(`${hex(addr)} is more than 10 bits. 10-bit addresses go from 0x000 to 0x3FF.`);
     const read = p.rw === 'r';
     const present = p.present === 'yes';
     const bytes = parseBytes(p.data, p.format);
@@ -92,28 +100,89 @@ export const i2c: Protocol = {
       t += 1;
     };
 
-    const addrStart = t;
-    for (let i = 6; i >= 0; i--) {
-      const v = ((addr >> i) & 1) as 0 | 1;
-      slot(v, `A${i}`, 'addr', 'controller',
-        `Address bit ${i} = ${v}. The controller sends the 7-bit target address ${hex(addr)}, most significant bit first. ` +
-        'Every device compares it with its own address.');
-    }
-    slot(read ? 1 : 0, read ? 'R' : 'W', 'rw', 'controller',
-      `Read/write bit = ${read ? 1 : 0} (${read ? 'read' : 'write'}). Together with the address, this makes the first ` +
-      `byte ${hex((addr << 1) | (read ? 1 : 0))}. That's why datasheets sometimes list an "8-bit address" that is ` +
-      'really the 7-bit address shifted left.');
-    fields.push({ lane: 1, t0: addrStart, t1: t, label: `${hex(addr)} ${read ? 'R' : 'W'}`, kind: 'addr' });
+    // Repeated START: release SDA while SCL is low, raise SCL, then pull SDA low again while SCL is high.
+    const repeatedStart = () => {
+      sda.set(t + 0.25, 1);
+      scl.set(t + 0.5, 1);
+      sda.set(t + 1, 0);
+      scl.set(t + 1.5, 0);
+      bits.push({
+        lane: 1, t0: t + 0.5, t1: t + 1.5, label: 'Sr', kind: 'start',
+        info: 'Repeated START: a START without a STOP before it. The controller keeps the bus, so no other controller ' +
+          'can jump in, and it can now resend the address with the direction flipped to read.',
+      });
+      t += 1.5;
+    };
 
-    notes.push({ lane: 1, t: t + 0.25, text: present ? 'target pulls SDA low: ACK' : 'nobody answers: NACK' });
-    if (present) {
-      slot(0, 'ACK', 'ack', 'target',
-        `ACK: the target at ${hex(addr)} recognized its address and pulls SDA low during this clock cycle. The controller ` +
-        'released SDA, so the wire is now driven by the target.');
+    const rwSlot = (r: boolean, info: string) =>
+      slot(r ? 1 : 0, r ? 'R' : 'W', 'rw', 'controller', `Read/write bit = ${r ? 1 : 0} (${r ? 'read' : 'write'}). ${info}`);
+
+    /** First byte of a 10-bit address: the reserved 11110 prefix, then A9 and A8, then R/W. */
+    const tenBitHeader = (r: boolean) => {
+      const start = t;
+      for (const v of [1, 1, 1, 1, 0] as const) {
+        slot(v, `${v}`, 'addr', 'controller',
+          'Part of the reserved 11110 prefix. No 7-bit device has an address starting with 11110, so they all ignore ' +
+          'this transfer, and 10-bit devices know the next two bits are the top of their address.');
+      }
+      for (const i of [9, 8]) {
+        const v = ((addr >> i) & 1) as 0 | 1;
+        slot(v, `A${i}`, 'addr', 'controller', `Address bit ${i} = ${v}, one of the two high bits of the 10-bit address ${hex(addr)}.`);
+      }
+      rwSlot(r, r
+        ? 'After the repeated START, only the top two address bits are resent, now with R, and the target that was ' +
+          'already addressed answers.'
+        : 'The first byte of a 10-bit address always says write, even for a read, because the second address byte ' +
+          'still has to be sent to the target.');
+      const header = 0xf0 | ((addr >> 8) << 1) | (r ? 1 : 0);
+      fields.push({ lane: 1, t0: start, t1: t, label: `${hex(header)} 11110+A9A8 ${r ? 'R' : 'W'}`, kind: 'addr' });
+    };
+
+    const addrAck = (who: string) => {
+      notes.push({ lane: 1, t: t + 0.25, text: present ? 'target pulls SDA low: ACK' : 'nobody answers: NACK' });
+      if (present) {
+        slot(0, 'ACK', 'ack', 'target',
+          `ACK: ${who} pulls SDA low during this clock cycle. The controller released SDA, so the wire is now driven by ` +
+          'the target.');
+      } else {
+        slot(1, 'NACK', 'nack', 'controller',
+          `NACK: no device answered to ${hex(addr)}, so nobody pulled SDA low and the pull-up kept it high. The ` +
+          'controller gives up and sends STOP. This is exactly what an I²C bus scanner looks for.');
+      }
+    };
+
+    if (!ten) {
+      const addrStart = t;
+      for (let i = 6; i >= 0; i--) {
+        const v = ((addr >> i) & 1) as 0 | 1;
+        slot(v, `A${i}`, 'addr', 'controller',
+          `Address bit ${i} = ${v}. The controller sends the 7-bit target address ${hex(addr)}, most significant bit ` +
+          'first. Every device compares it with its own address.');
+      }
+      rwSlot(read,
+        `Together with the address, this makes the first byte ${hex((addr << 1) | (read ? 1 : 0))}. That's why ` +
+        'datasheets sometimes list an "8-bit address" that is really the 7-bit address shifted left.');
+      fields.push({ lane: 1, t0: addrStart, t1: t, label: `${hex(addr)} ${read ? 'R' : 'W'}`, kind: 'addr' });
+      addrAck(`the target at ${hex(addr)} recognized its address and`);
     } else {
-      slot(1, 'NACK', 'nack', 'controller',
-        `NACK: no device answered to ${hex(addr)}, so nobody pulled SDA low and the pull-up kept it high. The controller ` +
-        'gives up and sends STOP. This is exactly what an I²C bus scanner looks for.');
+      tenBitHeader(false);
+      addrAck(`every 10-bit target whose top two address bits are ${bin(addr >> 8, 2)}`);
+      if (present) {
+        const start = t;
+        for (let i = 7; i >= 0; i--) {
+          const v = ((addr >> i) & 1) as 0 | 1;
+          slot(v, `A${i}`, 'addr', 'controller',
+            `Address bit ${i} = ${v}. The second byte carries the low 8 bits of the 10-bit address ${hex(addr)}.`);
+        }
+        fields.push({ lane: 1, t0: start, t1: t, label: `${hex(addr & 0xff)} A7–A0`, kind: 'addr' });
+        slot(0, 'ACK', 'ack', 'target',
+          `ACK: only the target whose full address is ${hex(addr)} answers this time. It is now the addressed target.`);
+        if (read) {
+          repeatedStart();
+          tenBitHeader(true);
+          slot(0, 'ACK', 'ack', 'target', `ACK: the target at ${hex(addr)} confirms it's ready to send data.`);
+        }
+      }
     }
 
     if (present) {

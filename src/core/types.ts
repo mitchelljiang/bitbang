@@ -4,7 +4,8 @@ export type Level = 0 | 1 | 'z';
 /** One wire, described as the times at which its level changes. Time is in protocol units (e.g. bit periods). */
 export interface Trace {
   name: string;
-  points: { t: number; v: Level }[];
+  /** `soft` marks a rise that happens through a pull-up rather than a driver, for buses that switch modes (I3C). */
+  points: { t: number; v: Level; soft?: boolean }[];
   /** Pulled high by a resistor (I²C), so it rises slowly along an RC curve and falls fast. */
   openDrain?: boolean;
 }

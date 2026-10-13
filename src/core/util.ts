@@ -10,7 +10,7 @@ export class TraceBuilder {
     this.trace = { name, points: [{ t: 0, v: initial }], ...(openDrain && { openDrain }) };
   }
 
-  set(t: number, v: Level): void {
+  set(t: number, v: Level, soft = false): void {
     const pts = this.trace.points;
     const last = pts[pts.length - 1];
     if (last.v === v) return;
@@ -18,7 +18,7 @@ export class TraceBuilder {
       pts.pop();
       if (pts.length && pts[pts.length - 1].v === v) return;
     }
-    pts.push({ t, v });
+    pts.push(soft ? { t, v, soft } : { t, v });
   }
 }
 
