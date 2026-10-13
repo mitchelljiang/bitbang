@@ -282,7 +282,7 @@ window.addEventListener('resize', () => {
   resizeTimer = window.setTimeout(() => !vizView.hidden && update(), 150);
 });
 
-// ---- routing: ?p=<id> picks the protocol; anything else opens UART ----
+// ---- routing: ?p=<id> shows that protocol; anything else (including no ?p) shows the guide ----
 
 const menu = mountMenu($<HTMLDetailsElement>('#menu'));
 mountThemeToggle($<HTMLButtonElement>('#theme'));
@@ -291,7 +291,8 @@ mountGuide(guideView);
 
 function route() {
   const q = new URLSearchParams(location.search);
-  const showGuide = q.get('p') === 'basics';
+  const p = protocols.find((x) => x.id === q.get('p'));
+  const showGuide = !p;
   vizView.hidden = showGuide;
   guideView.hidden = !showGuide;
   if (showGuide) {
@@ -299,7 +300,6 @@ function route() {
     menu.setCurrent('basics');
     document.title = 'How protocols work · bitbang';
   } else {
-    const p = protocols.find((x) => x.id === q.get('p')) ?? protocols[0];
     menu.setCurrent(p.id);
     readUrl(q, p);
     buildAll();
