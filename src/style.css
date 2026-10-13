@@ -445,13 +445,6 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .guide li { margin: 6px 0; }
 .guide section:target h2 { color: var(--accent); }
 
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
-.guide table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 15px; }
-.guide th, .guide td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
-.guide thead th { font: 700 14px var(--mono); border-bottom-color: var(--line); }
-.guide tbody th { font-weight: 600; white-space: nowrap; }
-.guide td { color: var(--muted); }
-.guide tr:last-child th, .guide tr:last-child td { border-bottom: 0; }
 
 /* ---- footer ---- */
 

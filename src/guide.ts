@@ -123,27 +123,6 @@ const SECTIONS = `
     once a wire is long compared to the edge time, cause reflections. The usual escape is to change the physical layer
     rather than the protocol: the same UART framing goes about 15 m as RS-232 and over a kilometer as differential
     RS-485.</p>
-</section>
-
-<section id="compare">
-  <h2>UART, SPI and I²C side by side</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th></th><th scope="col">UART</th><th scope="col">SPI</th><th scope="col">I²C</th></tr></thead>
-      <tbody>
-        <tr><th scope="row">Clock</th><td>None</td><td>Controller drives SCLK</td><td>Controller drives SCL; targets can stretch it</td></tr>
-        <tr><th scope="row">Signal wires</th><td>2 (TX, RX)</td><td>3 + 1 per target</td><td>2 (SCL, SDA)</td></tr>
-        <tr><th scope="row">Drive</th><td>Push-pull</td><td>Push-pull</td><td>Open-drain + pull-ups</td></tr>
-        <tr><th scope="row">Duplex</th><td>Full</td><td>Full</td><td>Half</td></tr>
-        <tr><th scope="row">Topology</th><td>Point-to-point</td><td>One controller, selected targets</td><td>Shared bus</td></tr>
-        <tr><th scope="row">Addressing</th><td>None</td><td>Chip select wire</td><td>7-bit address</td></tr>
-        <tr><th scope="row">Acknowledgment</th><td>No</td><td>No</td><td>Every byte</td></tr>
-        <tr><th scope="row">Error checking</th><td>Optional parity</td><td>None</td><td>None (ACK only)</td></tr>
-        <tr><th scope="row">Typical speed</th><td>9.6 kbaud to ~3 Mbaud</td><td>1 to 50+ MHz</td><td>100 kHz to 1 MHz</td></tr>
-        <tr><th scope="row">Good for</th><td>Consoles, modules, PC links</td><td>Flash, displays, fast data</td><td>Many slow sensors on few pins</td></tr>
-      </tbody>
-    </table>
-  </div>
 </section>`;
 
 export function mountGuide(root: HTMLElement) {
@@ -153,14 +132,12 @@ export function mountGuide(root: HTMLElement) {
         <p class="crumbs">Guide</p>
         <h1>How protocols work</h1>
         <p>Every protocol is a set of answers to the same handful of questions: when to read a bit, who drives the wire,
-          how a message starts, who it's for, and what happens when something goes wrong. Here are those questions, and
-          how UART, SPI and I²C answer each one.</p>
+          how a message starts, who it's for, and what happens when something goes wrong.</p>
       </header>
       <nav class="toc" aria-label="On this page">
         <a href="#clock">Clock</a><a href="#wires">Wires</a><a href="#drive">Drive</a><a href="#duplex">Duplex</a>
         <a href="#topology">Topology</a><a href="#addressing">Addressing</a><a href="#framing">Framing</a>
         <a href="#flow">Flow control</a><a href="#errors">Errors</a><a href="#speed">Speed</a><a href="#reach">Reach</a>
-        <a href="#compare">Comparison</a>
       </nav>
       ${SECTIONS}
     </article>`;
