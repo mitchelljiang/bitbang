@@ -12,33 +12,34 @@ export const rs232: Protocol = {
   id: 'rs232',
   name: 'RS-232',
   fullName: 'Recommended Standard 232 (now TIA‑232)',
+  tags: ['asynchronous', 'single-ended', 'push-pull', 'full duplex', 'point-to-point', 'cable'],
   summary:
-    'The old serial port. The framing is exactly UART, but a transceiver turns the logic levels into large voltages ' +
-    'and inverts them: a 1 (called mark) is negative, somewhere between −3 and −15 V, and a 0 (space) is positive. ' +
-    'The big swing is what lets it survive a few meters of noisy cable.',
-  usedIn: 'Lab instruments, CNC machines and industrial controllers, console ports on network switches, and older PCs and modems.',
+    'The traditional serial port. The framing is identical to UART, but a transceiver converts the logic levels into ' +
+    'larger voltages and inverts them: a 1 (called mark) is a negative voltage between −3 and −15 V, and a 0 (space) ' +
+    'is positive. The large voltage swing allows the signal to tolerate several meters of electrically noisy cable.',
+  usedIn: 'Laboratory instruments, CNC machines and industrial controllers, console ports on network switches, and older PCs and modems.',
   facts: {
-    clock: 'None. It carries ordinary UART frames, so both ends agree on a baud rate.',
-    wires: 'TxD, RxD and ground at minimum. A full DB9 port adds RTS/CTS, DTR/DSR, DCD and RI handshake lines.',
-    drive: 'Push-pull and bipolar: −3 to −15 V is a 1 and +3 to +15 V is a 0. Chips like the MAX3232 make those voltages from a 3.3 or 5 V supply with charge pumps.',
+    clock: 'None. RS-232 carries standard UART frames, so both devices must use the same baud rate.',
+    wires: 'TxD, RxD and ground at minimum. A full DB9 port adds the RTS/CTS, DTR/DSR, DCD and RI handshake lines.',
+    drive: 'Push-pull and bipolar: −3 to −15 V represents a 1, and +3 to +15 V a 0. Transceivers such as the MAX3232 generate these voltages from a 3.3 V or 5 V supply using charge pumps.',
     duplex: 'Full duplex. TxD and RxD are separate wires.',
-    topology: 'Point-to-point. One device on each end, traditionally a computer (DTE) and a modem (DCE).',
+    topology: 'Point-to-point: one device at each end, traditionally a computer (DTE) and a modem (DCE).',
     addressing: 'None.',
-    flow: 'Hardware flow control on RTS/CTS, or software XON/XOFF characters.',
+    flow: 'Hardware flow control using RTS/CTS, or software flow control using XON/XOFF characters.',
     errors: 'Those provided by the UART framing: an optional parity bit and framing errors.',
-    speed: 'Usually 9600 to 115200 baud. The original standard only promised 20 kbit/s; modern transceivers manage around 1 Mbit/s on short cables.',
+    speed: 'Usually 9600 to 115200 baud. The original standard specified only 20 kbit/s; modern transceivers reach about 1 Mbit/s on short cables.',
     reach: 'About 15 m at moderate speeds. Longer cables work at lower baud rates.',
   },
   strengths: [
-    'Large voltage swings tolerate noise far better than 3.3 V UART pins.',
-    'Still everywhere on industrial and lab equipment, and USB adapters are inexpensive.',
+    'Large voltage swings tolerate noise far better than 3.3 V logic signals.',
+    'Still common on industrial and laboratory equipment, and USB adapters are inexpensive.',
     'Simple: in software it is an ordinary UART.',
   ],
   limits: [
-    'Needs a transceiver chip. Wiring RS-232 straight to a microcontroller pin can destroy it.',
-    'Single-ended, so a difference in ground voltage between the two ends shows up as errors.',
-    'Point-to-point only, and slow compared to anything differential.',
-    'Many connector pinouts and "null modem" cable variants to get wrong.',
+    'Requires a transceiver chip. Connecting RS-232 directly to a microcontroller pin can damage it.',
+    'Single-ended, so a difference in ground voltage between the two devices appears as errors.',
+    'Point-to-point only, and slow compared with differential links.',
+    'Many connector pinouts and null-modem cable variants make wiring errors common.',
   ],
   deepDive: [
     {
@@ -70,7 +71,7 @@ export const rs232: Protocol = {
     {
       title: 'Cable length',
       body: [
-        'The original standard limits the load capacitance to 2500 pF, which corresponds to about 15 m of typical cable at 19.2 kbaud. Lower baud rates and low-capacitance cable allow considerably longer runs. For longer distances or multiple devices, RS-422 or RS-485 is the usual replacement.',
+        'The original standard limits the load capacitance to 2500 pF, which corresponds to about 15 m of typical cable at 19.2 kbaud. Lower baud rates and low-capacitance cable allow considerably longer runs. For longer distances or multiple devices, RS-422 or [RS-485](?p=rs485) is the usual replacement.',
       ],
     },
   ],
@@ -93,12 +94,12 @@ export const rs232: Protocol = {
 
     const notes = [
       ...(w.notes ?? []),
-      { lane: 1, t: 0.15, text: 'idle (mark) is negative' },
-      { lane: 1, t: 1, text: 'start bit (space): positive' },
+      { lane: 1, t: 0.15, text: 'idle (mark): negative voltage' },
+      { lane: 1, t: 1, text: 'start bit (space): positive voltage' },
     ];
     const bits = w.bits.map((b) => ({
       ...b,
-      info: `${b.info} On the RS-232 wire this is ${b.label === 'S' ? 'positive' : 'the inverse voltage: a 1 is negative and a 0 is positive'}.`,
+      info: `${b.info} On the RS-232 line, ${b.label === 'S' ? 'this bit is a positive voltage' : 'the voltage is inverted: a 1 is negative and a 0 is positive'}.`,
     }));
     return { ...w, traces: [tx, line.trace], bits, notes };
   },

@@ -19,33 +19,34 @@ export const onewire: Protocol = {
   id: 'onewire',
   name: '1-Wire',
   fullName: 'Dallas/Maxim single-wire bus',
+  tags: ['asynchronous', 'single-ended', 'open-drain', 'half duplex', 'multi-drop', 'addressed', 'cable'],
   summary:
-    'One wire for data, and often for power too. There is no clock: the controller starts every bit by pulling the ' +
-    'line low, and how long it stays low is the bit. A short pulse is a 1 and a long one is a 0. Every transaction ' +
-    'starts with a reset pulse, which devices answer with a presence pulse.',
-  usedIn: 'DS18B20 temperature probes, iButton keys, ID chips in battery packs, printer cartridges and laptop chargers.',
+    'A bus that uses a single wire for data, and often for power as well. There is no clock: the controller begins ' +
+    'every bit by pulling the line low, and the length of the low pulse determines the bit. A short pulse is a 1 and a ' +
+    'long pulse is a 0. Every transaction begins with a reset pulse, to which devices respond with a presence pulse.',
+  usedIn: 'DS18B20 temperature probes, iButton keys, and identification chips in battery packs, printer cartridges and laptop chargers.',
   facts: {
-    clock: 'None. Each bit is a time slot the controller starts with a falling edge, and devices time the rest from that edge.',
-    wires: 'One data wire (DQ) plus ground. Devices can even run on "parasite power" stolen from the data line.',
+    clock: 'None. Each bit is a time slot that the controller begins with a falling edge, and devices time the rest of the slot from that edge.',
+    wires: 'One data wire (DQ) plus ground. Devices can also draw their power from the data line, known as parasite power.',
     drive: 'Open-drain with a pull-up resistor, typically 4.7 kΩ. Any device can pull the line low; no device drives it high.',
-    duplex: 'Half duplex. One wire, one direction at a time.',
-    topology: 'Multi-drop bus: one controller and many devices on the same wire.',
-    addressing: 'Every chip has a unique 64-bit ROM ID burned in at the factory: an 8-bit family code, a 48-bit serial number and an 8-bit CRC. A Search ROM command discovers them.',
-    flow: 'The controller starts every slot, so it sets the pace. Devices only answer within slots it opens.',
-    errors: 'CRC-8 on the ROM ID and on data like the DS18B20\'s scratchpad. Nothing per bit.',
+    duplex: 'Half duplex: a single wire carrying data in one direction at a time.',
+    topology: 'A shared bus: one controller and many devices on the same wire.',
+    addressing: 'Every device has a unique 64-bit ROM ID programmed at the factory: an 8-bit family code, a 48-bit serial number and an 8-bit CRC. The Search ROM command discovers them.',
+    flow: 'The controller begins every time slot, so it sets the pace. Devices respond only within slots that the controller opens.',
+    errors: 'A CRC-8 protects the ROM ID and data such as the DS18B20 scratchpad. Individual bits are not checked.',
     speed: 'About 15 kbit/s at standard speed, and about 125 kbit/s in overdrive mode.',
-    reach: 'Tens of meters with a plain pull-up, and more with a stronger, actively switched pull-up.',
+    reach: 'Tens of meters with a simple pull-up resistor, and more with a stronger, actively switched pull-up.',
   },
   strengths: [
-    'A single wire plus ground, even for power, which makes it ideal for probes on long cables.',
-    'Every device has a unique ID, so dozens of sensors can share one wire with no address setup.',
-    'Low-cost parts and minimal wiring.',
+    'A single wire plus ground, even for power, which suits sensors at the end of long cables.',
+    'Every device has a unique ID, so dozens of sensors can share one wire without any address configuration.',
+    'Low-cost devices and minimal wiring.',
   ],
   limits: [
     'Slow: a single bit takes about 70 µs.',
-    'Timing is tight. Bit-banging it means keeping interrupts off for the length of each slot.',
-    'Parasite-powered devices need a strong pull-up during operations like temperature conversions.',
-    'Mostly a single-vendor ecosystem (Maxim, now Analog Devices).',
+    'Timing requirements are strict; a software implementation must keep interrupts disabled for the duration of each slot.',
+    'Parasite-powered devices require a strong pull-up during operations such as temperature conversions.',
+    'Largely a single-vendor ecosystem (Maxim, now part of Analog Devices).',
   ],
   legend: { start: 'reset', ack: 'presence', nack: 'no presence', cmd: 'command (written)', data: 'data (read)' },
   deepDive: [
@@ -114,26 +115,26 @@ export const onewire: Protocol = {
     notes.push({ lane: 0, t, text: 'reset: held low for 480 µs' });
     bits.push({
       lane: 0, t0: t, t1: t + RESET_LOW * US, label: 'Reset', kind: 'start', by: 'controller',
-      info: 'Reset pulse: the controller holds the line low for at least 480 µs, much longer than any bit. Every device ' +
-        'on the wire stops what it was doing and gets ready for a new command.',
+      info: 'Reset pulse: the controller holds the line low for at least 480 µs, considerably longer than any bit. Every ' +
+        'device on the wire abandons its current operation and prepares for a new command.',
     });
     const release = t + RESET_LOW * US;
     if (present) {
       const p0 = release + PRESENCE_WAIT * US;
       dq.set(p0, 0);
       dq.set(p0 + PRESENCE_LOW * US, 1);
-      notes.push({ lane: 0, t: p0, text: 'presence: a device pulls low' });
+      notes.push({ lane: 0, t: p0, text: 'presence: a device pulls the line low' });
       bits.push({
         lane: 0, t0: p0, t1: p0 + PRESENCE_LOW * US, label: 'Presence', kind: 'ack', by: 'target', sample: release + 7,
         info: 'Presence pulse: about 30 µs after the reset ends, every device pulls the line low for 60 to 240 µs. The ' +
-          'controller checks the line 70 µs after releasing it. Low means at least one device is there.',
+          'controller samples the line 70 µs after releasing it; a low level indicates that at least one device is present.',
       });
     } else {
       bits.push({
         lane: 0, t0: release + PRESENCE_WAIT * US, t1: release + (PRESENCE_WAIT + PRESENCE_LOW) * US, label: 'None',
         kind: 'nack', sample: release + 7,
-        info: 'No presence pulse: the line stays high when the controller checks it 70 µs after the reset, so there is ' +
-          'no device on the wire (or it isn\'t powered). The controller stops here.',
+        info: 'No presence pulse: the line remains high when the controller samples it 70 µs after the reset, so no device ' +
+          'is present, or none is powered. The transaction ends here.',
       });
     }
     t += RESET_SLOT * US;
@@ -145,8 +146,8 @@ export const onewire: Protocol = {
         dq.set(t + (v ? 6 : 60) * US, 1);
         bits.push({
           lane: 0, t0: t, t1: t + SLOT * US, label, kind, by: 'controller', sample: t + 3,
-          info: `${info} Written as a ${v ? 'short (6 µs)' : 'long (60 µs)'} low pulse. The device looks at the line about ` +
-            '30 µs into the slot: still low means 0, back high means 1.',
+          info: `${info} It is written as a ${v ? 'short (6 µs)' : 'long (60 µs)'} low pulse. The device samples the line about ` +
+            '30 µs into the slot: a low level is read as 0, and a high level as 1.',
         });
       } else {
         dq.set(t + 6 * US, 1);
@@ -156,9 +157,9 @@ export const onewire: Protocol = {
         }
         bits.push({
           lane: 0, t0: t, t1: t + SLOT * US, label, kind, by: 'target', sample: t + 1.5,
-          info: `${info} The controller pulls low for a moment to start the slot, then lets go. ${v
-            ? 'The device leaves the line alone, so it floats back high: a 1.'
-            : 'The device keeps holding it low for about 30 µs: a 0.'} The controller reads the line 15 µs into the slot.`,
+          info: `${info} The controller pulls the line low briefly to begin the slot, then releases it. ${v
+            ? 'The device leaves the line released, so it returns high: a 1.'
+            : 'The device continues to hold the line low for about 30 µs: a 0.'} The controller samples the line 15 µs into the slot.`,
         });
       }
       t += SLOT * US;
@@ -178,7 +179,7 @@ export const onewire: Protocol = {
       }
       reads.forEach((b, n) => {
         const start = t;
-        if (n === 0) notes.push({ lane: 0, t, text: 'read slots: the device answers' });
+        if (n === 0) notes.push({ lane: 0, t, text: 'read slots: the device responds' });
         for (let i = 0; i < 8; i++) {
           const v = ((b >> i) & 1) as 0 | 1;
           slot(v, true, `${i}`, 'data', `Read bit ${i} of ${hex(b)} = ${v}.`);

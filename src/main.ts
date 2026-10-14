@@ -11,6 +11,7 @@ import { mountThemeToggle } from './theme';
 import { mountTour } from './tour';
 import { mountEye } from './eye';
 import { TOURS } from './tours';
+import { mountSearch } from './search';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -19,6 +20,7 @@ const title = $('#proto-name');
 const summary = $('#proto-summary');
 const usedIn = $('#proto-used');
 const fullName = $('#proto-full');
+const tagList = $('#proto-tags');
 const vizView = $('#viz');
 const guideView = $('#guide');
 const wipView = $('#wip');
@@ -121,6 +123,33 @@ function buildControls() {
   }
 }
 
+/** Pages already linked on this page. Only the first mention of each protocol becomes a link. */
+const linked = new Set<string>();
+
+/**
+ * A paragraph of protocol text. Links to other pages are written [text](?p=id); only those internal links are
+ * recognized, everything else is inserted as plain text, and a page that is already linked is shown as plain text.
+ */
+function paragraph(text: string) {
+  const p = document.createElement('p');
+  const re = /\[([^\]]+)\]\((\?p=[a-z0-9]+)\)/g;
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    p.append(text.slice(last, m.index));
+    if (linked.has(m[2])) {
+      p.append(m[1]);
+    } else {
+      linked.add(m[2]);
+      const a = Object.assign(document.createElement('a'), { href: m[2], textContent: m[1] });
+      a.setAttribute('data-nav', '');
+      p.append(a);
+    }
+    last = m.index! + m[0].length;
+  }
+  p.append(text.slice(last));
+  return p;
+}
+
 /** The spec sheet under the diagram. Each label links to its section in the guide. */
 function buildSpecs() {
   glance.replaceChildren(...FACTS.flatMap(({ key, label }) => {
@@ -142,11 +171,12 @@ function buildSpecs() {
   }
   extraFor = fig ? proto.id : '';
 
+  linked.clear();
   deep.hidden = !proto.deepDive?.length;
   deepBody.replaceChildren(...(proto.deepDive ?? []).map(({ title, body }) => {
     const topic = document.createElement('section');
     topic.append(Object.assign(document.createElement('h3'), { textContent: title }));
-    for (const para of body) topic.append(Object.assign(document.createElement('p'), { textContent: para }));
+    for (const para of body) topic.append(paragraph(para));
     return topic;
   }));
 }
@@ -158,6 +188,16 @@ function buildAll() {
   crumbCat.textContent = categoryOf(proto.id)?.name ?? '';
   summary.textContent = proto.summary;
   usedIn.textContent = proto.usedIn;
+  // Each tag searches the menu for every protocol that shares it.
+  tagList.replaceChildren(...proto.tags.map((tag) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tag-chip', textContent: tag });
+    b.title = `Find other ${tag} protocols`;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      search.search(tag);
+    });
+    return b;
+  }));
   buildSpecs();
   document.title = `${proto.name} · bitbang`;
   buildControls();
@@ -463,6 +503,7 @@ window.addEventListener('resize', () => {
 // ---- routing: ?p=<id> shows that protocol; anything else (including no ?p) shows the guide ----
 
 const menu = mountMenu($<HTMLDetailsElement>('#menu'));
+const search = mountSearch($('#top-search'));
 mountThemeToggle($<HTMLButtonElement>('#theme'));
 
 // The feedback address is put together here rather than written in the page, so simple scrapers can't harvest it.

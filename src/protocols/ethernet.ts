@@ -24,6 +24,7 @@ export const ethernet: Protocol = {
   id: 'ethernet',
   name: '10BASE-T',
   fullName: '10 Mbit/s Ethernet over twisted pair (IEEE 802.3i)',
+  tags: ['embedded clock', 'differential', 'half duplex', 'full duplex', 'star', 'addressed', 'cable', 'networking', 'Manchester'],
   summary:
     'The original twisted-pair Ethernet. Every bit is Manchester encoded: a 1 is a low-to-high transition in the middle ' +
     'of the bit and a 0 is high-to-low, so the receiver can recover the clock from the data itself. A frame is a ' +
@@ -48,8 +49,8 @@ export const ethernet: Protocol = {
   ],
   limits: [
     'Manchester doubles the signaling rate, so faster Ethernets switched to more efficient codes.',
-    'Lots of overhead for small messages: 8 bytes of preamble, padding to a 64-byte minimum frame, and a gap between frames.',
-    'Obsolete as a physical layer; today\'s ports run 100 Mbit/s and up, though most still fall back to 10BASE-T.',
+    'High overhead for small messages: 8 bytes of preamble, padding to a 64-byte minimum frame, and a gap between frames.',
+    'Obsolete as a physical layer; current ports run at 100 Mbit/s or faster, although most can still fall back to 10BASE-T.',
   ],
   legend: { start: 'preamble / SFD', addr: 'MAC address', cmd: 'EtherType', dummy: 'padding', parity: 'CRC-32', stop: 'end of frame' },
   deepDive: [
@@ -124,12 +125,12 @@ export const ethernet: Protocol = {
         info: `Destination MAC address ${macText(dst)}.${dst.every((b) => b === 0xff) ? ' All ones means broadcast: every device accepts it.' : ''}` },
       { bytes: src, label: `From ${macText(src)}`, kind: 'addr', info: `Source MAC address ${macText(src)}.` },
       { bytes: [type >> 8, type & 0xff], label: `Type 0x${typeText.toUpperCase().padStart(4, '0')}`, kind: 'cmd',
-        info: 'EtherType: what kind of payload follows (0x0800 is IPv4, 0x86DD is IPv6, 0x88B5 is reserved for local experiments). It\'s sent most significant byte first.' },
+        info: 'EtherType: what kind of payload follows (0x0800 is IPv4, 0x86DD is IPv6, 0x88B5 is reserved for local experiments). It is sent most significant byte first.' },
       { bytes: payload, label: `Payload (${payload.length} byte${payload.length === 1 ? '' : 's'})`, kind: 'data', info: 'Payload.' },
       { bytes: new Array(pad).fill(0), label: `Padding (${pad} bytes)`, kind: 'dummy',
         info: `Padding: the payload must be at least 46 bytes so the whole frame is at least 64 bytes. On a shared hub, that minimum length is what guarantees a sender is still transmitting when news of a collision reaches it.` },
       { bytes: fcsBytes, label: `FCS 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}`, kind: 'parity',
-        info: 'Frame check sequence: a CRC-32 over everything from the destination address to the end of the padding. The receiver recomputes it and drops the frame if it doesn\'t match.' },
+        info: 'Frame check sequence: a CRC-32 over everything from the destination address to the end of the padding. The receiver recomputes it and discards the frame if the values differ.' },
     ];
 
     const data = new TraceBuilder('Data', 'z');

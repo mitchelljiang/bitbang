@@ -22,6 +22,7 @@ export const pci: Protocol = {
   id: 'pci',
   name: 'PCI',
   fullName: 'Peripheral Component Interconnect',
+  tags: ['synchronous', 'single-ended', 'parallel', 'push-pull', 'half duplex', 'multi-drop', 'addressed', 'expansion'],
   summary:
     'The parallel bus PCI Express replaced. Every card shares 32 multiplexed address/data lines (AD) and a common ' +
     '33 MHz clock. A transaction is an address phase followed by one or more data phases, and a word moves only on ' +
@@ -59,7 +60,7 @@ export const pci: Protocol = {
         'clock period of the others. As clock rates rose, the small differences in length and loading between 32 or 64 ' +
         'lines, together with reflections on a bus shared by several slots, consumed the timing budget. PCI-X reached ' +
         '133 MHz with fewer slots per bus; going further required a different approach.',
-        'PCI Express replaced the shared bus with point-to-point serial lanes, each of which recovers its own clock from ' +
+        '[PCI Express](?p=pcie) replaced the shared bus with point-to-point serial lanes, each of which recovers its own clock from ' +
         'its own data. Lanes can then differ in delay by many bits, because the receiver realigns them, and bandwidth ' +
         'scales by adding lanes rather than by raising one shared clock.',
       ],
@@ -127,7 +128,7 @@ export const pci: Protocol = {
     const words = p.data.trim().split(/[\s,]+/).filter(Boolean).map((w) => w.replace(/^0x/i, ''));
     if (!words.length) throw new Error('Enter at least one 32-bit data word, like CAFEF00D.');
     if (words.length > 4) throw new Error('Keep it to 4 data words or fewer.');
-    for (const w of words) if (!/^[0-9a-f]{1,8}$/i.test(w)) throw new Error(`"${w}" isn't a 32-bit hex word.`);
+    for (const w of words) if (!/^[0-9a-f]{1,8}$/i.test(w)) throw new Error(`"${w}" is not a 32-bit hex word.`);
     const data = words.map((w) => parseInt(w, 16) >>> 0);
     const waits = +p.wait;
 

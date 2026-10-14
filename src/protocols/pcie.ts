@@ -60,6 +60,7 @@ export const pcie: Protocol = {
   id: 'pcie',
   name: 'PCIe',
   fullName: 'PCI Express',
+  tags: ['embedded clock', 'differential', 'full duplex', 'point-to-point', 'expansion', '8b/10b', 'lanes'],
   summary:
     'A serial, point-to-point link built from lanes, each a differential pair in each direction. There is no clock ' +
     'wire: the receiver recovers timing from transitions in the data. Gen1 and Gen2 guarantee those transitions with ' +
@@ -186,7 +187,7 @@ export const pcie: Protocol = {
   legend: { start: 'COM (comma)', dummy: 'PAD / SKP', addr: 'link / lane number', cmd: 'training parameters', data: 'data / identifier' },
   params: [
     {
-      key: 'content', label: 'Lane carries', type: 'select', default: 'ts1',
+      key: 'content', label: 'Lane carries', type: 'select', default: 'data',
       options: [
         { value: 'ts1', label: 'TS1 training set' },
         { value: 'skp', label: 'SKP ordered set' },
@@ -278,7 +279,7 @@ export const pcie: Protocol = {
           tx.set(t, v);
           bits.push({
             lane, t0: t, t1: t + 1, label: letters[i], kind: s.kind, sample: t + 0.5,
-            info: `${s.info} Bit ${letters[i]} = ${v} of ${out.code.slice(0, 6)} ${out.code.slice(6)}. ` +
+            info: `${s.info} Bit ${letters[i]} = ${v}, within the code ${out.code.slice(0, 6)} ${out.code.slice(6)}. ` +
               `${i < 6 ? 'The first six bits encode the low 5 bits of the byte' : 'The last four bits encode the high 3 bits'}. ` +
               `Running disparity on this lane was ${before < 0 ? 'RD−' : 'RD+'} before this symbol and is ${rd < 0 ? 'RD−' : 'RD+'} after it.`,
           });

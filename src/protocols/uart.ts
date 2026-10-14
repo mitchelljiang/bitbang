@@ -5,90 +5,94 @@ export const uart: Protocol = {
   id: 'uart',
   name: 'UART',
   fullName: 'Universal Asynchronous Receiver-Transmitter',
+  tags: ['asynchronous', 'single-ended', 'push-pull', 'full duplex', 'point-to-point', 'chip-to-chip'],
   summary:
-    'One wire each way and no clock. Both sides agree on a baud rate in advance. The line sits high ' +
-    'when idle, and the receiver times everything from the falling edge of the start bit.',
-  usedIn: 'Debug consoles, GPS modules, Bluetooth and Wi-Fi serial modules, and the USB-to-serial chip on most dev boards.',
+    'A simple serial link with one wire in each direction and no shared clock. Both devices are configured for the ' +
+    'same speed, the baud rate, in advance. The line rests high when idle, and each byte begins with a falling edge ' +
+    'that the receiver uses as its timing reference.',
+  usedIn: 'Debug consoles, GPS receivers, Bluetooth and Wi-Fi modules, and the USB-to-serial converter on most development boards.',
   facts: {
-    clock: 'None (asynchronous). Both sides run their own clock at an agreed baud rate and resync on every start bit.',
-    wires: 'TX and RX, plus a shared ground. Optional RTS/CTS for flow control.',
-    drive: 'Push-pull. Each TX pin is the only thing driving its wire.',
-    duplex: 'Full duplex. TX and RX are separate wires, so both directions can talk at once.',
-    topology: 'Point-to-point. One device on each end.',
-    addressing: 'None. There is only one possible receiver.',
-    flow: 'None by default. Optional hardware (RTS/CTS) or software (XON/XOFF) flow control.',
-    errors: 'Optional parity bit (catches any odd number of flipped bits). A 0 where the stop bit should be is a framing error.',
-    speed: '9600 and 115200 baud are the usual rates. Many chips manage 1 to 3 Mbaud or more; the limit is clock accuracy, not the protocol.',
-    reach: 'A meter or so at 3.3 V logic levels. About 15 m as RS-232, and over 1 km as differential RS-485.',
+    clock: 'None. Each device uses its own clock at the agreed baud rate and resynchronizes at the start of every byte.',
+    wires: 'TX (transmit) and RX (receive), plus a shared ground. Two optional lines, RTS and CTS, provide flow control.',
+    drive: 'Push-pull: each TX output actively drives its line both high and low.',
+    duplex: 'Full duplex. Separate wires for each direction allow both devices to transmit at the same time.',
+    topology: 'Point-to-point: exactly one device at each end.',
+    addressing: 'None. Each line has only one possible receiver.',
+    flow: 'None by default. Hardware flow control (RTS/CTS) or software flow control (XON/XOFF) can be added.',
+    errors: 'An optional parity bit detects any single flipped bit. A missing stop bit is reported as a framing error.',
+    speed: 'Commonly 9600 or 115200 baud. Many devices support 1 to 3 Mbaud or more; the practical limit is how closely the two clocks agree.',
+    reach: 'About a meter at 3.3 V logic levels. RS-232 extends this to about 15 m, and RS-485 to more than 1 km.',
   },
   strengths: [
-    'Only two signal wires, and no clock line to route.',
-    'Nearly every microcontroller has one, and an inexpensive USB adapter connects it to a computer.',
-    'Human-readable when used for text, which is why it\'s the default debug console.',
+    'Requires only two signal wires and no clock line.',
+    'Available on nearly every microcontroller, and an inexpensive USB adapter connects it to a computer.',
+    'Text sent over UART can be read directly in a terminal, which makes it the standard choice for debug output.',
   ],
   limits: [
-    'Both sides must be set to the same baud rate. Their clocks may drift apart by only about 2% each before bits are misread.',
-    'Start and stop bits cost 20% of the bandwidth with 8N1 (10 bits on the wire per 8 bits of data).',
+    'Both devices must use the same baud rate, and their clocks must agree to within about 2% each.',
+    'With the common 8N1 setting, start and stop bits take 20% of the bandwidth: 10 bits are sent for every 8 bits of data.',
     'No addressing: each pair of wires connects exactly two devices.',
-    'Parity misses two flipped bits in the same byte, and there\'s no acknowledgment that anything was received.',
+    'Parity cannot detect two flipped bits in the same byte, and the protocol provides no acknowledgment of receipt.',
   ],
   deepDive: [
     {
       title: 'Baud rate error',
       body: [
-        'Each side makes its baud rate by dividing its own clock, and the division rarely comes out exact. An Arduino ' +
-        'Uno\'s 16 MHz clock can\'t make 115200 baud: the closest it gets is 117647, about 2.1% fast. That\'s why some ' +
-        'boards use odd-looking crystals like 14.7456 MHz, which divides evenly into every standard baud rate.',
-        'How much error is too much? The receiver times every bit from the falling edge of the start bit and samples ' +
-        'in the middle of each one, usually by taking 16 samples per bit and voting on the middle three. By the stop ' +
-        'bit, about 9.5 bits later, the two clocks may only have drifted apart by under half a bit, roughly 5% in ' +
-        'total. In practice, keep each side within about 2%.',
+        'Each device produces its baud rate by dividing its own clock, and the result is rarely exact. For example, an ' +
+        'Arduino Uno with a 16 MHz clock cannot produce exactly 115200 baud; the nearest it can reach is 117647, about ' +
+        '2.1% fast. Some boards use crystals with unusual frequencies, such as 14.7456 MHz, because they divide evenly ' +
+        'into all of the standard baud rates.',
+        'The receiver times each bit from the falling edge of the start bit and samples near the middle of every bit, ' +
+        'often by taking 16 samples per bit and using the middle three. By the stop bit, about 9.5 bit periods later, ' +
+        'the two clocks may differ by no more than half a bit, or roughly 5% in total. In practice, each device should ' +
+        'stay within about 2% of the nominal rate.',
       ],
     },
     {
-      title: 'Reading "8N1" and friends',
+      title: 'Reading "8N1" and similar settings',
       body: [
-        'Serial settings are written as data bits, parity, stop bits. 8N1 is 8 data bits, no parity, 1 stop bit, and ' +
-        'it\'s the default almost everywhere. 7E1 (7 bits, even parity, 1 stop bit) comes from old terminals that only ' +
-        'sent 7-bit ASCII. 8N1 won because bytes are 8 bits and a single parity bit catches too little to be worth ' +
-        'it; protocols on top add their own checksums instead.',
+        'Serial settings are written as the number of data bits, the parity, and the number of stop bits. 8N1 means ' +
+        '8 data bits, no parity and 1 stop bit, and it is the default almost everywhere. 7E1 (7 data bits, even parity, ' +
+        '1 stop bit) comes from older terminals that sent 7-bit ASCII. 8N1 became standard because data is organized in ' +
+        '8-bit bytes and a single parity bit offers limited protection; higher-level protocols add their own checksums instead.',
       ],
     },
     {
       title: 'The break condition',
       body: [
-        'A break is the line held low for longer than a whole frame: start bit, data, parity and stop bit. No normal ' +
-        'byte can look like that, because the stop bit is always high, so receivers flag it separately. LIN and DMX512 ' +
-        'start every frame with a break, and some bootloaders and consoles treat it as an attention signal.',
+        'A break is the line held low for longer than a complete frame, including the stop bit. Because a normal frame ' +
+        'always ends with a high stop bit, a break cannot be mistaken for data, and receivers report it separately. LIN ' +
+        'and DMX512 begin every frame with a break, and some bootloaders and consoles use it as an attention signal.',
       ],
     },
     {
       title: 'Flow control and overruns',
       body: [
-        'Many microcontroller UARTs only hold one received byte, or a small FIFO. If software doesn\'t read it before ' +
-        'the next byte finishes arriving, the old one is overwritten and the UART flags an overrun. At 115200 baud a ' +
+        'Many microcontroller UARTs can hold only one received byte, or a small buffer. If software does not read a byte ' +
+        'before the next one arrives, the earlier byte is lost and the UART reports an overrun error. At 115200 baud, a ' +
         'new byte arrives every 87 µs.',
-        'Hardware flow control fixes this with two extra wires: the receiver turns off its RTS output when it\'s ' +
-        'nearly full, and the sender, watching that as CTS, pauses. Software flow control sends XON and XOFF ' +
-        'characters instead, which only works if those byte values never appear in the data. Most firmware instead uses ' +
-        'interrupts or DMA into a ring buffer.',
+        'Hardware flow control prevents this with two additional wires: when its buffer is nearly full, the receiver ' +
+        'deasserts its RTS output, and the transmitter, which monitors that signal as CTS, pauses. Software flow control ' +
+        'sends XON and XOFF characters instead, which only works if those byte values never occur in the data. Most ' +
+        'firmware avoids the problem by using interrupts or DMA to move received bytes into a buffer.',
       ],
     },
     {
-      title: 'Where does a message end?',
+      title: 'Marking the end of a message',
       body: [
-        'UART frames bytes, not messages, so protocols on top have to mark message boundaries themselves. The usual ' +
-        'ways are a gap (Modbus RTU ends a message with 3.5 character times of silence), a special character (a ' +
-        'newline for text, or framing schemes like SLIP and COBS for binary), or a length field at the start. Many ' +
-        'UARTs have an "idle line" interrupt that fires after one character time of silence, which pairs well with DMA.',
+        'UART defines individual bytes, not messages, so higher-level protocols must mark where each message ends. Common ' +
+        'approaches are a pause (Modbus RTU ends a message with 3.5 character times of silence), a delimiter character ' +
+        '(a newline for text, or encodings such as SLIP and COBS for binary data), or a length field at the start of the ' +
+        'message. Many UARTs provide an idle-line interrupt, triggered after one character time of silence, which works ' +
+        'well together with DMA.',
       ],
     },
     {
-      title: 'Same frames, different wires',
+      title: 'The same frame on different wiring',
       body: [
-        'The bit pattern above is the same everywhere UART is used. What changes is the electrical layer: 3.3 V or ' +
-        '5 V logic between chips, inverted ±12 V as RS-232, or a differential pair as RS-485. Both have their own ' +
-        'pages in the Protocols menu.',
+        'The bit pattern shown above is the same wherever UART is used; only the electrical layer changes. Between chips ' +
+        'it uses 3.3 V or 5 V logic levels, [RS-232](?p=rs232) inverts it and uses about ±12 V, and ' +
+        '[RS-485](?p=rs485) sends it over a differential pair.',
       ],
     },
   ],
@@ -125,20 +129,20 @@ export const uart: Protocol = {
     const tx = new TraceBuilder('TX', 1);
     const bits: Bit[] = [];
     const fields: Field[] = [];
-    const notes: Note[] = [{ lane: 0, t: 0.15, text: 'idle (high)' }];
+    const notes: Note[] = [{ lane: 0, t: 0.15, text: 'idle: line held high' }];
     let t = 1;
 
     for (const raw of bytes) {
       const b = raw & mask;
       const frameStart = t;
-      const truncated = b !== raw ? ` (${hex(raw)} doesn't fit in ${nBits} bits, so only the low bits are sent)` : '';
+      const truncated = b !== raw ? ` ${hex(raw)} does not fit in ${nBits} bits, so only its lowest ${nBits} bits are sent.` : '';
 
-      if (!notes[1]) notes.push({ lane: 0, t, text: 'start bit pulls the line low' });
+      if (!notes[1]) notes.push({ lane: 0, t, text: 'start bit: line goes low' });
       tx.set(t, 0);
       bits.push({
         lane: 0, t0: t, t1: t + 1, label: 'S', kind: 'start', sample: t + 0.5,
-        info: 'Start bit (always 0). The line falls from idle-high, and that edge tells the receiver a frame is beginning. ' +
-          'It then samples each following bit in the middle of its period, using its own clock at the agreed baud rate.',
+        info: 'Start bit, always 0. The line falls from its idle high level, and this edge tells the receiver that a byte ' +
+          'is beginning. From this point the receiver uses its own clock to sample each following bit near its center.',
       });
       t++;
 
@@ -147,8 +151,8 @@ export const uart: Protocol = {
         tx.set(t, v);
         bits.push({
           lane: 0, t0: t, t1: t + 1, label: `D${i}`, kind: 'data', sample: t + 0.5,
-          info: `Data bit ${i} = ${v}. UART sends the least significant bit first, so ${hex(b)} = ${bin(b, nBits)}₂ goes out ` +
-            `right to left.${truncated}`,
+          info: `Data bit ${i} = ${v}. UART sends the least significant bit first, so ${hex(b)} (binary ${bin(b, nBits)}) ` +
+            `is transmitted from right to left.${truncated}`,
         });
         t++;
       }
@@ -160,20 +164,20 @@ export const uart: Protocol = {
         tx.set(t, v);
         bits.push({
           lane: 0, t0: t, t1: t + 1, label: 'P', kind: 'parity', sample: t + 0.5,
-          info: `${p.parity === 'even' ? 'Even' : 'Odd'} parity bit = ${v}. The data has ${ones} one-bit${ones === 1 ? '' : 's'}, ` +
-            `and this bit makes the total count of 1s ${p.parity}. If a single bit flips in transit, the count is wrong and ` +
-            `the receiver flags a parity error.`,
+          info: `${p.parity === 'even' ? 'Even' : 'Odd'} parity bit = ${v}. The data contains ${ones} bit${ones === 1 ? '' : 's'} ` +
+            `set to 1, and this bit makes the total number of 1s ${p.parity}. If a single bit changes in transit, the count ` +
+            'no longer matches and the receiver reports a parity error.',
         });
         t++;
       }
 
-      if (notes.length === 2) notes.push({ lane: 0, t, text: 'stop bit: back to idle' });
+      if (notes.length === 2) notes.push({ lane: 0, t, text: 'stop bit: line returns high' });
       tx.set(t, 1);
       for (let s = 0; s < nStop; s++) {
         bits.push({
           lane: 0, t0: t, t1: t + 1, label: nStop > 1 ? `Sp${s + 1}` : 'Sp', kind: 'stop', sample: t + 0.5,
-          info: 'Stop bit (always 1). It returns the line to idle so the next start bit has a falling edge to produce. ' +
-            'If the receiver samples a 0 here, it reports a framing error, which usually means the baud rates don\'t match.',
+          info: 'Stop bit, always 1. It returns the line to its idle level so that the next start bit can produce a falling ' +
+            'edge. If the receiver reads a 0 here, it reports a framing error, which usually indicates mismatched baud rates.',
         });
         t++;
       }

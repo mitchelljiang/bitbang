@@ -16,10 +16,11 @@ export const swd: Protocol = {
   id: 'swd',
   name: 'SWD',
   fullName: 'Serial Wire Debug (Arm)',
+  tags: ['synchronous', 'single-ended', 'push-pull', 'half duplex', 'point-to-point', 'debug'],
   summary:
-    'Arm\'s two-pin replacement for JTAG. The debugger sends an 8-bit request naming a register, both sides take a ' +
-    'turnaround clock to swap who drives SWDIO, the target answers with a 3-bit ACK, and then 32 bits of data and a ' +
-    'parity bit go one way or the other.',
+    'Arm\'s two-pin alternative to JTAG for debugging and programming microcontrollers. The debugger sends an 8-bit ' +
+    'request that names a register, and a turnaround cycle hands control of the data line to the target, which ' +
+    'responds with a 3-bit acknowledge. Then 32 bits of data and a parity bit travel in one direction or the other.',
   usedIn: 'Programming and debugging almost every Arm Cortex-M microcontroller (STM32, nRF52, RP2040 and others) through ST-Link, J-Link or CMSIS-DAP probes.',
   facts: {
     clock: 'Synchronous. The debugger drives SWCLK. It changes SWDIO on the falling edge and the target samples on the rising edge; the target changes SWDIO on the rising edge and the debugger samples on the falling edge.',
@@ -48,7 +49,7 @@ export const swd: Protocol = {
     {
       title: 'Line reset and switching from JTAG',
       body: [
-        'Most Arm debug ports accept both JTAG and SWD on shared pins (SWJ-DP) and start in JTAG mode. To switch, the debugger sends at least 50 clocks with SWDIO high (a line reset), the 16-bit sequence 0xE79E, and another line reset. The first transaction after that must read DPIDR; until it does, the debug port ignores other requests.',
+        'Most Arm debug ports accept both [JTAG](?p=jtag) and SWD on shared pins (SWJ-DP) and start in JTAG mode. To switch, the debugger sends at least 50 clocks with SWDIO high (a line reset), the 16-bit sequence 0xE79E, and another line reset. The first transaction after that must read DPIDR; until it does, the debug port ignores other requests.',
         'Newer debug ports start in a dormant state and are activated by a 128-bit selection alert sequence instead.',
       ],
     },

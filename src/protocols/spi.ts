@@ -12,79 +12,83 @@ export const spi: Protocol = {
   id: 'spi',
   name: 'SPI',
   fullName: 'Serial Peripheral Interface',
+  tags: ['synchronous', 'single-ended', 'push-pull', 'full duplex', 'multi-drop', 'daisy chain', 'chip-to-chip'],
   summary:
-    'The controller drives the clock and pulls CS low to pick a device. Each clock cycle moves one ' +
-    'bit out on MOSI and one bit back on MISO, at the same time.',
-  usedIn: 'Flash memory, SD cards, small displays, fast ADCs and DACs, and some radio chips.',
+    'A fast, simple link between a controller and one or more targets. The controller drives a clock and selects a ' +
+    'target by pulling its chip-select (CS) line low. On every clock cycle, one bit travels from the controller to the ' +
+    'target on MOSI and one bit travels back on MISO at the same time.',
+  usedIn: 'Flash memory, SD cards, small displays, fast analog-to-digital and digital-to-analog converters, and some radio chips.',
   facts: {
-    clock: 'Synchronous. The controller drives SCLK, and data is sampled on one of its edges (set by the SPI mode).',
-    wires: 'SCLK, MOSI and MISO, shared by all targets, plus one CS line per target. 4 wires for one target, 3 + N for N targets.',
-    drive: 'Push-pull. A target only drives MISO while its CS is low and leaves it released (high-Z) otherwise.',
-    duplex: 'Full duplex. Every clock cycle shifts one bit out on MOSI and one bit in on MISO.',
-    topology: 'One controller, one or more targets, each picked by its own chip select. Some parts can be daisy-chained instead.',
-    addressing: 'By wire: the CS line is the address. No address bits go over the bus.',
-    flow: 'None. The controller sets the pace, and a target has no way to say "wait".',
-    errors: 'None in the protocol. Some devices add their own CRC or status bytes.',
-    speed: 'Not fixed by any standard: the clock can run as fast as both chips and the wiring allow. Commonly 1 to 50 MHz, up to about 80 MHz for fast flash and displays, and above 100 MHz for some flash chips.',
-    reach: 'Board level: centimeters, maybe a short cable. Fast edges and clock-to-data skew limit longer runs.',
+    clock: 'Synchronous. The controller drives SCLK, and data is sampled on one of its edges, as set by the SPI mode.',
+    wires: 'SCLK, MOSI and MISO, shared by all targets, plus one CS line per target: four wires for a single target, and 3 + N for N targets.',
+    drive: 'Push-pull. A target drives MISO only while its CS line is low and leaves it released (high-impedance) otherwise.',
+    duplex: 'Full duplex. Each clock cycle shifts one bit out on MOSI and one bit in on MISO.',
+    topology: 'One controller and one or more targets, each selected by its own CS line. Some devices can also be daisy-chained.',
+    addressing: 'By wire: the CS line selects the target, so no address is sent over the bus.',
+    flow: 'None. The controller sets the pace, and a target has no way to request a pause.',
+    errors: 'None in the protocol itself. Some devices add their own CRC or status bytes.',
+    speed: 'Not fixed by any standard: the clock can run as fast as both devices and the wiring allow. Commonly 1 to 50 MHz, up to about 80 MHz for fast flash and displays, and above 100 MHz for some flash devices.',
+    reach: 'Circuit-board distances, or a short cable at most. Fast edges and timing differences between clock and data limit longer connections.',
   },
   strengths: [
-    'Fast, and simple to build: at its core it is two shift registers and a clock.',
-    'Full duplex, with no address or acknowledgment overhead. Every clock cycle carries data.',
-    'Any word length and any data rate the target can handle; no fixed framing.',
+    'Fast and simple to implement: at its core it is two shift registers and a clock.',
+    'Full duplex, with no address or acknowledgment overhead, so every clock cycle carries data.',
+    'Supports any word length and any clock rate the target can handle, with no fixed framing.',
   ],
   limits: [
-    'Pin count grows with every target, because each one needs its own CS line.',
-    'No acknowledgment. If no target is connected, the controller reads back whatever level is on MISO, usually all 1s or all 0s.',
-    'Not a single formal standard: clock mode, bit order, word size and max speed vary from chip to chip, so each datasheet must be checked.',
-    'Only works over short distances.',
+    'Each additional target requires another CS line, so the pin count grows with the number of devices.',
+    'There is no acknowledgment. If no target is connected, the controller simply reads whatever level is on MISO, usually all 1s or all 0s.',
+    'Not a single formal standard: clock mode, bit order, word size and maximum speed vary between devices, so each datasheet must be checked.',
+    'Suitable only for short distances.',
   ],
   deepDive: [
     {
       title: 'Finding the mode in a datasheet',
       body: [
-        'Datasheets often show a timing diagram instead of saying "mode 0". Two questions answer it. Where does SCLK ' +
-        'sit when CS goes low? Low means CPOL = 0, high means CPOL = 1. Is the data already valid at the first clock ' +
-        'edge? If the chip samples on that first edge, CPHA = 0; if data changes on it and is sampled on the second, ' +
-        'CPHA = 1.',
-        'Modes 0 and 3 cover most chips, and many accept both, because in both the data is sampled on a rising edge.',
+        'Datasheets often show a timing diagram rather than naming the SPI mode. Two observations determine it. First, ' +
+        'the level of SCLK when CS goes low: low means CPOL = 0, and high means CPOL = 1. Second, the edge on which data ' +
+        'is sampled: if the device samples on the first clock edge, CPHA = 0; if data changes on the first edge and is ' +
+        'sampled on the second, CPHA = 1.',
+        'Modes 0 and 3 cover most devices, and many accept both, because in each case data is sampled on a rising edge.',
       ],
     },
     {
-      title: 'MOSI, MISO, SDO, SDI, COPI, CIPO',
+      title: 'Signal names: MOSI, MISO, SDO, SDI, COPI, CIPO',
       body: [
-        'The classic names are MOSI and MISO. Newer datasheets use SDO and SDI, named from each chip\'s own point of ' +
-        'view, so the controller\'s SDO connects to the target\'s SDI. The open hardware community now uses COPI and ' +
-        'CIPO (controller out, peripheral in). Chip select also goes by CS, SS, nCS, CE and SYNC.',
+        'The traditional names are MOSI and MISO. Newer datasheets often use SDO (serial data out) and SDI (serial data ' +
+        'in), named from each device\'s own perspective, so the controller\'s SDO connects to the target\'s SDI. The open ' +
+        'hardware community has adopted COPI and CIPO (controller out, peripheral in). The chip-select line also appears ' +
+        'as SS, nCS, CE or SYNC.',
       ],
     },
     {
       title: 'What limits the clock rate',
       body: [
-        'Writing is easy to make fast. Reading is harder: the clock edge has to travel to the target, the target takes ' +
-        'some time to change MISO, and MISO has to travel back, all before the controller samples. At 50 MHz that ' +
-        'whole round trip has to fit in 10 ns. Many SPI peripherals have a "delayed sampling" option to sample MISO ' +
-        'later, and short traces help.',
+        'Writing data at high speed is straightforward. Reading is harder, because the clock edge must travel to the ' +
+        'target, the target needs time to update MISO, and the new value must travel back, all before the controller ' +
+        'samples it. At 50 MHz, that round trip must fit within 10 ns. Many SPI controllers offer a delayed-sampling ' +
+        'option that samples MISO later in the cycle, and short traces also help.',
       ],
     },
     {
       title: 'Chip select does more than select',
       body: [
-        'Many chips act on CS going high: an ADC starts converting, a DAC updates its output, a flash chip starts an ' +
-        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can shift every ' +
-        'following byte by a few bits. Some commands need CS held low for the whole multi-byte sequence.',
-        'Every target must also release MISO when its CS is high. Some low-cost modules (and SD cards in SPI mode, until ' +
-        'they receive one extra clock) do not, which causes errors that are difficult to diagnose on a shared bus.',
+        'Many devices act when CS goes high: an analog-to-digital converter starts a conversion, a digital-to-analog ' +
+        'converter updates its output, or a flash device starts an erase. CS going low also resets the device\'s bit ' +
+        'counter, so a glitch on CS during a transfer can shift every following byte by several bits. Some commands ' +
+        'require CS to stay low for an entire multi-byte sequence.',
+        'Every target must release MISO when its CS line is high. Some low-cost modules, and SD cards in SPI mode until ' +
+        'they receive one additional clock cycle, do not, which causes errors that are difficult to diagnose on a shared bus.',
       ],
     },
     {
       title: '3-wire SPI and daisy chains',
       body: [
-        '3-wire SPI merges MOSI and MISO into one bidirectional data line to save a pin, at the cost of full duplex: ' +
-        'the controller sends a command, then lets go of the line and reads.',
-        'A daisy chain goes the other way: one CS for many chips, with each chip\'s output feeding the next one\'s input. ' +
-        'Shifting 16 bits through two 74HC595 shift registers and then raising CS updates both at once. LED drivers and ' +
-        'some DACs are built for this.',
+        '3-wire SPI combines MOSI and MISO into a single bidirectional data line to save a pin. The trade-off is full ' +
+        'duplex: the controller sends a command, then releases the line and reads the response.',
+        'A daisy chain does the opposite: many devices share one CS line, and each device\'s output feeds the next ' +
+        'device\'s input. For example, shifting 16 bits through two 74HC595 shift registers and then raising CS updates ' +
+        'both at once. LED drivers and some digital-to-analog converters are designed for this arrangement.',
       ],
     },
   ],
@@ -165,8 +169,8 @@ export const spi: Protocol = {
         });
         bits.push({
           lane: 3, t0: t, t1: t + 1, label: `${shift}`, kind: 'data', sample, by: 'target',
-          info: `MISO bit ${shift} of ${hex(back)} = ${vi}. During the same clock cycle the target sends a bit back. ` +
-            `SPI is a pair of shift registers connected in a ring: every bit out is also a bit in.`,
+          info: `MISO bit ${shift} of ${hex(back)} = ${vi}. In the same clock cycle, the target sends a bit back. ` +
+            `SPI is effectively two shift registers connected in a ring: every bit transmitted is matched by a bit received.`,
         });
       }
 
@@ -183,19 +187,19 @@ export const spi: Protocol = {
 
     bits.unshift({
       lane: 0, t0: csLow - 0.5, t1: csLow + 0.5, label: 'CS↓', kind: 'start',
-      info: 'Chip select goes low. This selects one target, and every other target on the bus ignores the clock and ' +
-        'keeps MISO released (high-impedance). SPI has no addresses: each target gets its own CS wire.',
+      info: 'Chip select goes low, selecting one target. Every other target on the bus ignores the clock and keeps MISO ' +
+        'released (high-impedance). SPI has no addresses; each target has its own CS line instead.',
     });
     bits.push({
       lane: 0, t0: csHigh - 0.5, t1: csHigh + 0.5, label: 'CS↑', kind: 'stop',
-      info: 'Chip select goes high, which ends the transaction. The target releases MISO, and many chips act on the ' +
-        'command they received only at this moment.',
+      info: 'Chip select goes high, ending the transaction. The target releases MISO, and many devices execute the ' +
+        'received command at this moment.',
     });
 
     const notes: Note[] = [
       { lane: 0, t: csLow, text: 'CS low: target selected' },
-      { lane: 0, t: csHigh, text: 'CS high: done' },
-      { lane: 1, t: csLow + 0.5 + (cpha ? 0.5 : 0), text: `both sides sample on this ${cpha === cpol ? 'rising' : 'falling'} edge` },
+      { lane: 0, t: csHigh, text: 'CS high: transaction ends' },
+      { lane: 1, t: csLow + 0.5 + (cpha ? 0.5 : 0), text: `both devices sample on this ${cpha === cpol ? 'rising' : 'falling'} edge` },
       { lane: 3, t: 0.15, text: 'released (high-Z)' },
     ];
 

@@ -11,33 +11,35 @@ export const rs485: Protocol = {
   id: 'rs485',
   name: 'RS-485',
   fullName: 'Recommended Standard 485 (now TIA‑485)',
+  tags: ['asynchronous', 'differential', 'push-pull', 'half duplex', 'multi-drop', 'cable'],
   summary:
-    'UART frames sent over a twisted pair as a difference in voltage: A above B is a 1, B above A is a 0. Noise ' +
-    'hits both wires equally and cancels out, so it runs for over a kilometer, and dozens of devices can share the ' +
-    'pair (32 standard loads, up to 256 with low-load transceivers). Only one may drive it at a time, so each transceiver has a driver-enable (DE) pin.',
-  usedIn: 'Modbus RTU in factories, DMX512 stage lighting, building automation (BACnet MS/TP), solar inverters and energy meters.',
+    'UART frames sent over a twisted pair as a voltage difference: A above B represents a 1, and B above A represents ' +
+    'a 0. Noise affects both wires equally and cancels out, so links can exceed a kilometer, and dozens of devices can ' +
+    'share the pair (32 standard loads, or up to 256 with low-load transceivers). Only one device may transmit at a ' +
+    'time, so each transceiver has a driver-enable (DE) pin.',
+  usedIn: 'Modbus RTU in industrial systems, DMX512 stage lighting, building automation (BACnet MS/TP), solar inverters and energy meters.',
   facts: {
-    clock: 'None. It usually carries UART frames, so both ends agree on a baud rate.',
-    wires: 'A and B as a twisted pair, plus a ground reference. Full-duplex setups use two pairs.',
-    drive: 'Differential. Receivers only need a 200 mV difference between A and B. When DE is low the driver lets go of the pair completely.',
-    duplex: 'Half duplex on one pair (the common 2-wire setup), full duplex on two pairs.',
-    topology: 'Multi-drop bus: 32 standard loads, or up to 256 with low-load transceivers, with a 120 Ω terminator at each end.',
-    addressing: 'None in RS-485 itself. Protocols on top of it, like Modbus or DMX512, add addresses.',
-    flow: 'None. Software has to switch DE on and off and make sure only one device talks at a time.',
-    errors: 'None in the physical layer. Modbus RTU adds a CRC-16 to every message.',
-    speed: 'Up to about 10 Mbit/s over short runs, and roughly 100 kbit/s at the full 1200 m.',
-    reach: 'Up to 1200 m (4000 ft), which is why it shows up in factories and buildings.',
+    clock: 'None. RS-485 usually carries UART frames, so all devices use the same baud rate.',
+    wires: 'A and B as a twisted pair, plus a ground reference. Full-duplex installations use two pairs.',
+    drive: 'Differential. Receivers need only a 200 mV difference between A and B. When DE is low, the driver releases the pair entirely.',
+    duplex: 'Half duplex on a single pair (the common two-wire arrangement), and full duplex on two pairs.',
+    topology: 'A shared bus: 32 standard loads, or up to 256 with low-load transceivers, with a 120 Ω terminating resistor at each end.',
+    addressing: 'None in RS-485 itself. Protocols built on it, such as Modbus and DMX512, add addresses.',
+    flow: 'None. Software must enable and disable the driver and ensure that only one device transmits at a time.',
+    errors: 'None in the electrical layer. Modbus RTU adds a CRC-16 to every message.',
+    speed: 'Up to about 10 Mbit/s over short distances, and roughly 100 kbit/s at the full 1200 m.',
+    reach: 'Up to 1200 m (4000 ft), which is why it is common in factories and buildings.',
   },
   strengths: [
-    'Long cables: over a kilometer at moderate speeds.',
+    'Long cable runs: more than a kilometer at moderate speeds.',
     'Differential signaling rejects common-mode noise and ground differences.',
     'Many devices on a single inexpensive twisted pair.',
   ],
   limits: [
-    'Half duplex: getting the DE timing wrong cuts off the end of a message or collides with the reply.',
-    'Needs termination and bias resistors, and long buses need a ground reference too.',
-    'It\'s only an electrical standard, so a higher-level protocol is still required.',
-    'Vendors disagree about which wire is called A and which is B.',
+    'Half duplex: incorrect driver-enable timing truncates the end of a message or collides with the reply.',
+    'Requires termination and bias resistors, and long buses also need a ground reference.',
+    'Defines only the electrical layer, so a higher-level protocol is still required.',
+    'Manufacturers disagree about which wire is labeled A and which is labeled B.',
   ],
   deepDive: [
     {
@@ -100,14 +102,14 @@ export const rs485: Protocol = {
 
     const notes = [
       ...(w.notes ?? []),
-      { lane: 1, t: 0.5, text: 'DE high: driver on' },
-      { lane: 1, t: end, text: 'DE low: let go' },
+      { lane: 1, t: 0.5, text: 'DE high: driver enabled' },
+      { lane: 1, t: end, text: 'DE low: driver released' },
       { lane: 2, t: 0.05, text: 'released' },
-      { lane: 3, t: 1, text: 'B is always the mirror of A' },
+      { lane: 3, t: 1, text: 'B always mirrors A' },
     ];
     const bits = w.bits.map((bit) => ({
       ...bit,
-      info: `${bit.info} On the pair, a 1 means A is driven above B and a 0 means B is above A.`,
+      info: `${bit.info} On the pair, a 1 drives A above B, and a 0 drives B above A.`,
     }));
     return { ...w, traces: [di, de.trace, a.trace, b.trace], bits, notes, duration: w.duration + 0.5 };
   },

@@ -4,126 +4,131 @@
  */
 const SECTIONS = `
 <section id="clock">
-  <h2>Clock: how does the receiver know when to read?</h2>
-  <p>A receiver sees a voltage that changes over time. To turn that back into bits it has to know <em>when</em> to look.
-    There are three common answers.</p>
+  <h2>Clock: how the receiver knows when to read</h2>
+  <p>A receiver sees a voltage that changes over time. To convert it back into bits, it must know <em>when</em> to
+    sample the signal. There are three common approaches.</p>
   <ul>
-    <li><b>Synchronous.</b> A separate clock wire ticks once per bit, and the receiver samples on one of its edges.
-      SPI and I²C work this way. It's simple and tolerant of any speed, but costs a wire.</li>
-    <li><b>Asynchronous.</b> No clock wire. Both sides agree on a bit rate ahead of time and run their own timers.
-      UART resyncs on every start bit, so the timers only have to agree for about ten bits.</li>
-    <li><b>Embedded clock.</b> The clock is mixed into the data with a line code (Manchester, 8b/10b) that guarantees
-      frequent edges, and the receiver recovers timing from those edges. USB, Ethernet and PCIe do this to go fast
-      over a single pair.</li>
+    <li><b>Synchronous.</b> A separate clock line marks each bit, and the receiver samples on one of its edges. This is
+      simple and works at any speed, but requires an additional wire.</li>
+    <li><b>Asynchronous.</b> There is no clock line. Both devices agree on a bit rate in advance, and each times the bits
+      with its own clock.</li>
+    <li><b>Embedded clock.</b> The timing is carried within the data by a line code, such as Manchester or 8b/10b, that
+      guarantees frequent transitions. The receiver recovers the clock from those transitions.</li>
   </ul>
 </section>
 
 <section id="wires">
   <h2>Wires and signaling</h2>
-  <p><b>Single-ended</b> signals are one wire measured against ground: 0 V is a 0, and 3.3 V (or 5 V, or 1.8 V) is a 1.
-    That is inexpensive, but any noise picked up along the way, or any difference between the two grounds, shows up directly
-    in the signal.</p>
-  <p><b>Differential</b> signals use a pair of wires driven in opposite directions, and the receiver looks only at the
-    difference. Noise hits both wires about equally and cancels out, which is why long-distance and high-speed links
-    (RS-485, CAN, USB, Ethernet, LVDS) are almost all differential.</p>
-  <p>Logic levels also matter. A 3.3 V chip can be damaged by a 5 V signal, and RS-232 uses roughly ±12 V with the
-    polarity inverted, so it needs a level shifter or transceiver before it reaches a microcontroller pin.</p>
+  <p><b>Single-ended</b> signals use one wire measured against ground: 0 V represents a 0, and 3.3 V (or 5 V, or 1.8 V)
+    represents a 1. This is inexpensive, but any noise picked up along the way, and any difference between the two
+    devices' ground voltages, appears directly in the signal.</p>
+  <p><b>Differential</b> signals use a pair of wires driven in opposite directions, and the receiver measures only the
+    difference between them. Noise affects both wires almost equally and cancels out, which is why nearly all
+    long-distance and high-speed links, including <a href="?p=rs485" data-nav>RS-485</a>, CAN, <a href="?p=usb" data-nav>USB</a> and
+    <a href="?p=ethernet" data-nav>Ethernet</a>, are differential.</p>
+  <p>Logic levels also matter. A 3.3 V device can be damaged by a 5 V signal, and <a href="?p=rs232" data-nav>RS-232</a> uses roughly
+    ±12 V with inverted polarity, so it requires a transceiver before it reaches a microcontroller pin.</p>
 </section>
 
 <section id="drive">
   <h2>Drive: push-pull or open-drain</h2>
-  <p>A <b>push-pull</b> output has a transistor to pull the wire high and another to pull it low, so it drives both
-    edges hard and fast. But if two push-pull outputs on the same wire disagree, one fights the other, and that is a
-    short circuit. So push-pull lines have exactly one driver at a time.</p>
-  <p>An <b>open-drain</b> (or open-collector) output can only pull low. To get a 1, it lets go, and a pull-up resistor
-    brings the wire high. Now any number of devices can share the wire safely: if anyone pulls low, the wire is low.
-    This "wired-AND" is what makes I²C's shared bus, ACKs, clock stretching and arbitration possible.</p>
-  <p>The cost is speed. The resistor has to charge the wire's capacitance on every rising edge, so rises follow a slow
-    RC curve (the "shark fin" on the I²C diagram) while falls stay sharp. A smaller resistor rises faster but wastes
-    more current every time a device pulls low.</p>
+  <p>A <b>push-pull</b> output has one transistor that drives the line high and another that drives it low, so both
+    edges are fast. If two push-pull outputs on the same line disagree, however, they work against each other, which is
+    effectively a short circuit. Push-pull lines must therefore have exactly one driver at a time.</p>
+  <p>An <b>open-drain</b> (or open-collector) output can only pull the line low. To produce a 1, it releases the line,
+    and a pull-up resistor brings it high. Any number of devices can then share the line safely: if any device pulls
+    it low, the line is low. This behavior, called wired-AND, is what makes the shared bus, acknowledgments, clock
+    stretching and arbitration of <a href="?p=i2c" data-nav>I²C</a> possible.</p>
+  <p>The cost is speed. The resistor must charge the capacitance of the line on every rising edge, so rising edges
+    follow a slow RC curve, visible on the I²C diagram, while falling edges remain sharp. A smaller resistor produces
+    faster rising edges but consumes more current whenever a device pulls the line low.</p>
 </section>
 
 <section id="duplex">
   <h2>Duplex: which directions, and when</h2>
   <ul>
-    <li><b>Simplex:</b> one direction only, such as a GPS module that continuously streams position data.</li>
-    <li><b>Half duplex:</b> both directions, but taking turns on the same wire. I²C and RS-485 work like this, and
-      something has to decide whose turn it is.</li>
-    <li><b>Full duplex:</b> both directions at once, on separate wires. UART and SPI have one wire per direction.</li>
+    <li><b>Simplex:</b> one direction only, such as a GPS module that continuously sends position data.</li>
+    <li><b>Half duplex:</b> both directions, taking turns on the same wires. I²C and RS-485 work this way, and the
+      protocol must determine which device transmits at any moment.</li>
+    <li><b>Full duplex:</b> both directions at once, on separate wires. <a href="?p=uart" data-nav>UART</a> and <a href="?p=spi" data-nav>SPI</a> each use
+      one wire per direction.</li>
   </ul>
 </section>
 
 <section id="topology">
-  <h2>Topology: who's connected to whom</h2>
+  <h2>Topology: how devices are connected</h2>
   <ul>
-    <li><b>Point-to-point:</b> exactly two devices (UART). Nothing to coordinate, but every new device needs new wires.</li>
-    <li><b>Shared bus:</b> everyone on the same wires (I²C, CAN, RS-485). Inexpensive to extend, but devices need addresses and
-      a way to avoid talking over each other.</li>
-    <li><b>Star with selects:</b> shared data wires, plus a separate select wire to each device (SPI).</li>
-    <li><b>Daisy chain:</b> each device's output feeds the next one's input (JTAG, some SPI parts, LED strips). Few wires,
-      but data has to pass through every device to reach the last.</li>
+    <li><b>Point-to-point:</b> exactly two devices, as in UART. No coordination is needed, but every additional device
+      requires additional wires.</li>
+    <li><b>Shared bus:</b> all devices on the same wires, as in I²C, CAN and RS-485. Adding devices is inexpensive, but
+      each device needs an address, and the protocol must prevent devices from transmitting at the same time.</li>
+    <li><b>Star with selects:</b> shared data lines, plus a separate select line to each device, as in SPI.</li>
+    <li><b>Daisy chain:</b> each device's output feeds the next device's input, as in <a href="?p=jtag" data-nav>JTAG</a>, some SPI
+      devices and LED strips. Few wires are needed, but data must pass through every device to reach the last one.</li>
   </ul>
 </section>
 
 <section id="addressing">
   <h2>Addressing and arbitration</h2>
-  <p>On a shared bus, every message has to say who it's for. Protocols do this either with <b>wires</b> (SPI's chip
-    selects: simple and fast, but one pin per device) or with <b>addresses</b> in the data (I²C's 7-bit address: no extra
-    pins, but it costs time on every transfer, and two parts with the same fixed address can't share a bus).</p>
-  <p>If more than one device can start a transfer, the protocol also needs <b>arbitration</b> for when two start at
-    once. I²C and CAN use wired-AND arbitration: every sender watches the wire while it transmits, and anyone who sends a 1
-    but sees a 0 has lost and backs off. The winner never notices, so no time is wasted.</p>
+  <p>On a shared bus, every message must identify its recipient. Protocols do this either with <b>wires</b>, such as
+    the chip-select lines of SPI, which are simple and fast but require one pin per device, or with <b>addresses</b> in
+    the data, such as the 7-bit address of I²C, which needs no extra pins but adds time to every transfer and prevents
+    two devices with the same fixed address from sharing a bus.</p>
+  <p>If more than one device can begin a transfer, the protocol also needs <b>arbitration</b> for when two begin at
+    the same moment. I²C and CAN use wired-AND arbitration: every transmitter monitors the line while it sends, and a
+    device that sends a 1 but reads back a 0 has lost and withdraws. The winning device is unaffected, so no time is lost.</p>
 </section>
 
 <section id="framing">
-  <h2>Framing: where does a message start?</h2>
-  <p>A stream of bits is useless unless the receiver knows where each byte begins. UART uses a start bit, a falling
-    edge out of idle. SPI uses chip select going low. I²C uses a START condition (SDA falling while SCL is high), a pattern
-    that ordinary data is never allowed to produce. Faster links send a preamble or sync pattern, and some use
-    <b>bit stuffing</b> (USB, CAN) to make sure the data itself can never look like a frame marker.</p>
-  <p>Framing also fixes the <b>bit order</b>. UART sends the least significant bit first; I²C sends the most
-    significant bit first; SPI can do either, depending on the chip.</p>
+  <h2>Framing: where a message begins</h2>
+  <p>A stream of bits is meaningless unless the receiver knows where each byte begins. UART uses a start bit, a falling
+    edge from the idle level. SPI uses the chip-select line going low. I²C uses a START condition, in which SDA falls
+    while SCL is high, a pattern that ordinary data never produces. Faster links send a preamble or synchronization
+    pattern, and some use <b>bit stuffing</b>, as in USB and CAN, to ensure that the data itself never resembles a frame
+    marker.</p>
+  <p>Framing also determines the <b>bit order</b>. UART sends the least significant bit first, I²C sends the most
+    significant bit first, and SPI can use either, depending on the device.</p>
 </section>
 
 <section id="flow">
-  <h2>Flow control: who sets the pace?</h2>
-  <p>If the sender is faster than the receiver can handle, data gets dropped. Some protocols leave this to the application. SPI's
-    controller clocks at whatever rate it is configured for. Others give the receiver a way to push back: UART's optional
-    RTS/CTS wires or XON/XOFF characters, I²C's clock stretching (a target holds SCL low until it's ready), or an
-    ACK/NACK after each chunk of data.</p>
+  <h2>Flow control: who sets the pace</h2>
+  <p>If the transmitter sends faster than the receiver can process, data is lost. Some protocols leave this to the
+    application: an SPI controller clocks at whatever rate it is configured for. Others give the receiver a way to slow
+    the transmitter: the optional RTS/CTS lines or XON/XOFF characters of UART, clock stretching in I²C (a target holds
+    SCL low until it is ready), or an acknowledgment after each block of data.</p>
 </section>
 
 <section id="errors">
   <h2>Error checking</h2>
   <ul>
-    <li><b>Parity:</b> one extra bit that makes the count of 1s even (or odd). Catches any single flipped bit, but two
-      flips in the same byte cancel out. Inexpensive, but weak.</li>
-    <li><b>Checksum:</b> add up the bytes and send the total. Catches more, but misses errors that happen to balance out,
-      such as two bytes swapped.</li>
-    <li><b>CRC:</b> a remainder from polynomial division over the whole message. Catches every burst of errors shorter
-      than the CRC and almost everything else, which is why Ethernet, USB, CAN and SD cards all use one.</li>
-    <li><b>Acknowledgment:</b> the receiver confirms each byte or message. That confirms that the data was received, not that it was
-      heard it correctly, so an ACK is not error detection on its own.</li>
+    <li><b>Parity:</b> one additional bit that makes the number of 1s even (or odd). It detects any single changed bit,
+      but two changes in the same byte cancel out. It is inexpensive but weak.</li>
+    <li><b>Checksum:</b> the sum of the bytes, sent with the message. It detects more errors, but misses changes that
+      balance out, such as two bytes exchanging places.</li>
+    <li><b>CRC:</b> the remainder of a polynomial division over the whole message. It detects every burst of errors
+      shorter than the CRC and nearly all others, which is why Ethernet, USB, CAN and SD cards all use one.</li>
+    <li><b>Acknowledgment:</b> the receiver confirms each byte or message. This confirms that the data arrived, not that
+      it arrived intact, so an acknowledgment alone is not error detection.</li>
   </ul>
-  <p>Detecting an error is only half of it. What to do next (retry, drop the message, reset the bus) is usually left to
-    the layer above.</p>
+  <p>Error handling is usually left to the layer above.</p>
 </section>
 
 <section id="speed">
   <h2>Speed: what limits it</h2>
-  <p>Raw bit rate is rarely the limiting factor. Asynchronous links are limited by how well two independent clocks agree.
-    Open-drain buses are limited by RC rise time. Fast synchronous links are limited by <b>skew</b>, the clock and data
-    arriving at slightly different times. And every protocol spends some bits on overhead: UART's 8N1 uses 10 bits to send 8,
-    and an I²C write of one byte also needs the address byte, two ACKs and the START and STOP conditions.</p>
+  <p>The raw bit rate is rarely the limiting factor. Asynchronous links are limited by how closely two independent
+    clocks agree. Open-drain buses are limited by the RC rise time. Fast synchronous links are limited by <b>skew</b>,
+    the small difference in arrival time between clock and data. Every protocol also spends some bits on overhead: UART
+    with 8N1 sends 10 bits for every 8 bits of data, and an I²C write of one byte also requires an address byte, two
+    acknowledgments, and the START and STOP conditions.</p>
 </section>
 
 <section id="reach">
   <h2>Reach: how far it goes</h2>
-  <p>Speed and distance trade against each other. Longer wires add capacitance (slower edges), pick up more noise, and,
-    once a wire is long compared to the edge time, cause reflections. The usual escape is to change the physical layer
-    rather than the protocol: the same UART framing goes about 15 m as RS-232 and over a kilometer as differential
-    RS-485.</p>
-</section>`;
+  <p>Speed and distance trade against each other. Longer wires add capacitance, which slows the edges, pick up more
+    noise, and, once a wire is long relative to the edge time, cause reflections. The usual solution is to change the
+    electrical layer rather than the protocol: the same UART framing reaches about 15 m as RS-232 and more than a
+    kilometer as differential RS-485.</p>
+</section>`
 
 export function mountGuide(root: HTMLElement) {
   root.innerHTML = `
@@ -131,8 +136,8 @@ export function mountGuide(root: HTMLElement) {
       <header class="intro">
         <p class="crumbs">Guide</p>
         <h1>How protocols work</h1>
-        <p>Every protocol is a set of answers to the same handful of questions: when to read a bit, who drives the wire,
-          how a message starts, who it's for, and what happens when something goes wrong.</p>
+        <p>Every protocol answers the same small set of questions: when to read a bit, which device drives the line, where
+          a message begins, which device it is for, and what happens when an error occurs.</p>
       </header>
       <nav class="toc" aria-label="On this page">
         <a href="#clock">Clock</a><a href="#wires">Wires</a><a href="#drive">Drive</a><a href="#duplex">Duplex</a>

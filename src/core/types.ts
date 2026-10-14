@@ -88,6 +88,8 @@ export interface Protocol {
   name: string;
   /** What the abbreviation stands for, shown under the title. */
   fullName?: string;
+  /** Short labels for searching and filtering, drawn from a shared vocabulary (clocking, signaling, duplex, topology, use). */
+  tags: string[];
   summary: string;
   /** Where you'd run into it in practice: a short list of real parts and uses. */
   usedIn: string;

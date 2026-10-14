@@ -2,24 +2,26 @@ import { catalog } from './catalog';
 import { esc } from './core/render';
 import { protocols } from './protocols';
 
-const live = new Set(protocols.map((p) => p.id));
+const byId = new Map(protocols.map((p) => [p.id, p]));
 
 /** Fills the header's Protocols dropdown from the catalog. Unbuilt protocols are listed but not linked. */
 export function mountMenu(menu: HTMLDetailsElement) {
-  const panel = menu.querySelector('.menu-panel')!;
+  const panel = menu.querySelector<HTMLElement>('.menu-panel')!;
   const guide = `<div class="menu-group"><h3>Start here</h3><ul><li><a href="?p=basics" data-nav>How protocols work</a></li></ul></div>`;
-  panel.innerHTML = guide + catalog
-    .map((cat) => {
-      const items = cat.entries.map((e) =>
-        live.has(e.id)
-          ? `<li><a href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
-          : e.wip
-            ? `<li><a class="wip" href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
-            : `<li class="soon" title="${esc(e.blurb)}">${e.name}</li>`,
-      );
-      return `<div class="menu-group"><h3>${cat.name}</h3><ul>${items.join('')}</ul></div>`;
-    })
-    .join('');
+  panel.innerHTML =
+    guide +
+    catalog
+      .map((cat) => {
+        const items = cat.entries.map((e) => {
+          return byId.has(e.id)
+            ? `<li><a href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
+            : e.wip
+              ? `<li><a class="wip" href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
+              : `<li class="soon" title="${esc(e.blurb)}">${e.name}</li>`;
+        });
+        return `<div class="menu-group"><h3>${cat.name}</h3><ul>${items.join('')}</ul></div>`;
+      })
+      .join('');
 
   // Close on outside click, Escape, or picking a protocol.
   document.addEventListener('click', (e) => {

@@ -31,13 +31,13 @@ export function parseBytes(input: string, format: string): number[] {
     const tokens = input.replace(/0x/gi, ' ').split(/[\s,]+/).filter(Boolean);
     bytes = [];
     for (const tok of tokens) {
-      if (!/^[0-9a-f]+$/i.test(tok)) throw new Error(`"${tok}" isn't a hex byte.`);
+      if (!/^[0-9a-f]+$/i.test(tok)) throw new Error(`"${tok}" is not a valid hex byte.`);
       const padded = tok.length % 2 ? '0' + tok : tok;
       for (let i = 0; i < padded.length; i += 2) bytes.push(parseInt(padded.slice(i, i + 2), 16));
     }
   }
   if (bytes.length === 0) throw new Error('Enter at least one byte to send.');
-  if (bytes.length > MAX_BYTES) throw new Error(`That's ${bytes.length} bytes — keep it to ${MAX_BYTES} or fewer.`);
+  if (bytes.length > MAX_BYTES) throw new Error(`${bytes.length} bytes entered; the maximum is ${MAX_BYTES}.`);
   return bytes;
 }
 

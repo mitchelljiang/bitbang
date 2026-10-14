@@ -37,6 +37,7 @@ export const usb: Protocol = {
   id: 'usb',
   name: 'USB 2.0',
   fullName: 'Universal Serial Bus 2.0 (low and full speed)',
+  tags: ['embedded clock', 'differential', 'half duplex', 'star', 'addressed', 'cable', 'NRZI'],
   summary:
     'Data travels on a differential pair, D+ and D−, as NRZI: a 0 is a change of state and a 1 is no change. After six ' +
     '1s in a row the transmitter inserts an extra 0 (bit stuffing) so the receiver always sees transitions to stay in ' +
@@ -50,7 +51,7 @@ export const usb: Protocol = {
     topology: 'A tiered star: a host at the root, hubs fanning out, and up to 127 devices.',
     addressing: 'The host assigns each device a 7-bit address when it connects. Each device has up to 16 endpoint numbers, each with an IN and an OUT direction, selected in the token.',
     flow: 'Host-controlled. The host polls every device; a device that is not ready answers NAK, and the host retries later.',
-    errors: 'CRC5 on tokens and CRC16 on data packets, plus PID check bits. Failed packets get no handshake and are retried.',
+    errors: 'CRC5 on tokens and CRC16 on data packets, plus PID check bits. Packets that fail receive no handshake and are retried.',
     speed: 'Low speed 1.5 Mbit/s, full speed 12 Mbit/s, high speed 480 Mbit/s (high speed uses different, lower-voltage signaling).',
     reach: '5 m per cable; hubs extend it, up to five hubs deep.',
   },

@@ -62,12 +62,17 @@ const CASES: [string, Params][] = [
   ['jtag', {}], ['jtag', { seq: 'ir' }],
   ['swd', {}], ['swd', { op: 'w', port: 'ap', reg: '1', data: 'DEADBEEF' }], ['swd', { ack: 'wait' }], ['swd', { ack: 'fault', op: 'w' }],
   ['pci', {}], ['pci', { cmd: 'write', devsel: 'fast', wait: '0' }],
-  ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'data' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
+  ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'ts1' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
   ['usb', {}], ['usb', { xfer: 'out', data: 'FF FF 00' }], ['usb', { xfer: 'in', speed: 'low', data: '01 02 03', toggle: 'DATA1' }],
   ['usb', { xfer: 'out', data: '', hs: 'NAK' }],
 ];
 
 // ---- 1. Bit check ----
+/** Protocols whose bits can't be read straight off one wire, and the check that covers them instead. */
+const COVERED_ELSEWHERE: Record<string, string> = {
+  usb: 'sigrok USB decoders (NRZI: a bit value is a change, not a level)',
+  pci: 'the PCI handshake rules (bus values, not single bits)',
+};
 section('1. Bit values match the wire');
 const covered = new Set(CASES.map(([id]) => id));
 check('every protocol has test cases', protocols.every((p) => covered.has(p.id)), protocols.filter((p) => !covered.has(p.id)).map((p) => p.id).join(', '));
@@ -82,7 +87,33 @@ for (const [id, o] of CASES) {
     const v = String(level(w.traces[b.lane], b.sample));
     if (v !== m[1]) bad.push(`${b.label}@${b.sample}: says ${m[1]}, wire ${v}`);
   }
-  check(`${id} ${JSON.stringify(o)}`, bad.length === 0, bad.length ? bad.slice(0, 3).join('; ') : `${n} bits`);
+  // A check that compares nothing passes silently, so require coverage unless the protocol is verified another way.
+  const elsewhere = COVERED_ELSEWHERE[id];
+  const empty = n === 0 && w.bits.length > 3 && !elsewhere;
+  check(`${id} ${JSON.stringify(o)}`, bad.length === 0 && !empty,
+    bad.length ? bad.slice(0, 3).join('; ') : empty ? 'no bits were compared: reword the bit text as "X = 0." or add another check' : n ? `${n} bits` : `checked by ${elsewhere ?? 'n/a'}`);
+}
+
+// ---- 1b. Tags ----
+section('1b. Tags follow the shared vocabulary');
+{
+  const one = (list: string[], tags: string[]) => tags.filter((t) => list.includes(t)).length;
+  const known = new Set(['synchronous', 'asynchronous', 'embedded clock', 'single-ended', 'differential', 'parallel', 'push-pull',
+    'open-drain', 'simplex', 'half duplex', 'full duplex', 'point-to-point', 'multi-drop', 'daisy chain', 'star', 'addressed',
+    'chip-to-chip', 'cable', 'expansion', 'debug', 'audio', 'memory', 'networking', 'streaming', '8b/10b', 'Manchester', 'NRZI', 'lanes']);
+  for (const p of protocols) {
+    const t = p.tags;
+    const problems = [
+      one(['synchronous', 'asynchronous', 'embedded clock'], t) !== 1 && 'needs exactly one clocking tag',
+      one(['single-ended', 'differential'], t) !== 1 && 'needs exactly one of single-ended or differential',
+      t.includes('single-ended') && one(['push-pull', 'open-drain'], t) === 0 && 'single-ended needs push-pull or open-drain',
+      one(['simplex', 'half duplex', 'full duplex'], t) === 0 && 'needs a duplex tag',
+      one(['point-to-point', 'multi-drop', 'daisy chain', 'star'], t) === 0 && 'needs a topology tag',
+      one(['chip-to-chip', 'cable', 'expansion', 'debug'], t) === 0 && 'needs a where-it-is-used tag',
+      ...t.filter((x) => !known.has(x)).map((x) => `unknown tag "${x}" (add it to the vocabulary)`),
+    ].filter(Boolean);
+    check(`${p.id}: ${t.join(', ')}`, problems.length === 0, problems.join('; '));
+  }
 }
 
 // ---- 2. Walkthroughs ----

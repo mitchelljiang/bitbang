@@ -33,11 +33,12 @@ export const jtag: Protocol = {
   id: 'jtag',
   name: 'JTAG',
   fullName: 'Joint Test Action Group (IEEE 1149.1)',
+  tags: ['synchronous', 'single-ended', 'push-pull', 'full duplex', 'daisy chain', 'chip-to-chip', 'debug'],
   summary:
-    'Every JTAG chip contains the same 16-state machine, the TAP controller, and TMS walks it around one TCK edge at a ' +
-    'time. Two of its states, Shift-IR and Shift-DR, connect TDI to TDO through a shift register, so a bit goes in ' +
-    'as a bit comes out. Shifting into the instruction register picks an operation; shifting through a data register ' +
-    'carries it out.',
+    'A standard port for testing and debugging chips. Every JTAG device contains the same 16-state controller, the ' +
+    'TAP, which the TMS line steps through one TCK clock edge at a time. In two of its states, Shift-IR and Shift-DR, ' +
+    'a shift register connects TDI to TDO, so a bit is shifted in as another is shifted out. Shifting into the ' +
+    'instruction register selects an operation, and shifting through a data register carries it out.',
   usedIn: 'Programming and debugging microcontrollers, CPUs and FPGAs, and boundary-scan testing of solder joints on assembled boards.',
   facts: {
     clock: 'Synchronous. The debugger drives TCK. TMS and TDI are sampled on the rising edge, and TDO changes on the falling edge.',
@@ -60,7 +61,7 @@ export const jtag: Protocol = {
     'Requires four or five pins, a significant cost on a small microcontroller (the motivation for SWD).',
     'Every access spends extra clocks walking the state machine.',
     'A chain runs at the speed of its slowest chip, and one dead chip breaks the whole chain.',
-    'The interesting instructions (debug, flash programming) are vendor-specific.',
+    'The instructions used for debugging and flash programming are vendor-specific.',
   ],
   legend: { cmd: 'TMS', addr: 'instruction (IR)', data: 'data (DR)' },
   deepDive: [
@@ -86,7 +87,7 @@ export const jtag: Protocol = {
     {
       title: 'Debug and programming',
       body: [
-        'Debug access is built on vendor-defined instructions. On Arm processors, the JTAG-DP uses DPACC and APACC instructions to reach the same debug access port that SWD uses. RISC-V cores expose a debug transport module, and FPGAs load configuration bitstreams through dedicated JTAG instructions.',
+        'Debug access is built on vendor-defined instructions. On Arm processors, the JTAG-DP uses DPACC and APACC instructions to reach the same debug access port that [SWD](?p=swd) uses. RISC-V cores expose a debug transport module, and FPGAs load configuration bitstreams through dedicated JTAG instructions.',
       ],
     },
     {
@@ -120,7 +121,7 @@ export const jtag: Protocol = {
 
   encode(p) {
     const idcode = parseHex(p.idcode, 32, 'IDCODE');
-    if (!(idcode & 1)) throw new Error('Bit 0 of an IDCODE is always 1. That\'s how a debugger tells IDCODE apart from the 1-bit BYPASS register.');
+    if (!(idcode & 1)) throw new Error('Bit 0 of an IDCODE is always 1, which is how a debugger distinguishes an IDCODE from the 1-bit BYPASS register.');
     const withIr = p.seq === 'ir';
     const ir = parseHex(p.ir, 4, 'instruction');
 
@@ -187,7 +188,7 @@ export const jtag: Protocol = {
     } else {
       for (const m of [1, 0, 0] as const) cycle(m); // Select-DR, Capture-DR → Shift-DR
     }
-    shift(32, 0, 'data', 'Filler (TDI doesn\'t matter while reading IDCODE)', idcode,
+    shift(32, 0, 'data', 'Filler (the TDI value has no effect while IDCODE is read)', idcode,
       `IDCODE ${hex(idcode)} (version, part number, manufacturer, and a 1)`);
     cycle(1); // Exit1-DR → Update-DR
     cycle(0); // → Run-Test/Idle
