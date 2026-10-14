@@ -4,6 +4,7 @@ import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { formatTime } from './core/util';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
+import { mountAbout } from './about';
 import { mountGuide } from './guide';
 import { mountMenu } from './menu';
 import { protocols } from './protocols';
@@ -24,6 +25,7 @@ const tagList = $('#proto-tags');
 const vizView = $('#viz');
 const guideView = $('#guide');
 const wipView = $('#wip');
+const aboutView = $('#about');
 const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
@@ -546,16 +548,24 @@ mountThemeToggle($<HTMLButtonElement>('#theme'));
 $<HTMLAnchorElement>('#feedback').href = `mailto:${['feedback', 'bitbang.fyi'].join('@')}?subject=${encodeURIComponent('[BITBANG FEEDBACK] ')}`;
 
 mountGuide(guideView);
+mountAbout(aboutView);
 
 function route() {
   const q = new URLSearchParams(location.search);
   const p = protocols.find((x) => x.id === q.get('p'));
   const wip = p ? undefined : catalog.flatMap((c) => c.entries).find((e) => e.id === q.get('p') && e.wip);
-  const showGuide = !p && !wip;
+  const showAbout = q.get('p') === 'about';
+  const showGuide = !p && !wip && !showAbout;
   vizView.hidden = !p;
   guideView.hidden = !showGuide;
   wipView.hidden = !wip;
-  if (wip) {
+  aboutView.hidden = !showAbout;
+  if (showAbout) {
+    stop();
+    tour.stop();
+    menu.setCurrent('about');
+    document.title = 'About · bitbang';
+  } else if (wip) {
     stop();
     tour.stop();
     menu.setCurrent(wip.id);

@@ -133,7 +133,7 @@ section('1c. Every setting has an explanation');
 // ---- 1d. Links ----
 section('1d. Internal links point to real pages');
 {
-  const pages = new Set(['basics', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
+  const pages = new Set(['basics', 'about', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
   const sources: [string, string][] = [['guide', SECTIONS]];
   for (const p of protocols) for (const d of p.deepDive ?? []) for (const para of d.body) sources.push([`${p.id}: ${d.title}`, para]);
   let count = 0;
