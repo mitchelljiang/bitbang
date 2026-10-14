@@ -1,5 +1,5 @@
 /**
- * Every protocol bitbang covers or plans to cover, grouped for the home page.
+ * Every protocol bitbang covers or plans to cover, grouped for the Protocols menu.
  * An entry is live when a protocol with the same id exists in src/protocols.
  */
 export interface Entry {
@@ -20,17 +20,24 @@ export interface Category {
 
 export const catalog: Category[] = [
   {
-    id: 'low-speed',
-    name: 'Low-speed I/O',
-    blurb: 'Simple serial links, from chip to chip on a board up to across a building.',
+    id: 'synchronous',
+    name: 'Synchronous buses',
+    blurb: 'A controller drives a clock line, and data is read on its edges.',
     entries: [
-      { id: 'uart', name: 'UART', blurb: 'No clock. Both ends agree on a speed ahead of time and trust each other.', wires: 'TX · RX' },
-      { id: 'rs232', name: 'RS-232', blurb: 'UART at ±12 V, inverted. The old serial port.', wires: 'TxD · RxD · GND' },
-      { id: 'rs485', name: 'RS-485', blurb: 'UART over a differential pair. Long cables, many devices.', wires: 'A · B' },
       { id: 'spi', name: 'SPI', blurb: 'Clock, data out, data in, chip select. Fast and dumb in a good way.', wires: 'SCLK · MOSI · MISO · CS' },
       { id: 'qspi', name: 'Quad SPI', blurb: 'SPI with four data lines. How most microcontrollers read external flash.', wires: 'SCLK · IO0–3 · CS' },
       { id: 'i2c', name: 'I²C', blurb: 'Two wires shared by everything on the board. Every byte gets an ACK.', wires: 'SCL · SDA' },
       { id: 'i3c', name: 'I3C', blurb: 'I²C, but faster, and targets can interrupt.', wires: 'SCL · SDA' },
+    ],
+  },
+  {
+    id: 'asynchronous',
+    name: 'Asynchronous serial',
+    blurb: 'No clock line: timing comes from an agreed baud rate or from pulse widths.',
+    entries: [
+      { id: 'uart', name: 'UART', blurb: 'No clock. Both ends agree on a speed ahead of time and trust each other.', wires: 'TX · RX' },
+      { id: 'rs232', name: 'RS-232', blurb: 'UART at ±12 V, inverted. The old serial port.', wires: 'TxD · RxD · GND' },
+      { id: 'rs485', name: 'RS-485', blurb: 'UART over a differential pair. Long cables, many devices.', wires: 'A · B' },
       { id: 'onewire', name: '1-Wire', blurb: 'Data and power on the same wire, in microsecond time slots.', wires: 'DQ' },
       { id: 'ws2812', name: 'WS2812', full: 'NeoPixel', blurb: 'LED strips. A long pulse is a 1, a short one is a 0.', wires: 'DIN' },
     ],
@@ -49,10 +56,17 @@ export const catalog: Category[] = [
   },
   {
     id: 'networking',
-    name: 'Networking & fieldbus',
-    blurb: 'Board to board and machine to machine, usually over longer cables.',
+    name: 'Networking',
+    blurb: 'Computer to computer, with packets, addresses and a CRC.',
     entries: [
       { id: 'ethernet', name: '10BASE-T', full: 'Ethernet', blurb: 'Manchester encoding, a long preamble, and a CRC at the end.', wires: 'TX± · RX±' },
+    ],
+  },
+  {
+    id: 'industrial',
+    name: 'Automotive & industrial',
+    blurb: 'Shared buses that tie together the sensors, motors and controllers in a car or a factory.',
+    entries: [
       { id: 'can', name: 'CAN', blurb: 'The lowest ID wins arbitration, one bit at a time. Basically every car has one.', wires: 'CANH · CANL' },
       { id: 'lin', name: 'LIN', blurb: 'A cheap single-wire car bus. Mostly UART underneath.', wires: 'LIN' },
       { id: 'modbus', name: 'Modbus RTU', full: 'RS-485', blurb: 'Request and response over a twisted pair. All over industrial gear.', wires: 'A · B' },
