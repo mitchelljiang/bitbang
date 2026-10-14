@@ -1,6 +1,6 @@
 import './style.css';
-import { GUTTER, groupSteps, render, type Rendered, type Step } from './core/render';
-import type { Bit, Protocol } from './core/types';
+import { GUTTER, esc, groupSteps, render, type Rendered, type Step } from './core/render';
+import type { Bit, Kind, Protocol, Waveform } from './core/types';
 import { formatTime } from './core/util';
 import { categoryOf } from './catalog';
 import { FACTS } from './facts';
@@ -20,6 +20,7 @@ const guideView = $('#guide');
 const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
+const legend = $('#legend');
 const controls = $('#controls');
 const scope = $('#scope');
 const error = $('#error');
@@ -139,6 +140,7 @@ function update(changed?: string) {
   scope.classList.remove('stale');
   for (const input of Object.values(inputs)) input.removeAttribute('aria-invalid');
   steps = groupSteps(wave.bits);
+  buildLegend(wave);
   laneNames = wave.traces.map((t) => t.name);
   unitTime = wave.unitTime;
   hideTip();
@@ -152,6 +154,28 @@ function update(changed?: string) {
   });
   zoomFit.setAttribute('aria-pressed', String(zoom === 'fit'));
   go(current < steps.length ? current : -1);
+}
+
+/** Bit kinds that share a color share a legend entry. Only entries this waveform actually uses are shown. */
+const LEGEND: { kinds: Kind[]; label: string }[] = [
+  { kinds: ['start', 'stop'], label: 'start / stop' },
+  { kinds: ['cmd'], label: 'command' },
+  { kinds: ['addr', 'rw'], label: 'address / R/W' },
+  { kinds: ['dummy'], label: 'dummy / turnaround' },
+  { kinds: ['data'], label: 'data' },
+  { kinds: ['parity'], label: 'parity' },
+  { kinds: ['ack'], label: 'ACK' },
+  { kinds: ['nack'], label: 'NACK' },
+];
+
+function buildLegend(wave: Waveform) {
+  const used = new Set(wave.bits.map((b) => b.kind));
+  const item = (swatch: string, text: string) => `<span>${swatch}${esc(text)}</span>`;
+  const rows = LEGEND.filter((e) => e.kinds.some((k) => used.has(k))).map((e) =>
+    item(`<i class="tag k-${e.kinds[0]}"></i>`, proto.legend?.[e.kinds[0]] ?? e.label));
+  if (wave.bits.some((b) => b.by === 'target')) rows.push(item('<i class="tag dashed"></i>', 'driven by target'));
+  if (wave.bits.some((b) => b.sample !== undefined)) rows.push(item('<i class="dot"></i>', 'sample point'));
+  legend.innerHTML = rows.join('');
 }
 
 // ---- zoom: keeps whatever is in the middle of the view in the middle ----

@@ -52,6 +52,8 @@ export const catalog: Category[] = [
     entries: [
       { id: 'ethernet', name: '10BASE-T', full: 'Ethernet', blurb: 'Manchester encoding, a long preamble, and a CRC at the end.', wires: 'TX± · RX±' },
       { id: 'can', name: 'CAN', blurb: 'The lowest ID wins arbitration, one bit at a time. Basically every car has one.', wires: 'CANH · CANL' },
+      { id: 'rs232', name: 'RS-232', blurb: 'UART at ±12 V, inverted. The old serial port.', wires: 'TxD · RxD · GND' },
+      { id: 'rs485', name: 'RS-485', blurb: 'UART over a differential pair. Long cables, many devices.', wires: 'A · B' },
       { id: 'lin', name: 'LIN', blurb: 'A cheap single-wire car bus. Mostly UART underneath.', wires: 'LIN' },
       { id: 'modbus', name: 'Modbus RTU', full: 'RS-485', blurb: 'Request and response over a twisted pair. All over industrial gear.', wires: 'A · B' },
     ],

@@ -8,9 +8,11 @@ export interface Trace {
   points: { t: number; v: Level; soft?: boolean }[];
   /** Pulled high by a resistor (I²C), so it rises slowly along an RC curve and falls fast. */
   openDrain?: boolean;
+  /** Labels for the low and high levels when they aren't plain logic levels, e.g. ['−12 V', '+12 V']. */
+  levels?: [string, string];
 }
 
-export type Kind = 'start' | 'stop' | 'data' | 'parity' | 'ack' | 'nack' | 'addr' | 'rw';
+export type Kind = 'start' | 'stop' | 'data' | 'parity' | 'ack' | 'nack' | 'addr' | 'rw' | 'cmd' | 'dummy';
 
 /** Who is driving the wire during a bit — matters for shared buses like I²C. */
 export type Driver = 'controller' | 'target';
@@ -52,6 +54,8 @@ export interface Waveform {
   duration: number;
   /** Seconds per time unit, for the ruler. */
   unitTime: number;
+  /** Smallest pixels-per-unit "fit" will use before scrolling. Lower it when one unit is a small slice of a bit. */
+  minPpu?: number;
 }
 
 export type Param =
@@ -68,6 +72,8 @@ export interface Protocol {
   /** Where you'd run into it in practice: a short list of real parts and uses. */
   usedIn: string;
   facts: Record<FactKey, string>;
+  /** Renames legend entries for this protocol, e.g. 1-Wire calls its start kind "reset". Keyed by LEGEND keys. */
+  legend?: Partial<Record<Kind, string>>;
   strengths: string[];
   limits: string[];
   params: Param[];

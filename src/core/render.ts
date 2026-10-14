@@ -104,7 +104,7 @@ export interface Rendered {
 
 /** Draws the waveform as SVG into `host`. */
 export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: RenderOptions): Rendered {
-  const fitPpu = Math.max(MIN_FIT_PPU, (host.clientWidth - GUTTER - 16) / w.duration);
+  const fitPpu = Math.max(w.minPpu ?? MIN_FIT_PPU, (host.clientWidth - GUTTER - 16) / w.duration);
   const ppu = opts.zoom === 'fit' ? fitPpu : opts.zoom;
   const x = (t: number) => GUTTER + t * ppu;
   const width = Math.ceil(x(w.duration) + 8);
@@ -142,6 +142,13 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   w.traces.forEach((trace, i) => {
     const ly = layout[i].y;
     parts.push(`<text class="lane-name" x="8" y="${ly + LANE_H / 2 + 4}">${esc(trace.name)}</text>`);
+    if (trace.levels) {
+      const [lo, hi] = trace.levels;
+      parts.push(
+        `<text class="level" x="${GUTTER - 6}" y="${yOf(i, 1) + 3}">${esc(hi)}</text>` +
+        `<text class="level" x="${GUTTER - 6}" y="${yOf(i, 0) + 3}">${esc(lo)}</text>`,
+      );
+    }
     parts.push(`<path class="trace" d="${tracePath(trace, w.duration, x, (v) => yOf(i, v))}"/>`);
   });
 

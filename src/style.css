@@ -25,6 +25,8 @@
   --k-parity: #9c3f86;
   --k-ack: #127fa8;
   --k-nack: #c4421a;
+  --k-cmd: #806600;
+  --k-dummy: #6b6380;
   --on-k: #ffffff;
   --k-tint: 10%;
 
@@ -55,6 +57,8 @@
   --k-parity: #e39ad0;
   --k-ack: #6cc8ea;
   --k-nack: #f58a66;
+  --k-cmd: #e6c94a;
+  --k-dummy: #9d93b0;
   --on-k: #15111d;
   --k-tint: 14%;
   color-scheme: dark;
@@ -242,6 +246,7 @@ main, .top, footer {
 .tick.major { stroke: var(--line-soft); }
 .ruler { fill: var(--faint); font-size: 10px; }
 .lane-name { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.level { fill: var(--faint); font-size: 9px; text-anchor: end; }
 .trace { fill: none; stroke: var(--trace); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .sample { stroke: var(--faint); stroke-dasharray: 1 4; opacity: 0.6; }
 .sample-dot { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
@@ -274,6 +279,8 @@ main, .top, footer {
 .k-parity { --k: var(--k-parity); }
 .k-ack { --k: var(--k-ack); }
 .k-nack { --k: var(--k-nack); }
+.k-cmd { --k: var(--k-cmd); }
+.k-dummy { --k: var(--k-dummy); }
 
 .scope svg { display: block; font-family: var(--mono); }
 
@@ -301,11 +308,13 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .used b { font-weight: 600; color: var(--ink); margin-right: 4px; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 20px; }
-.ctl { display: flex; flex-direction: column; gap: 6px; font: 500 14px var(--sans); color: var(--muted); }
+.ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%; font: 500 14px var(--sans); color: var(--muted); }
 .ctl.wide { flex: 1 1 200px; }
 .ctl input, .ctl select {
   min-height: 42px;
   min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
   padding: 0 12px;
   font: 15px var(--mono);
   color: var(--ink);
