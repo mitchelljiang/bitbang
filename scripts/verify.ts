@@ -66,7 +66,8 @@ const CASES: [string, Params][] = [
   ['pci', {}], ['pci', { cmd: 'write', devsel: 'fast', wait: '0' }],
   ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'ts1' }], ['pcie', { content: 'ts1', lanes: '4' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
   ['usb', {}], ['usb', { xfer: 'out', data: 'FF FF 00' }], ['usb', { xfer: 'in', speed: 'low', data: '01 02 03', toggle: 'DATA1' }],
-  ['usb', { xfer: 'out', data: '', hs: 'NAK' }],
+  ['usb', { xfer: 'out', data: '', hs: 'NAK' }], ['usb', { xfer: 'in', hs: 'NAK', data: '' }], ['usb', { speed: 'high' }],
+  ['usb', { speed: 'high', xfer: 'out', data: 'FF FF 00 7E', hs: 'NYET' }], ['usb', { speed: 'high', xfer: 'in', hs: 'STALL', data: '' }],
 ];
 
 // ---- 1. Bit check ----
@@ -121,16 +122,16 @@ section('1b. Tags follow the shared vocabulary');
   }
 }
 
-// ---- 1d. Settings ----
-section('1d. Every setting has an explanation');
+// ---- 1c. Settings ----
+section('1c. Every setting has an explanation');
 {
   const missing = protocols.flatMap((p) => p.params.filter((x) => !x.help?.trim()).map((x) => `${p.id}.${x.key}`));
   const total = protocols.reduce((n, p) => n + p.params.length, 0);
   check(`${total} settings across ${protocols.length} protocols have help text`, missing.length === 0, missing.join(', '));
 }
 
-// ---- 1c. Links ----
-section('1c. Internal links point to real pages');
+// ---- 1d. Links ----
+section('1d. Internal links point to real pages');
 {
   const pages = new Set(['basics', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
   const sources: [string, string][] = [['guide', SECTIONS]];
@@ -339,6 +340,83 @@ section('3. Protocol-specific checks');
     `short ${(short.height / 2 * 100).toFixed(0)}%, long off ${(longOff.height / 2 * 100).toFixed(0)}% / ${longOff.width.toFixed(2)} UI, long on ${(longOn.height / 2 * 100).toFixed(0)}% / ${longOn.width.toFixed(2)} UI`);
 }
 
+// ---- 3u. USB high speed ----
+section('3u. USB high speed (decoded independently, compared with full speed)');
+{
+  /**
+   * Reads one line state per bit time and splits it into packets. A packet runs from the first K after idle until
+   * the line returns to SE0. Returns the decoded bytes after SYNC, plus problems found in SYNC, stuffing and EOP.
+   */
+  const decodeUsb = (w: Waveform, high: boolean, low = false) => {
+    const [dp, dm] = w.traces;
+    const st = (t: number) => {
+      const a = level(dp, t + 0.5), b = level(dm, t + 0.5);
+      if (a === 0 && b === 0) return 'SE0';
+      return (a === 1) !== low ? 'J' : 'K';
+    };
+    const packets: number[][] = [];
+    const problems: string[] = [];
+    let t = 0;
+    let idleRun = 0;
+    let seenPacket = false;
+    while (t < w.duration) {
+      if (st(t) !== 'K') {
+        if (high && st(t) !== 'SE0') problems.push(`t=${t}: high-speed idle should be SE0`);
+        idleRun++;
+        t++;
+        continue;
+      }
+      if (seenPacket && high && idleRun < 8) problems.push(`t=${t}: only ${idleRun} idle bit times between packets`);
+      seenPacket = true;
+      const states: string[] = [];
+      while (t < w.duration && st(t) !== 'SE0') states.push(st(t++));
+      if (high) {
+        // EOP: the last 8 states identical, and different from the state before them.
+        const eop = states.splice(states.length - 8);
+        if (eop.some((x) => x !== eop[0]) || states[states.length - 1] === eop[0]) problems.push(`t=${t}: bad EOP ${eop.join('')}`);
+      }
+      let prev = 'J';
+      const raw = states.map((x) => { const b = x === prev ? 1 : 0; prev = x; return b; });
+      const bits: number[] = [];
+      let ones = 0;
+      for (let i = 0; i < raw.length; i++) {
+        if (ones === 6) {
+          if (raw[i] !== 0) problems.push(`t=${t}: missing stuffed bit`);
+          ones = 0;
+          continue;
+        }
+        bits.push(raw[i]);
+        ones = raw[i] ? ones + 1 : 0;
+      }
+      const n = high ? 32 : 8;
+      if (bits.slice(0, n).join('') !== '0'.repeat(n - 1) + '1') problems.push(`t=${t}: SYNC is ${bits.slice(0, n).join('')}`);
+      const body = bits.slice(n);
+      if (body.length % 8) problems.push(`t=${t}: ${body.length} bits is not whole bytes`);
+      const bytes = Array.from({ length: body.length >> 3 }, (_, i) => body.slice(i * 8, i * 8 + 8).reduce((v, b, j) => v | (b << j), 0));
+      if (((bytes[0] ^ (bytes[0] >> 4)) & 0xf) !== 0xf) problems.push(`t=${t}: PID check bits wrong in ${bytes[0]}`);
+      packets.push(bytes);
+      idleRun = 0;
+    }
+    return { packets, problems };
+  };
+  const pairs: Params[] = [{}, { xfer: 'out', addr: '5', ep: '2', data: 'FF FF 00 7E' }, { xfer: 'in', addr: '3', ep: '1', data: '01 02 03', toggle: 'DATA1' }, { xfer: 'in', hs: 'NAK', data: '' }];
+  for (const o of pairs) {
+    const hs = decodeUsb(enc('usb', { ...o, speed: 'high' }), true);
+    const fs = decodeUsb(enc('usb', o), false);
+    check(`high speed ${JSON.stringify(o)}: SYNC, stuffing, EOP and idle are valid`, hs.problems.length === 0 && fs.problems.length === 0, [...hs.problems, ...fs.problems].slice(0, 3).join('; '));
+    check(`high speed ${JSON.stringify(o)}: same packets as full speed (checked by sigrok)`, JSON.stringify(hs.packets) === JSON.stringify(fs.packets) && fs.packets.length > 0,
+      `${JSON.stringify(hs.packets)} vs ${JSON.stringify(fs.packets)}`);
+  }
+  const nyet = decodeUsb(enc('usb', { speed: 'high', xfer: 'out', data: 'FF FF 00 7E', hs: 'NYET' }), true);
+  check('high speed NYET handshake is PID 0x96', nyet.problems.length === 0 && nyet.packets.at(-1)?.join() === '150', nyet.packets.at(-1)?.join() ?? '');
+  const ls = decodeUsb(enc('usb', { speed: 'low', xfer: 'in', hs: 'STALL', data: '' }), false, true);
+  check('IN refused with STALL: the device sends STALL in place of data', ls.problems.length === 0 && ls.packets.length === 2 && ls.packets[1].join() === '30', JSON.stringify(ls.packets));
+  const rejects = (o: Params) => { try { enc('usb', o); return false; } catch { return true; } };
+  check('SETUP cannot be NAKed or stalled; NYET only after high-speed OUT', rejects({ hs: 'NAK' }) && rejects({ hs: 'STALL' }) && rejects({ hs: 'NYET', speed: 'high' }) && rejects({ xfer: 'out', hs: 'NYET' }) && !rejects({ xfer: 'out', hs: 'NYET', speed: 'high' }));
+  const w = enc('usb', { speed: 'high' });
+  check('high speed: 480 Mbit/s, 400 mV levels', Math.abs(w.unitTime - 1 / 480e6) < 1e-15 && w.traces.every((tr) => tr.levels?.[1] === '400 mV'));
+}
+
 // ---- 4. sigrok ----
 section('4. sigrok decoders (independent)');
 let sigrok = true;
@@ -410,6 +488,7 @@ if (sigrok) {
   usb('USB SETUP', {}, 'full-speed', ['SETUP ADDR 0 EP 0', 'DATA0 [ 80 06 00 01 00 00 12 00 ]', 'ACK']);
   usb('USB OUT with stuffing', { xfer: 'out', addr: '5', ep: '2', data: 'FF FF 00 7E' }, 'full-speed', ['OUT ADDR 5 EP 2', 'DATA0 [ FF FF 00 7E ]', 'Stuff bit']);
   usb('USB IN low speed', { xfer: 'in', speed: 'low', addr: '3', ep: '1', data: '01 02 03', toggle: 'DATA1' }, 'low-speed', ['IN ADDR 3 EP 1', 'DATA1 [ 01 02 03 ]', 'ACK']);
+  usb('USB IN answered with NAK by the device', { xfer: 'in', addr: '3', ep: '1', data: '', hs: 'NAK' }, 'full-speed', ['IN ADDR 3 EP 1', 'NAK']);
 }
 
 console.log(`\n${passes} passed, ${failures} failed`);
