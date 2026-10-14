@@ -69,18 +69,18 @@ export const i2s: Protocol = {
     },
   ],
   params: [
-    { key: 'left', label: 'Left sample', type: 'text', default: '12000', placeholder: '12000 (signed)' },
-    { key: 'right', label: 'Right sample', type: 'text', default: '-3000', placeholder: '-3000 (signed)' },
+    { key: 'left', label: 'Left sample', help: 'The left-channel sample as a signed whole number. A 16-bit sample ranges from −32768 to 32767.', type: 'text', default: '12000', placeholder: '12000 (signed)' },
+    { key: 'right', label: 'Right sample', help: 'The right-channel sample as a signed whole number.', type: 'text', default: '-3000', placeholder: '-3000 (signed)' },
     {
-      key: 'bits', label: 'Bits', type: 'select', default: '16',
+      key: 'bits', label: 'Bits', help: 'The sample size and slot size. 24-bit samples are usually sent in 32-bit slots, with the remaining bits filled with zeros.', type: 'select', default: '16',
       options: [{ value: '16', label: '16-bit in 16-bit slots' }, { value: '24', label: '24-bit in 32-bit slots' }],
     },
     {
-      key: 'format', label: 'Format', type: 'select', default: 'i2s',
+      key: 'format', label: 'Format', help: 'Standard I²S starts each sample one clock cycle after WS changes; left-justified starts it on the same clock cycle. Both devices must use the same format.', type: 'select', default: 'i2s',
       options: [{ value: 'i2s', label: 'Standard I²S' }, { value: 'lj', label: 'Left-justified' }],
     },
     {
-      key: 'rate', label: 'Sample rate', type: 'select', default: '48000',
+      key: 'rate', label: 'Sample rate', help: 'The audio sample rate. It sets the bit clock frequency: sample rate × 2 channels × slot size.', type: 'select', default: '48000',
       options: [{ value: '44100', label: '44.1 kHz' }, { value: '48000', label: '48 kHz' }],
     },
   ],

@@ -12,10 +12,15 @@ export interface SearchEntry {
   tags: string[];
   /** 'live' has a page, 'wip' has an under-construction page, 'soon' has no page yet. */
   status: 'live' | 'wip' | 'soon';
-  text: string;
+  /** The words a text search can match, split once when the index is built. */
+  words: string[];
 }
 
-/** Every protocol in the menu, with the text a search can match: names, description, group and tags. */
+/** Splits text into words, keeping hyphenated words whole and also adding their parts ("on-board", "on", "board"). */
+const tokens = (text: string) =>
+  text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
+
+/** Every protocol in the menu, with the words a search can match: names, description, group and tags. */
 export const index: SearchEntry[] = catalog.flatMap((cat) =>
   cat.entries.map((e) => {
     const p = byId.get(e.id);
@@ -28,29 +33,25 @@ export const index: SearchEntry[] = catalog.flatMap((cat) =>
       tags,
       status: p ? 'live' : e.wip ? 'wip' : 'soon',
       // Include the id and a plain-digit spelling, so "i2c" finds I²C.
-      text: [e.id, e.name, e.name.replace('²', '2').replace('³', '3'), e.full, e.blurb, cat.name, p?.fullName, ...tags]
-        .filter(Boolean).join(' ').toLowerCase(),
+      words: tokens([e.id, e.name, e.name.replace('²', '2').replace('³', '3'), e.full, e.blurb, cat.name, p?.fullName, ...tags]
+        .filter(Boolean).join(' ')),
     };
   }),
 );
 
-/** Splits text into words, keeping hyphenated words whole and also adding their parts ("on-board", "on", "board"). */
-const tokens = (text: string) =>
-  text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
+/**
+ * True when every word of the query starts some word of the entry. Matching word starts, rather than anywhere
+ * inside, keeps "synchronous" from also finding "asynchronous".
+ */
+export const matches = (entry: SearchEntry, query: string) =>
+  tokens(query).every((q) => entry.words.some((w) => w.startsWith(q)));
 
 /**
- * True when every word of the query starts some word of the text. Matching word starts, rather than anywhere inside,
- * keeps "synchronous" from also finding "asynchronous".
+ * Result rows: protocols with pages first, then ones still to come. A tag search lists exactly the protocols that
+ * carry that tag; a text search matches names, descriptions and tags word by word.
  */
-export function matchesText(text: string, query: string) {
-  const words = tokens(text);
-  return tokens(query).every((q) => words.some((w) => w.startsWith(q)));
-}
-export const matches = (entry: { text: string }, query: string) => matchesText(entry.text, query);
-
-/** Result rows for a query: protocols with pages first, then ones still to come. */
-function resultsHtml(q: string) {
-  const found = index.filter((e) => matches(e, q))
+function resultsHtml(q: string, tag: string | null) {
+  const found = index.filter((e) => (tag ? e.tags.includes(tag) : matches(e, q)))
     .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1));
   if (!found.length) return `<li class="none">No protocols match “${esc(q)}”.</li>`;
   return found.map((e) => {
@@ -76,15 +77,22 @@ export function mountSearch(root: HTMLElement) {
   const input = root.querySelector('input')!;
   const results = root.querySelector<HTMLElement>('.search-results')!;
 
+  /** The tag being shown, when the search came from a tag chip. Typing switches back to a text search. */
+  let tag: string | null = null;
   const close = () => (results.hidden = true);
   function show() {
     const q = input.value.trim();
     results.hidden = !q;
-    if (q) results.innerHTML = resultsHtml(q);
+    if (q) results.innerHTML = resultsHtml(q, tag);
   }
 
-  input.addEventListener('input', show);
-  input.addEventListener('focus', show);
+  input.addEventListener('input', () => {
+    tag = null;
+    show();
+  });
+  input.addEventListener('focus', () => {
+    if (results.hidden) show();
+  });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const first = results.querySelector<HTMLAnchorElement>('a');
@@ -104,8 +112,10 @@ export function mountSearch(root: HTMLElement) {
       close();
     }
   });
+  // Clicks elsewhere close the results, except the tag chip that just opened them.
   document.addEventListener('click', (e) => {
-    if (!root.contains(e.target as Node)) close();
+    const t = e.target as Element;
+    if (!root.contains(t) && !t.closest('[data-tag]')) close();
   });
   document.addEventListener('keydown', (e) => {
     const typing = e.target instanceof Element && e.target.closest('input, select, textarea, [contenteditable]');
@@ -117,11 +127,12 @@ export function mountSearch(root: HTMLElement) {
   });
 
   return {
-    /** Runs a search, e.g. when a tag is clicked. */
-    search(query: string) {
-      input.value = query;
-      input.focus();
+    /** Lists exactly the protocols with this tag, as when a tag chip is clicked. */
+    searchTag(name: string) {
+      tag = name;
+      input.value = name;
       show();
+      input.focus();
     },
   };
 }

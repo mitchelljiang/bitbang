@@ -160,33 +160,33 @@ export const i3c: Protocol = {
     },
   ],
   params: [
-    { key: 'addr', label: 'Dynamic address', type: 'text', default: '08', placeholder: '08 (hex, 7-bit)' },
+    { key: 'addr', label: 'Dynamic address', help: 'The target\'s 7-bit dynamic address in hexadecimal. During ENTDAA, this is the address the controller assigns.', type: 'text', default: '08', placeholder: '08 (hex, 7-bit)' },
     {
-      key: 'rw', label: 'Direction', type: 'select', default: 'w',
+      key: 'rw', label: 'Direction', help: 'Write sends data to the target, and Read receives data from it. The HDR-DDR transfer on this page supports writes only.', type: 'select', default: 'w',
       options: [{ value: 'w', label: 'Write (controller → target)' }, { value: 'r', label: 'Read (target → controller)' }],
     },
-    { key: 'data', label: 'Data', type: 'text', default: '0F 42', placeholder: '0F 42' },
+    { key: 'data', label: 'Data', help: 'The data bytes transferred after the address.', type: 'text', default: '0F 42', placeholder: '0F 42' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'hex',
+      key: 'format', label: 'As', help: 'Whether Data is read as text characters or as hexadecimal bytes, such as 48 69.', type: 'select', default: 'hex',
       options: [{ value: 'hex', label: 'Hex' }, { value: 'text', label: 'Text' }],
     },
     {
-      key: 'header', label: 'Header', type: 'select', default: 'yes',
+      key: 'header', label: 'Header', help: 'Whether the transfer begins with the broadcast address 0x7E, as I3C transfers usually do, or addresses the target directly.', type: 'select', default: 'yes',
       options: [{ value: 'yes', label: 'Broadcast 7E first' }, { value: 'no', label: 'Target address only' }],
     },
     {
-      key: 'present', label: 'Target', type: 'select', default: 'yes',
+      key: 'present', label: 'Target', help: 'Whether the addressed target responds. Missing shows the NACK the controller receives when no target has the address.', type: 'select', default: 'yes',
       options: [{ value: 'yes', label: 'Responds (ACK)' }, { value: 'no', label: 'Missing (NACK)' }],
     },
     {
-      key: 'rate', label: 'Transfer', type: 'select', default: 'sdr',
+      key: 'rate', label: 'Transfer', help: 'SDR is a standard transfer with one bit per clock. HDR-DDR is a write that transfers data on both clock edges. ENTDAA is the procedure that assigns a dynamic address to a target.', type: 'select', default: 'sdr',
       options: [
         { value: 'sdr', label: 'Private transfer, SDR' },
         { value: 'ddr', label: 'Private transfer, HDR-DDR' },
         { value: 'entdaa', label: 'ENTDAA: assign the address' },
       ],
     },
-    { key: 'pid', label: 'Provisioned ID (ENTDAA)', type: 'text', default: '1A2B3C4D5E6F', placeholder: '1A2B3C4D5E6F (48-bit hex)' },
+    { key: 'pid', label: 'Provisioned ID (ENTDAA)', help: 'The target\'s 48-bit Provisioned ID in hexadecimal, sent during ENTDAA. When several targets respond at once, the lowest ID wins arbitration.', type: 'text', default: '1A2B3C4D5E6F', placeholder: '1A2B3C4D5E6F (48-bit hex)' },
   ],
 
   encode(p) {

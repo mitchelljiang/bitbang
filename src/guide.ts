@@ -2,7 +2,7 @@
  * "How protocols work": the questions every protocol answers, one section each.
  * Section ids match FactKey, so the spec sheet on each protocol page can link straight to them.
  */
-const SECTIONS = `
+export const SECTIONS = `
 <section id="clock">
   <h2>Clock: how the receiver knows when to read</h2>
   <p>A receiver sees a voltage that changes over time. To convert it back into bits, it must know <em>when</em> to

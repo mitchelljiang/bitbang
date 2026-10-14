@@ -101,13 +101,13 @@ export const pci: Protocol = {
   legend: { addr: 'address phase', dummy: 'turnaround / wait', data: 'data transfer' },
   params: [
     {
-      key: 'cmd', label: 'Command', type: 'select', default: 'read',
+      key: 'cmd', label: 'Command', help: 'The bus command, sent on C/BE# during the address phase.', type: 'select', default: 'read',
       options: [{ value: 'read', label: 'Memory Read (0110)' }, { value: 'write', label: 'Memory Write (0111)' }],
     },
-    { key: 'addr', label: 'Address', type: 'text', default: '1000', placeholder: '1000 (hex)' },
-    { key: 'data', label: 'Data words', type: 'text', default: 'CAFEF00D 12345678', placeholder: 'CAFEF00D 12345678 (32-bit hex)' },
+    { key: 'addr', label: 'Address', help: 'The 32-bit memory address, in hexadecimal.', type: 'text', default: '1000', placeholder: '1000 (hex)' },
+    { key: 'data', label: 'Data words', help: 'One to four 32-bit words, in hexadecimal. More than one word makes a burst, which transfers one word per clock cycle.', type: 'text', default: 'CAFEF00D 12345678', placeholder: 'CAFEF00D 12345678 (32-bit hex)' },
     {
-      key: 'devsel', label: 'Target decode', type: 'select', default: 'medium',
+      key: 'devsel', label: 'Target decode', help: 'How quickly the target claims the transaction by asserting DEVSEL#: one, two or three clock cycles after the address phase.', type: 'select', default: 'medium',
       options: [
         { value: 'fast', label: 'Fast DEVSEL# (1 clock)' },
         { value: 'medium', label: 'Medium DEVSEL# (2 clocks)' },
@@ -115,7 +115,7 @@ export const pci: Protocol = {
       ],
     },
     {
-      key: 'wait', label: 'Target wait states', type: 'select', default: '1',
+      key: 'wait', label: 'Target wait states', help: 'Clock cycles the target adds before it is ready for the first data word, which it signals by holding TRDY# high.', type: 'select', default: '1',
       options: ['0', '1', '2'].map((v) => ({ value: v, label: v })),
     },
   ],

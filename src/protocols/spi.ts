@@ -93,22 +93,22 @@ export const spi: Protocol = {
     },
   ],
   params: [
-    { key: 'data', label: 'MOSI', type: 'text', default: '9F 00 00', placeholder: '9F 00 00' },
-    { key: 'miso', label: 'MISO', type: 'text', default: 'FF EF 40', placeholder: 'FF EF 40' },
+    { key: 'data', label: 'MOSI', help: 'The bytes the controller sends to the target on MOSI.', type: 'text', default: '9F 00 00', placeholder: '9F 00 00' },
+    { key: 'miso', label: 'MISO', help: 'The bytes the target sends back on MISO during the same clock cycles. If left empty, the target returns 0x00.', type: 'text', default: 'FF EF 40', placeholder: 'FF EF 40' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'hex',
+      key: 'format', label: 'As', help: 'Whether MOSI and MISO are read as hexadecimal bytes or as text characters.', type: 'select', default: 'hex',
       options: [{ value: 'hex', label: 'Hex' }, { value: 'text', label: 'Text' }],
     },
     {
-      key: 'mode', label: 'Mode', type: 'select', default: '0',
+      key: 'mode', label: 'Mode', help: 'CPOL sets the level at which the clock idles, and CPHA sets whether data is sampled on the first or the second clock edge. Both devices must use the same mode.', type: 'select', default: '0',
       options: ['0', '1', '2', '3'].map((m) => ({ value: m, label: `${m} (CPOL ${+m >> 1}, CPHA ${+m & 1})` })),
     },
     {
-      key: 'order', label: 'Bit order', type: 'select', default: 'msb',
+      key: 'order', label: 'Bit order', help: 'Whether each byte is sent most significant bit first, as most devices expect, or least significant bit first.', type: 'select', default: 'msb',
       options: [{ value: 'msb', label: 'MSB first' }, { value: 'lsb', label: 'LSB first' }],
     },
     {
-      key: 'clock', label: 'Clock', type: 'select', default: '1000000',
+      key: 'clock', label: 'Clock', help: 'The SCLK frequency. It changes the timescale, not the sequence of bits.', type: 'select', default: '1000000',
       // SPI defines no fixed rates or maximum; these are common settings, up to the 80 MHz many fast parts support.
       options: [100e3, 400e3, 1e6, 2e6, 4e6, 5e6, 8e6, 10e6, 16e6, 20e6, 25e6, 40e6, 50e6, 80e6].map((hz) => ({
         value: String(hz),

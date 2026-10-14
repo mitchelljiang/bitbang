@@ -187,24 +187,24 @@ export const pcie: Protocol = {
   legend: { start: 'COM (comma)', dummy: 'PAD / SKP', addr: 'link / lane number', cmd: 'training parameters', data: 'data / identifier' },
   params: [
     {
-      key: 'content', label: 'Lane carries', type: 'select', default: 'data',
+      key: 'content', label: 'Lane carries', help: 'Data bytes encodes the bytes entered under Bytes as 8b/10b data symbols. The TS1 training set is what each lane sends during link training, and the SKP ordered set compensates for small clock differences between the two ends.', type: 'select', default: 'data',
       options: [
         { value: 'ts1', label: 'TS1 training set' },
         { value: 'skp', label: 'SKP ordered set' },
         { value: 'data', label: 'Data bytes (8b/10b)' },
       ],
     },
-    { key: 'data', label: 'Bytes', type: 'text', default: 'DE AD BE EF', placeholder: 'DE AD BE EF (for data bytes)' },
+    { key: 'data', label: 'Bytes', help: 'The bytes to encode, in hexadecimal. Used when Lane carries is set to Data bytes.', type: 'text', default: 'DE AD BE EF', placeholder: 'DE AD BE EF (for data bytes)' },
     {
-      key: 'lanes', label: 'Link width', type: 'select', default: '1',
+      key: 'lanes', label: 'Link width', help: 'The number of lanes. Data bytes are distributed across the lanes in turn, while ordered sets are sent on every lane.', type: 'select', default: '1',
       options: ['1', '2', '4', '8'].map((n) => ({ value: n, label: `x${n}` })),
     },
     {
-      key: 'rate', label: 'Generation', type: 'select', default: '2.5',
+      key: 'rate', label: 'Generation', help: 'Gen1 runs at 2.5 GT/s and Gen2 at 5 GT/s. Both use 8b/10b encoding, so the generation changes only the timescale.', type: 'select', default: '2.5',
       options: [{ value: '2.5', label: 'Gen1 (2.5 GT/s)' }, { value: '5', label: 'Gen2 (5 GT/s)' }],
     },
     {
-      key: 'rd', label: 'Starting RD', type: 'select', default: '-1',
+      key: 'rd', label: 'Starting RD', help: 'The running disparity before the first symbol. Many symbols have two possible codes, and the running disparity selects between them.', type: 'select', default: '-1',
       options: [{ value: '-1', label: 'RD− (negative)' }, { value: '1', label: 'RD+ (positive)' }],
     },
   ],

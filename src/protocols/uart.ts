@@ -97,25 +97,25 @@ export const uart: Protocol = {
     },
   ],
   params: [
-    { key: 'data', label: 'Data', type: 'text', default: 'Hi', placeholder: 'Hi' },
+    { key: 'data', label: 'Data', help: 'The bytes to transmit. Each byte becomes one frame on the diagram.', type: 'text', default: 'Hi', placeholder: 'Hi' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'text',
+      key: 'format', label: 'As', help: 'Whether Data is read as text characters or as hexadecimal bytes, such as 48 69.', type: 'select', default: 'text',
       options: [{ value: 'text', label: 'Text' }, { value: 'hex', label: 'Hex' }],
     },
     {
-      key: 'baud', label: 'Baud', type: 'select', default: '9600',
+      key: 'baud', label: 'Baud', help: 'The transmission speed in bits per second. Both devices must use the same rate. Changing it changes the timescale, not the shape of the frame.', type: 'select', default: '9600',
       options: ['1200', '9600', '19200', '57600', '115200'].map((v) => ({ value: v, label: v })),
     },
     {
-      key: 'bits', label: 'Data bits', type: 'select', default: '8',
+      key: 'bits', label: 'Data bits', help: 'The number of data bits in each frame. Eight is standard; with fewer, only the low bits of each byte are sent.', type: 'select', default: '8',
       options: ['5', '6', '7', '8'].map((v) => ({ value: v, label: v })),
     },
     {
-      key: 'parity', label: 'Parity', type: 'select', default: 'none',
+      key: 'parity', label: 'Parity', help: 'An optional error-checking bit after the data. Even or odd parity makes the total number of 1s even or odd; None omits the bit.', type: 'select', default: 'none',
       options: [{ value: 'none', label: 'None' }, { value: 'even', label: 'Even' }, { value: 'odd', label: 'Odd' }],
     },
     {
-      key: 'stop', label: 'Stop bits', type: 'select', default: '1',
+      key: 'stop', label: 'Stop bits', help: 'The number of stop bits at the end of each frame, during which the line returns high. Two stop bits give a slow receiver more time between bytes.', type: 'select', default: '1',
       options: [{ value: '1', label: '1' }, { value: '2', label: '2' }],
     },
   ],

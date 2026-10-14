@@ -99,9 +99,26 @@ function buildControls() {
   controls.innerHTML = '';
   inputs = {};
   for (const param of proto.params) {
-    const label = document.createElement('label');
-    label.className = param.type === 'text' ? 'ctl wide' : 'ctl';
-    label.append(Object.assign(document.createElement('span'), { textContent: param.label }));
+    const ctl = document.createElement('div');
+    ctl.className = param.type === 'text' ? 'ctl wide' : 'ctl';
+    const id = `ctl-${param.key}`;
+    const head = Object.assign(document.createElement('div'), { className: 'ctl-head' });
+    head.append(Object.assign(document.createElement('label'), { htmlFor: id, textContent: param.label }));
+    // The explanation shows while the ? is hovered or focused, and stays open after a click or tap until dismissed.
+    const help = Object.assign(document.createElement('p'), { className: 'ctl-help', id: `${id}-help`, textContent: param.help });
+    help.setAttribute('role', 'tooltip');
+    const tip = Object.assign(document.createElement('button'), { type: 'button', className: 'help-tip', textContent: '?' });
+    tip.setAttribute('aria-label', `About ${param.label}`);
+    tip.setAttribute('aria-describedby', help.id);
+    tip.setAttribute('aria-expanded', 'false');
+    tip.addEventListener('click', () => {
+      const open = tip.getAttribute('aria-expanded') !== 'true';
+      closeHelp();
+      tip.setAttribute('aria-expanded', String(open));
+    });
+    for (const ev of ['mouseenter', 'focus', 'click']) tip.addEventListener(ev, () => requestAnimationFrame(() => keepOnScreen(help)));
+    head.append(tip);
+    ctl.append(head, help);
 
     let input: HTMLInputElement | HTMLSelectElement;
     if (param.type === 'select') {
@@ -112,16 +129,36 @@ function buildControls() {
         type: 'text', spellcheck: false, autocomplete: 'off', placeholder: param.placeholder ?? '',
       });
     }
+    input.id = id;
+    input.setAttribute('aria-describedby', help.id);
     input.value = params[param.key];
     inputs[param.key] = input;
     input.addEventListener('input', () => {
       params[param.key] = input.value;
       update(param.key);
     });
-    label.append(input);
-    controls.append(label);
+    ctl.append(input);
+    controls.append(ctl);
   }
 }
+
+/** Shifts an open explanation left when it would run past the right edge of the screen. */
+function keepOnScreen(help: HTMLElement) {
+  help.style.left = '0';
+  const over = help.getBoundingClientRect().right - (document.documentElement.clientWidth - 16);
+  if (over > 0) help.style.left = `${-over}px`;
+}
+
+/** Closes any setting explanation opened by a click or tap. */
+function closeHelp() {
+  for (const t of controls.querySelectorAll('.help-tip[aria-expanded="true"]')) t.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', (e) => {
+  if (!(e.target as Element).closest('.help-tip')) closeHelp();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeHelp();
+});
 
 /** Pages already linked on this page. Only the first mention of each protocol becomes a link. */
 const linked = new Set<string>();
@@ -192,10 +229,8 @@ function buildAll() {
   tagList.replaceChildren(...proto.tags.map((tag) => {
     const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tag-chip', textContent: tag });
     b.title = `Find other ${tag} protocols`;
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      search.search(tag);
-    });
+    b.dataset.tag = tag;
+    b.addEventListener('click', () => search.searchTag(tag));
     return b;
   }));
   buildSpecs();

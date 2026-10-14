@@ -331,6 +331,46 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .controls { display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 20px; }
 .ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%; font: 500 14px var(--sans); color: var(--muted); }
 .ctl.wide { flex: 1 1 200px; }
+.ctl { position: relative; }
+.ctl-head { display: flex; align-items: center; gap: 6px; }
+.ctl-head label { cursor: default; }
+.help-tip {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font: 600 11px var(--sans);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: help;
+  transition: color var(--ease), border-color var(--ease);
+}
+/* A larger invisible hit area for fingers. */
+.help-tip { position: relative; }
+.help-tip::after { content: ''; position: absolute; inset: -10px; }
+.help-tip:hover, .help-tip:focus-visible, .help-tip[aria-expanded='true'] { color: var(--accent); border-color: var(--accent); }
+.ctl-help {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  margin: 0;
+  padding: 10px 12px;
+  font: 400 14px/1.5 var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+  display: none;
+  pointer-events: none;
+}
+.ctl-head:has(.help-tip:hover, .help-tip:focus-visible, .help-tip[aria-expanded='true']) + .ctl-help { display: block; }
 .ctl input, .ctl select {
   min-height: 42px;
   min-width: 0;
@@ -538,7 +578,6 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 
 /* ---- search (top bar) ---- */
 
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .top-search { position: relative; flex: 1; max-width: 420px; margin-left: auto; }
 .top-search input {
   width: 100%;

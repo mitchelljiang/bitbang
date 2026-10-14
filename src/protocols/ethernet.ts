@@ -93,12 +93,12 @@ export const ethernet: Protocol = {
     },
   ],
   params: [
-    { key: 'dst', label: 'Destination', type: 'text', default: 'ff:ff:ff:ff:ff:ff', placeholder: 'ff:ff:ff:ff:ff:ff' },
-    { key: 'src', label: 'Source', type: 'text', default: '02:00:00:00:00:01', placeholder: '02:00:00:00:00:01' },
-    { key: 'type', label: 'EtherType', type: 'text', default: '88B5', placeholder: '88B5 (hex)' },
-    { key: 'data', label: 'Payload', type: 'text', default: 'Hi', placeholder: 'Hi' },
+    { key: 'dst', label: 'Destination', help: 'The destination MAC address, as six hexadecimal bytes. ff:ff:ff:ff:ff:ff is the broadcast address, which every device accepts.', type: 'text', default: 'ff:ff:ff:ff:ff:ff', placeholder: 'ff:ff:ff:ff:ff:ff' },
+    { key: 'src', label: 'Source', help: 'The MAC address of the sender, as six hexadecimal bytes.', type: 'text', default: '02:00:00:00:00:01', placeholder: '02:00:00:00:00:01' },
+    { key: 'type', label: 'EtherType', help: 'The EtherType, a 2-byte code that identifies the payload protocol, such as 0800 for IPv4. 88B5 is reserved for local experiments.', type: 'text', default: '88B5', placeholder: '88B5 (hex)' },
+    { key: 'data', label: 'Payload', help: 'The frame payload. Payloads shorter than 46 bytes are padded with zeros to reach the minimum frame size.', type: 'text', default: 'Hi', placeholder: 'Hi' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'text',
+      key: 'format', label: 'As', help: 'Whether the payload is read as text characters or as hexadecimal bytes.', type: 'select', default: 'text',
       options: [{ value: 'text', label: 'Text' }, { value: 'hex', label: 'Hex' }],
     },
   ],

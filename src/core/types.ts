@@ -76,9 +76,10 @@ export interface Waveform {
   tour?: TourStop[];
 }
 
+/** One setting on a protocol page. `help` explains what it means and what changing it does to the diagram. */
 export type Param =
-  | { key: string; label: string; type: 'select'; options: { value: string; label: string }[]; default: string }
-  | { key: string; label: string; type: 'text'; default: string; placeholder?: string };
+  | { key: string; label: string; help: string; type: 'select'; options: { value: string; label: string }[]; default: string }
+  | { key: string; label: string; help: string; type: 'text'; default: string; placeholder?: string };
 
 /** The questions every protocol has to answer. Each one has a section in the guide page. */
 export type FactKey = 'clock' | 'wires' | 'drive' | 'duplex' | 'topology' | 'addressing' | 'flow' | 'errors' | 'speed' | 'reach';

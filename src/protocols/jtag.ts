@@ -104,17 +104,17 @@ export const jtag: Protocol = {
     },
   ],
   params: [
-    { key: 'idcode', label: 'IDCODE', type: 'text', default: '4BA00477', placeholder: '4BA00477 (hex, 32-bit)' },
+    { key: 'idcode', label: 'IDCODE', help: 'The 32-bit IDCODE the device returns, in hexadecimal. Bit 0 must be 1. The default, 4BA00477, identifies an Arm Cortex-M debug port.', type: 'text', default: '4BA00477', placeholder: '4BA00477 (hex, 32-bit)' },
     {
-      key: 'seq', label: 'Sequence', type: 'select', default: 'dr',
+      key: 'seq', label: 'Sequence', help: 'The first sequence reads IDCODE directly, because reset selects it automatically. The second first shifts an instruction into the instruction register, as a debugger does to select any operation.', type: 'select', default: 'dr',
       options: [
         { value: 'dr', label: 'Reset, then read IDCODE' },
         { value: 'ir', label: 'Load IDCODE instruction, then read' },
       ],
     },
-    { key: 'ir', label: 'Instruction', type: 'text', default: 'E', placeholder: 'E (hex, 4-bit IR)' },
+    { key: 'ir', label: 'Instruction', help: 'The instruction to load, in hexadecimal, for a 4-bit instruction register. Used only by the second sequence; 0xE selects IDCODE on Arm debug ports.', type: 'text', default: 'E', placeholder: 'E (hex, 4-bit IR)' },
     {
-      key: 'clock', label: 'TCK', type: 'select', default: '1000000',
+      key: 'clock', label: 'TCK', help: 'The TCK frequency. It changes the timescale, not the sequence.', type: 'select', default: '1000000',
       options: [{ value: '1000000', label: '1 MHz' }, { value: '10000000', label: '10 MHz' }],
     },
   ],

@@ -19,6 +19,8 @@ import { protocols } from '../src/protocols';
 import { encode8b10b } from '../src/protocols/pcie';
 import { TOURS } from '../src/tours';
 import { fold, simulate } from '../src/eye';
+import { SECTIONS } from '../src/guide';
+import { index } from '../src/search';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -62,7 +64,7 @@ const CASES: [string, Params][] = [
   ['jtag', {}], ['jtag', { seq: 'ir' }],
   ['swd', {}], ['swd', { op: 'w', port: 'ap', reg: '1', data: 'DEADBEEF' }], ['swd', { ack: 'wait' }], ['swd', { ack: 'fault', op: 'w' }],
   ['pci', {}], ['pci', { cmd: 'write', devsel: 'fast', wait: '0' }],
-  ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'ts1' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
+  ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'ts1' }], ['pcie', { content: 'ts1', lanes: '4' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
   ['usb', {}], ['usb', { xfer: 'out', data: 'FF FF 00' }], ['usb', { xfer: 'in', speed: 'low', data: '01 02 03', toggle: 'DATA1' }],
   ['usb', { xfer: 'out', data: '', hs: 'NAK' }],
 ];
@@ -88,10 +90,13 @@ for (const [id, o] of CASES) {
     if (v !== m[1]) bad.push(`${b.label}@${b.sample}: says ${m[1]}, wire ${v}`);
   }
   // A check that compares nothing passes silently, so require coverage unless the protocol is verified another way.
+  // Any bit that carries a value (data, address, command, parity) must be compared, unless another check covers it.
   const elsewhere = COVERED_ELSEWHERE[id];
-  const empty = n === 0 && w.bits.length > 3 && !elsewhere;
+  const valued = w.bits.filter((b) => ['data', 'addr', 'rw', 'cmd', 'parity'].includes(b.kind)).length;
+  const empty = n === 0 && valued > 0 && !elsewhere;
+  const note = n ? `${n} bits` : elsewhere ? `checked by ${elsewhere}` : 'no data bits in this case';
   check(`${id} ${JSON.stringify(o)}`, bad.length === 0 && !empty,
-    bad.length ? bad.slice(0, 3).join('; ') : empty ? 'no bits were compared: reword the bit text as "X = 0." or add another check' : n ? `${n} bits` : `checked by ${elsewhere ?? 'n/a'}`);
+    bad.length ? bad.slice(0, 3).join('; ') : empty ? `${valued} data bits but none compared: reword the bit text as "X = 0." or add another check` : note);
 }
 
 // ---- 1b. Tags ----
@@ -114,6 +119,31 @@ section('1b. Tags follow the shared vocabulary');
     ].filter(Boolean);
     check(`${p.id}: ${t.join(', ')}`, problems.length === 0, problems.join('; '));
   }
+}
+
+// ---- 1d. Settings ----
+section('1d. Every setting has an explanation');
+{
+  const missing = protocols.flatMap((p) => p.params.filter((x) => !x.help?.trim()).map((x) => `${p.id}.${x.key}`));
+  const total = protocols.reduce((n, p) => n + p.params.length, 0);
+  check(`${total} settings across ${protocols.length} protocols have help text`, missing.length === 0, missing.join(', '));
+}
+
+// ---- 1c. Links ----
+section('1c. Internal links point to real pages');
+{
+  const pages = new Set(['basics', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
+  const sources: [string, string][] = [['guide', SECTIONS]];
+  for (const p of protocols) for (const d of p.deepDive ?? []) for (const para of d.body) sources.push([`${p.id}: ${d.title}`, para]);
+  let count = 0;
+  const broken: string[] = [];
+  for (const [where, text] of sources) {
+    for (const m of text.matchAll(/\?p=([a-z0-9]+)/g)) {
+      count++;
+      if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
+    }
+  }
+  check(`${count} links in Going deeper and the guide lead to existing pages`, broken.length === 0, broken.join('; '));
 }
 
 // ---- 2. Walkthroughs ----

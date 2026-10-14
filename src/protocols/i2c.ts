@@ -97,35 +97,35 @@ export const i2c: Protocol = {
   ],
   legend: { cmd: 'register', dummy: 'clock stretch' },
   params: [
-    { key: 'addr', label: 'Address', type: 'text', default: '50', placeholder: '50 (hex)' },
+    { key: 'addr', label: 'Address', help: 'The target address in hexadecimal: 0x00 to 0x7F for 7-bit addresses, or up to 0x3FF for 10-bit addresses.', type: 'text', default: '50', placeholder: '50 (hex)' },
     {
-      key: 'addrMode', label: 'Address size', type: 'select', default: '7',
+      key: 'addrMode', label: 'Address size', help: 'Most devices use 7-bit addresses. 10-bit addressing sends the address in two bytes, beginning with the reserved prefix 11110.', type: 'select', default: '7',
       options: [{ value: '7', label: '7-bit' }, { value: '10', label: '10-bit' }],
     },
     {
-      key: 'rw', label: 'Direction', type: 'select', default: 'w',
+      key: 'rw', label: 'Direction', help: 'Write sends data to the target, and Read receives data from it. Register read first writes a register number and then reads from that register, which is how most sensors are accessed.', type: 'select', default: 'w',
       options: [
         { value: 'w', label: 'Write (controller → target)' },
         { value: 'r', label: 'Read (target → controller)' },
         { value: 'reg', label: 'Register read (write, then read)' },
       ],
     },
-    { key: 'reg', label: 'Register', type: 'text', default: '0F', placeholder: '0F (hex, for register reads)' },
-    { key: 'data', label: 'Data', type: 'text', default: '00 2A', placeholder: '00 2A' },
+    { key: 'reg', label: 'Register', help: 'The register to read from. Used only when Direction is set to Register read.', type: 'text', default: '0F', placeholder: '0F (hex, for register reads)' },
+    { key: 'data', label: 'Data', help: 'The bytes transferred after the address. In a write the controller sends them; in a read they are the bytes the target returns.', type: 'text', default: '00 2A', placeholder: '00 2A' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'hex',
+      key: 'format', label: 'As', help: 'Whether Data is read as text characters or as hexadecimal bytes, such as 48 69.', type: 'select', default: 'hex',
       options: [{ value: 'hex', label: 'Hex' }, { value: 'text', label: 'Text' }],
     },
     {
-      key: 'present', label: 'Target', type: 'select', default: 'yes',
+      key: 'present', label: 'Target', help: 'Whether a device with this address responds. Missing shows what the controller sees when no device acknowledges the address.', type: 'select', default: 'yes',
       options: [{ value: 'yes', label: 'Responds (ACK)' }, { value: 'no', label: 'Missing (NACK)' }],
     },
     {
-      key: 'stretch', label: 'Clock stretching', type: 'select', default: 'no',
+      key: 'stretch', label: 'Clock stretching', help: 'Whether the target holds the clock low before the data phase to gain extra time, which is called clock stretching.', type: 'select', default: 'no',
       options: [{ value: 'no', label: 'None' }, { value: 'yes', label: 'Target stretches before data' }],
     },
     {
-      key: 'speed', label: 'Speed', type: 'select', default: '100000',
+      key: 'speed', label: 'Speed', help: 'The bus speed grade. Faster modes need smaller pull-up resistors or less bus capacitance. On the diagram, only the timescale changes.', type: 'select', default: '100000',
       options: [
         { value: '100000', label: 'Standard (100 kHz)' },
         { value: '400000', label: 'Fast (400 kHz)' },

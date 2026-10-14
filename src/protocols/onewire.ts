@@ -90,10 +90,10 @@ export const onewire: Protocol = {
     },
   ],
   params: [
-    { key: 'write', label: 'Write', type: 'text', default: 'CC BE', placeholder: 'CC BE (hex)' },
-    { key: 'read', label: 'Then read', type: 'text', default: '50 05', placeholder: '50 05 (hex, or empty)' },
+    { key: 'write', label: 'Write', help: 'The command bytes the controller writes after the reset, in hexadecimal. The default, CC BE, is Skip ROM followed by Read Scratchpad.', type: 'text', default: 'CC BE', placeholder: 'CC BE (hex)' },
+    { key: 'read', label: 'Then read', help: 'The bytes the device returns in read time slots, in hexadecimal. Leave empty for a write-only transaction.', type: 'text', default: '50 05', placeholder: '50 05 (hex, or empty)' },
     {
-      key: 'present', label: 'Device', type: 'select', default: 'yes',
+      key: 'present', label: 'Device', help: 'Whether a device answers the reset with a presence pulse. Missing shows what the controller sees on an empty bus.', type: 'select', default: 'yes',
       options: [{ value: 'yes', label: 'Present' }, { value: 'no', label: 'Missing' }],
     },
   ],

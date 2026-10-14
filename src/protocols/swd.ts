@@ -86,20 +86,20 @@ export const swd: Protocol = {
   ],
   params: [
     {
-      key: 'op', label: 'Operation', type: 'select', default: 'r',
+      key: 'op', label: 'Operation', help: 'Whether the debugger reads a register or writes one.', type: 'select', default: 'r',
       options: [{ value: 'r', label: 'Read' }, { value: 'w', label: 'Write' }],
     },
     {
-      key: 'port', label: 'Port', type: 'select', default: 'dp',
+      key: 'port', label: 'Port', help: 'The debug port (DP) manages the connection itself; an access port (AP) leads to the memory and peripherals of the processor.', type: 'select', default: 'dp',
       options: [{ value: 'dp', label: 'Debug port (DP)' }, { value: 'ap', label: 'Access port (AP)' }],
     },
     {
-      key: 'reg', label: 'Register', type: 'select', default: '0',
+      key: 'reg', label: 'Register', help: 'The register address within the selected port. On the debug port, a read of 0x0 returns DPIDR, the identification register.', type: 'select', default: '0',
       options: [0, 1, 2, 3].map((i) => ({ value: `${i}`, label: `0x${(i * 4).toString(16).toUpperCase()}` })),
     },
-    { key: 'data', label: 'Data', type: 'text', default: '2BA01477', placeholder: '2BA01477 (hex, 32-bit)' },
+    { key: 'data', label: 'Data', help: 'The 32-bit value read or written, in hexadecimal.', type: 'text', default: '2BA01477', placeholder: '2BA01477 (hex, 32-bit)' },
     {
-      key: 'ack', label: 'Target answers', type: 'select', default: 'ok',
+      key: 'ack', label: 'Target answers', help: 'The response of the target. OK accepts the request, WAIT asks the debugger to retry, and FAULT reports an earlier error. No data phase follows WAIT or FAULT.', type: 'select', default: 'ok',
       options: Object.entries(ACKS).map(([value, a]) => ({ value, label: a.name })),
     },
   ],

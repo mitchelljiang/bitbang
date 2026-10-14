@@ -78,7 +78,7 @@ export const rs232: Protocol = {
   params: [
     ...uart.params,
     {
-      key: 'swing', label: 'Line voltage', type: 'select', default: '12',
+      key: 'swing', label: 'Line voltage', help: 'The voltage on the cable. Transceivers powered from 3.3 V typically produce about ±5.5 V, and classic ports about ±12 V. Both work, because receivers accept any level beyond ±3 V.', type: 'select', default: '12',
       options: [{ value: '5', label: '±5.5 V (3.3 V transceiver)' }, { value: '12', label: '±12 V (classic)' }],
     },
   ],

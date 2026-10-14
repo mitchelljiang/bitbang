@@ -115,26 +115,26 @@ export const usb: Protocol = {
   legend: { start: 'SYNC / EOP', cmd: 'PID', addr: 'address / endpoint', parity: 'CRC', dummy: 'stuffed bit', ack: 'handshake' },
   params: [
     {
-      key: 'xfer', label: 'Transaction', type: 'select', default: 'setup',
+      key: 'xfer', label: 'Transaction', help: 'The transaction type. SETUP and OUT carry data from the host to the device; IN asks the device to send data to the host.', type: 'select', default: 'setup',
       options: [
         { value: 'setup', label: 'SETUP (host sends a request)' },
         { value: 'out', label: 'OUT (host sends data)' },
         { value: 'in', label: 'IN (device sends data)' },
       ],
     },
-    { key: 'addr', label: 'Address', type: 'text', default: '0', placeholder: '0 (decimal, 0-127)' },
-    { key: 'ep', label: 'Endpoint', type: 'text', default: '0', placeholder: '0 (0-15)' },
-    { key: 'data', label: 'Data', type: 'text', default: '80 06 00 01 00 00 12 00', placeholder: '80 06 00 01 00 00 12 00' },
+    { key: 'addr', label: 'Address', help: 'The device address, from 0 to 127. A newly connected device uses address 0 until the host assigns it one.', type: 'text', default: '0', placeholder: '0 (decimal, 0-127)' },
+    { key: 'ep', label: 'Endpoint', help: 'The endpoint number, from 0 to 15. Endpoint 0 is the control endpoint that every device provides.', type: 'text', default: '0', placeholder: '0 (0-15)' },
+    { key: 'data', label: 'Data', help: 'The data packet payload, in hexadecimal. A SETUP packet is always exactly 8 bytes; the default is the standard GET_DESCRIPTOR request.', type: 'text', default: '80 06 00 01 00 00 12 00', placeholder: '80 06 00 01 00 00 12 00' },
     {
-      key: 'toggle', label: 'Data PID', type: 'select', default: 'DATA0',
+      key: 'toggle', label: 'Data PID', help: 'DATA0 and DATA1 alternate on successful transactions, which lets the receiver recognize a retransmitted packet.', type: 'select', default: 'DATA0',
       options: [{ value: 'DATA0', label: 'DATA0' }, { value: 'DATA1', label: 'DATA1' }],
     },
     {
-      key: 'hs', label: 'Handshake', type: 'select', default: 'ACK',
+      key: 'hs', label: 'Handshake', help: 'The handshake that ends the transaction: ACK for success, NAK when the receiver is busy, and STALL when the endpoint cannot complete the request.', type: 'select', default: 'ACK',
       options: [{ value: 'ACK', label: 'ACK' }, { value: 'NAK', label: 'NAK' }, { value: 'STALL', label: 'STALL' }],
     },
     {
-      key: 'speed', label: 'Speed', type: 'select', default: 'full',
+      key: 'speed', label: 'Speed', help: 'Low speed swaps the idle levels of D+ and D− and limits data packets to 8 bytes. Both speeds use the same packets.', type: 'select', default: 'full',
       options: [{ value: 'full', label: 'Full speed (12 Mbit/s)' }, { value: 'low', label: 'Low speed (1.5 Mbit/s)' }],
     },
   ],

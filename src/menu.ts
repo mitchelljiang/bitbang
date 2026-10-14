@@ -1,8 +1,9 @@
 import { catalog } from './catalog';
 import { esc } from './core/render';
-import { protocols } from './protocols';
+import { index } from './search';
 
-const byId = new Map(protocols.map((p) => [p.id, p]));
+/** Built, in progress or soon: decided once, in the search index, so the menu and the search always agree. */
+const statusOf = new Map(index.map((e) => [e.id, e.status]));
 
 /** Fills the header's Protocols dropdown from the catalog. Unbuilt protocols are listed but not linked. */
 export function mountMenu(menu: HTMLDetailsElement) {
@@ -13,11 +14,11 @@ export function mountMenu(menu: HTMLDetailsElement) {
     catalog
       .map((cat) => {
         const items = cat.entries.map((e) => {
-          return byId.has(e.id)
-            ? `<li><a href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
-            : e.wip
-              ? `<li><a class="wip" href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
-              : `<li class="soon" title="${esc(e.blurb)}">${e.name}</li>`;
+          const status = statusOf.get(e.id);
+          const title = `title="${esc(e.blurb)}"`;
+          if (status === 'live') return `<li><a href="?p=${e.id}" data-nav ${title}>${e.name}</a></li>`;
+          if (status === 'wip') return `<li><a class="wip" href="?p=${e.id}" data-nav ${title}>${e.name}</a></li>`;
+          return `<li class="soon" ${title}>${e.name}</li>`;
         });
         return `<div class="menu-group"><h3>${cat.name}</h3><ul>${items.join('')}</ul></div>`;
       })

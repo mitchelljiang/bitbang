@@ -98,19 +98,19 @@ export const qspi: Protocol = {
   legend: { cmd: 'instruction' },
   params: [
     {
-      key: 'mode', label: 'Command', type: 'select', default: '144',
+      key: 'mode', label: 'Command', help: 'The read command. The three numbers give the lines used for the instruction, the address and the data: 1-4-4, for example, sends the instruction on one line and the address and data on four.', type: 'select', default: '144',
       options: Object.entries(MODES).map(([value, m]) => ({
         value, label: `${m.lanes.join('-')}  ${m.name} (${hex(m.cmd)})`,
       })),
     },
-    { key: 'addr', label: 'Address', type: 'text', default: '001000', placeholder: '001000 (hex, 24-bit)' },
-    { key: 'data', label: 'Data read back', type: 'text', default: 'DE AD BE EF', placeholder: 'DE AD BE EF' },
+    { key: 'addr', label: 'Address', help: 'The 24-bit flash address to read from, in hexadecimal.', type: 'text', default: '001000', placeholder: '001000 (hex, 24-bit)' },
+    { key: 'data', label: 'Data read back', help: 'The bytes the flash returns from that address.', type: 'text', default: 'DE AD BE EF', placeholder: 'DE AD BE EF' },
     {
-      key: 'format', label: 'As', type: 'select', default: 'hex',
+      key: 'format', label: 'As', help: 'Whether the data is read as hexadecimal bytes or as text characters.', type: 'select', default: 'hex',
       options: [{ value: 'hex', label: 'Hex' }, { value: 'text', label: 'Text' }],
     },
     {
-      key: 'clock', label: 'Clock', type: 'select', default: '50000000',
+      key: 'clock', label: 'Clock', help: 'The SCLK frequency. It changes the timescale; the number of clock cycles depends only on the command.', type: 'select', default: '50000000',
       options: [
         { value: '10000000', label: '10 MHz' },
         { value: '50000000', label: '50 MHz' },
