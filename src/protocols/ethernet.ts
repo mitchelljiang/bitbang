@@ -38,7 +38,7 @@ export const ethernet: Protocol = {
     addressing: '48-bit MAC addresses for the destination and the source. All ones (ff:ff:ff:ff:ff:ff) is broadcast.',
     flow: 'On a hub, collision detection and random backoff. Full-duplex links can send PAUSE frames.',
     errors: 'A CRC-32 (the frame check sequence) on every frame. Frames that fail are silently dropped.',
-    speed: '10 Mbit/s. Manchester needs two signal levels per bit, so the line runs at 20 Mbaud.',
+    speed: '10 Mbit/s. Manchester sends two signal elements (half-bits) per bit, so the line runs at 20 Mbaud.',
     reach: '100 m per cable.',
   },
   strengths: [

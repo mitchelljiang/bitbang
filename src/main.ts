@@ -2,7 +2,7 @@ import './style.css';
 import { GUTTER, esc, groupSteps, render, type Rendered, type Step } from './core/render';
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { formatTime } from './core/util';
-import { categoryOf } from './catalog';
+import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountGuide } from './guide';
 import { mountMenu } from './menu';
@@ -20,6 +20,7 @@ const usedIn = $('#proto-used');
 const fullName = $('#proto-full');
 const vizView = $('#viz');
 const guideView = $('#guide');
+const wipView = $('#wip');
 const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
@@ -170,6 +171,7 @@ function update(changed?: string) {
   unitTime = wave.unitTime;
   hideTip();
   draw();
+  reserveExplainHeight();
   go(current < steps.length ? current : -1);
   tour.refresh();
 }
@@ -229,7 +231,7 @@ const tour = mountTour($('#tour-bar'), toolbar, $<HTMLButtonElement>('#tour-star
   show: showStop,
   caption(s) {
     if (!s) return go(-1);
-    stepInfo.replaceChildren(Object.assign(document.createElement('p'), { className: 'tour-text', textContent: s.text }));
+    stepInfo.replaceChildren(tourNode(s.text));
   },
   exit() {
     cancelAnimationFrame(anim);
@@ -316,6 +318,54 @@ copyBtn.addEventListener('click', async () => {
   setTimeout(() => (copyBtn.textContent = 'Copy link'), 1500);
 });
 
+const HINT = '<p class="hint">Click a bit, or use <kbd>←</kbd> <kbd>→</kbd> to walk through the frame.</p>';
+
+/** The explanation for one step: a paragraph per bit, tagged with its label (and lane, if several lanes move at once). */
+function stepNodes(step: Step) {
+  const lanes = new Set(step.bits.map((b) => b.lane)).size > 1;
+  return step.bits.map((bit) => {
+    const p = document.createElement('p');
+    const tag = Object.assign(document.createElement('span'), {
+      className: `tag k-${bit.kind}`,
+      textContent: lanes ? `${laneNames[bit.lane]} ${bit.label}` : bit.label,
+    });
+    p.append(tag, ' ', bit.info);
+    return p;
+  });
+}
+
+const tourNode = (text: string) => Object.assign(document.createElement('p'), { className: 'tour-text', textContent: text });
+
+/**
+ * Reserves the height of the tallest explanation this diagram can show (every step, the hint and every walkthrough
+ * caption), so the box below the diagram doesn't change size while stepping through it.
+ */
+function reserveExplainHeight() {
+  stepInfo.style.minHeight = '';
+  const probe = stepInfo.cloneNode(false) as HTMLElement;
+  probe.removeAttribute('id');
+  probe.setAttribute('aria-hidden', 'true');
+  Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', left: '0', top: '0', width: `${stepInfo.offsetWidth}px` });
+  instrument.append(probe);
+  let tallest = 0;
+  const measure = (nodes: Node[] | string) => {
+    if (typeof nodes === 'string') probe.innerHTML = nodes;
+    else probe.replaceChildren(...nodes);
+    tallest = Math.max(tallest, probe.offsetHeight);
+  };
+  measure(HINT);
+  const seen = new Set<string>();
+  for (const step of steps) {
+    const key = step.bits.map((b) => b.label + b.info).join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    measure(stepNodes(step));
+  }
+  for (const stop of wave?.tour ?? []) measure([tourNode(stop.text)]);
+  probe.remove();
+  stepInfo.style.minHeight = `${tallest}px`;
+}
+
 function go(i: number) {
   current = i;
   const step = steps[i] ?? null;
@@ -324,21 +374,11 @@ function go(i: number) {
   nextBtn.disabled = i >= steps.length - 1;
   if (!step) {
     stepLabel.textContent = `${steps.length} bits`;
-    stepInfo.innerHTML = '<p class="hint">Click a bit, or use <kbd>←</kbd> <kbd>→</kbd> to walk through the frame.</p>';
+    stepInfo.innerHTML = HINT;
     return;
   }
   stepLabel.textContent = `${i + 1} / ${steps.length}`;
-  stepInfo.innerHTML = '';
-  const lanes = new Set(step.bits.map((b) => b.lane)).size > 1;
-  for (const bit of step.bits) {
-    const p = document.createElement('p');
-    const tag = Object.assign(document.createElement('span'), {
-      className: `tag k-${bit.kind}`,
-      textContent: lanes ? `${laneNames[bit.lane]} ${bit.label}` : bit.label,
-    });
-    p.append(tag, ' ', bit.info);
-    stepInfo.append(p);
-  }
+  stepInfo.replaceChildren(...stepNodes(step));
 }
 
 function play() {
@@ -411,14 +451,27 @@ mountGuide(guideView);
 function route() {
   const q = new URLSearchParams(location.search);
   const p = protocols.find((x) => x.id === q.get('p'));
-  const showGuide = !p;
-  vizView.hidden = showGuide;
+  const wip = p ? undefined : catalog.flatMap((c) => c.entries).find((e) => e.id === q.get('p') && e.wip);
+  const showGuide = !p && !wip;
+  vizView.hidden = !p;
   guideView.hidden = !showGuide;
-  if (showGuide) {
+  wipView.hidden = !wip;
+  if (wip) {
+    stop();
+    tour.stop();
+    menu.setCurrent(wip.id);
+    $('#wip-cat').textContent = categoryOf(wip.id)?.name ?? '';
+    $('#wip-name').textContent = wip.name;
+    $('#wip-text').textContent = wip.wip!;
+    const related = ['usb', 'pcie'].filter((id) => protocols.some((x) => x.id === id));
+    $('#wip-links').innerHTML = related
+      .map((id) => `<a href="?p=${id}" data-nav>${esc(protocols.find((x) => x.id === id)!.name)}</a>`).join('');
+    document.title = `${wip.name} · bitbang`;
+  } else if (showGuide) {
     stop();
     menu.setCurrent('basics');
     document.title = 'How protocols work · bitbang';
-  } else {
+  } else if (p) {
     if (p !== proto) tour.stop();
     menu.setCurrent(p.id);
     readUrl(q, p);

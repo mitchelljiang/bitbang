@@ -20,7 +20,7 @@ export const qspi: Protocol = {
   usedIn: 'External flash on microcontrollers (often running code straight from it), ESP32 and RP2040 boards, FPGA ' +
     'configuration flash, and some displays.',
   facts: {
-    clock: 'Synchronous. The controller drives SCLK, almost always in SPI mode 0, and both sides sample on the rising edge.',
+    clock: 'Synchronous. The controller drives SCLK, usually in SPI mode 0 (most flash also accepts mode 3), and both sides sample on the rising edge.',
     wires: 'CS, SCLK and four bidirectional data lines IO0 to IO3. In single-line commands, IO0 is MOSI and IO1 is MISO, while IO2 and IO3 double as the write-protect and hold pins.',
     drive: 'Push-pull. Each IO line switches direction partway through a read, and the dummy clocks give both sides time to swap.',
     duplex: 'Half duplex in quad phases, since all four lines carry one direction at a time.',

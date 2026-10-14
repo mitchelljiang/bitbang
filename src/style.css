@@ -210,6 +210,8 @@ main, .top, footer {
 .menu-group a:hover { background: var(--sel); }
 .menu-group a[aria-current] { color: var(--accent); background: var(--sel); font-weight: 600; }
 .menu-group .soon { color: var(--faint); cursor: default; }
+.menu-group a.wip { color: var(--muted); font-weight: 400; }
+.menu-group a.wip::after { content: 'in progress'; margin-left: auto; font-size: 12px; color: var(--faint); }
 .menu-group .soon::after { content: 'soon'; margin-left: auto; font-size: 12px; }
 
 /* ---- buttons ---- */
@@ -248,6 +250,8 @@ main, .top, footer {
 .lane-name { fill: var(--ink); font-size: 12px; font-weight: 700; }
 .level { fill: var(--faint); font-size: 9px; text-anchor: end; }
 .trace { fill: none; stroke: var(--trace); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.trace.bus { fill: color-mix(in srgb, var(--trace) 5%, transparent); stroke-width: 1.75; }
+.bus-value { fill: var(--ink); font-size: 11px; font-weight: 600; text-anchor: middle; }
 .sample { stroke: var(--faint); stroke-dasharray: 1 4; opacity: 0.6; }
 .sample-dot { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
 .sel { fill: var(--sel); }
@@ -476,6 +480,21 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .cons li::before { content: '−'; color: var(--k-nack); }
 
 @media (max-width: 900px) { .specs { grid-template-columns: 1fr; } }
+
+/* ---- under construction ---- */
+
+#wip .intro p#wip-text { color: var(--ink); }
+.wip-note { font-size: 16px !important; }
+.wip-links { display: flex; flex-wrap: wrap; gap: 10px; }
+.wip-links a {
+  padding: 8px 14px;
+  font: 500 15px var(--sans);
+  text-decoration: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.wip-links a:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ---- going deeper ---- */
 

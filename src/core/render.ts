@@ -81,6 +81,28 @@ function tracePath(trace: Trace, duration: number, x: (t: number) => number, y: 
   return d + ` H ${x(duration)}`;
 }
 
+/** A bus as datasheets draw it: a band per value with the value written inside, crossing over at each change. */
+function busParts(trace: Trace, duration: number, x: (t: number) => number, top: number, bottom: number) {
+  const mid = (top + bottom) / 2;
+  const out: string[] = [];
+  const pts = trace.points;
+  pts.forEach((p, i) => {
+    const x0 = x(p.t);
+    const x1 = x(pts[i + 1]?.t ?? duration);
+    if (x1 <= x0) return;
+    if (p.v === 'z') {
+      out.push(`<path class="trace" d="M ${x0} ${mid} H ${x1}"/>`);
+      return;
+    }
+    const s = Math.min(4, (x1 - x0) / 4);
+    out.push(`<path class="trace bus" d="M ${x0} ${mid} L ${x0 + s} ${top} H ${x1 - s} L ${x1} ${mid} L ${x1 - s} ${bottom} H ${x0 + s} Z"/>`);
+    if (p.label && fits(p.label, x1 - x0 - 2 * s)) {
+      out.push(`<text class="bus-value" x="${(x0 + x1) / 2}" y="${mid + 4}">${esc(p.label)}</text>`);
+    }
+  });
+  return out.join('');
+}
+
 /** Where an edge visibly reaches its new level: the end of the curve for an open-drain rise, otherwise the edge itself. */
 function edgeEnd(trace: Trace, t: number) {
   const i = trace.points.findIndex((p) => p.t === t);
@@ -151,7 +173,9 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
         `<text class="level" x="${GUTTER - 6}" y="${yOf(i, 0) + 3}">${esc(lo)}</text>`,
       );
     }
-    parts.push(`<path class="trace" d="${tracePath(trace, w.duration, x, (v) => yOf(i, v))}"/>`);
+    parts.push(trace.bus
+      ? busParts(trace, w.duration, x, yOf(i, 1), yOf(i, 0))
+      : `<path class="trace" d="${tracePath(trace, w.duration, x, (v) => yOf(i, v))}"/>`);
   });
 
   // Callouts: a label above the lane with a thin leader down to the wire. Skipped when it would overlap the previous one.
@@ -184,6 +208,7 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     const ly = layout[bit.lane].y;
     const sx = x(bit.sample);
     if (ppu >= 14) parts.push(`<line class="sample" x1="${sx}" x2="${sx}" y1="${ly}" y2="${ly + LANE_H}"/>`);
+    if (w.traces[bit.lane].bus) continue; // a bus has no single level to put a dot on
     parts.push(`<circle class="sample-dot" cx="${sx}" cy="${yOf(bit.lane, levelAt(w.traces[bit.lane], bit.sample))}" r="${ppu >= 14 ? 3 : 2}"/>`);
   }
 

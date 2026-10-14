@@ -10,11 +10,13 @@ Type in some bytes, pick your settings, and see every bit that goes out on the w
 |---|---|
 | Synchronous buses | SPI, Quad SPI, I²C, I3C (SDR, HDR-DDR, ENTDAA) |
 | Asynchronous serial | UART, RS-232, RS-485, 1-Wire |
+| Expansion buses | PCI, PCIe Gen1/Gen2 (x1 to x8) |
+| USB | USB 2.0 (low and full speed) |
 | Audio | I²S |
 | Networking | 10BASE-T Ethernet |
 | Debug & programming | JTAG, SWD |
 
-More are listed in the Protocols menu as coming soon.
+USB 3.x and USB4 have under-construction pages, and more protocols are listed in the menu as coming soon.
 
 ## What's on each page
 
@@ -32,9 +34,9 @@ There's also a [How protocols work](https://bitbang.fyi) guide, which is the hom
 Every waveform is checked two ways:
 
 1. **Bit check:** a script reads each waveform back off the wire at every sample point and confirms it matches what each bit claims to be.
-2. **Independent decoders:** waveforms are exported as VCD files and decoded with [sigrok](https://sigrok.org)'s protocol decoders (UART, SPI, I²C, I²S, 1-Wire, JTAG, SWD and SPI flash), which were written separately from the specs. 10BASE-T frames are checked against Python's `zlib.crc32`.
+2. **Independent decoders:** waveforms are exported as VCD files and decoded with [sigrok](https://sigrok.org)'s protocol decoders (UART, SPI, I²C, I²S, 1-Wire, JTAG, SWD, USB and SPI flash), which were written separately from the specs. 10BASE-T frames are checked against Python's `zlib.crc32`, PCIe's 8b/10b encoder against reference codes and the encoding's structural properties, and PCI transactions against the bus handshake rules.
 
-There's no sigrok decoder for I3C, so the I3C HDR-DDR and ENTDAA details are the least independently verified. Corrections are welcome.
+There are no sigrok decoders for I3C, PCI or PCIe, so those are the least independently verified, especially I3C HDR-DDR and ENTDAA. Corrections are welcome.
 
 ## Develop
 

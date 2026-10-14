@@ -40,7 +40,7 @@ export const i3c: Protocol = {
   summary:
     'I²C\'s successor, on the same two wires. The controller drives SCL push-pull at up to 12.5 MHz. Each transfer ' +
     'starts in open-drain mode so devices can arbitrate and acknowledge, then switches to push-pull for the data. ' +
-    'Data bytes end with a parity bit instead of an ACK. In HDR-DDR mode, data moves on both clock edges.',
+    'Each data byte ends with a T-bit instead of an ACK: odd parity on writes, and an end-of-data flag from the target on reads. In HDR-DDR mode, data moves on both clock edges.',
   usedIn: 'Newer phone and wearable sensors, sensor hubs, and the sideband bus on DDR5 memory modules (JEDEC uses I3C Basic).',
   facts: {
     clock: 'Synchronous. The controller drives SCL push-pull, up to 12.5 MHz. Targets can\'t stretch the clock.',

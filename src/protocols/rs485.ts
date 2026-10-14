@@ -13,8 +13,8 @@ export const rs485: Protocol = {
   fullName: 'Recommended Standard 485 (now TIA‑485)',
   summary:
     'UART frames sent over a twisted pair as a difference in voltage: A above B is a 1, B above A is a 0. Noise ' +
-    'hits both wires equally and cancels out, so it runs for over a kilometer, and up to 32 devices can share the ' +
-    'pair. Only one may drive it at a time, so each transceiver has a driver-enable (DE) pin.',
+    'hits both wires equally and cancels out, so it runs for over a kilometer, and dozens of devices can share the ' +
+    'pair (32 standard loads, up to 256 with low-load transceivers). Only one may drive it at a time, so each transceiver has a driver-enable (DE) pin.',
   usedIn: 'Modbus RTU in factories, DMX512 stage lighting, building automation (BACnet MS/TP), solar inverters and energy meters.',
   facts: {
     clock: 'None. It usually carries UART frames, so both ends agree on a baud rate.',

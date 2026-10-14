@@ -13,7 +13,9 @@ export function mountMenu(menu: HTMLDetailsElement) {
       const items = cat.entries.map((e) =>
         live.has(e.id)
           ? `<li><a href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
-          : `<li class="soon" title="${esc(e.blurb)}">${e.name}</li>`,
+          : e.wip
+            ? `<li><a class="wip" href="?p=${e.id}" data-nav title="${esc(e.blurb)}">${e.name}</a></li>`
+            : `<li class="soon" title="${esc(e.blurb)}">${e.name}</li>`,
       );
       return `<div class="menu-group"><h3>${cat.name}</h3><ul>${items.join('')}</ul></div>`;
     })

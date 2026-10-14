@@ -71,8 +71,8 @@ export const spi: Protocol = {
       title: 'Chip select does more than select',
       body: [
         'Many chips act on CS going high: an ADC starts converting, a DAC updates its output, a flash chip starts an ' +
-        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can misalign every ' +
-        'following byte off by a few bits. Some commands need CS held low for the whole multi-byte sequence.',
+        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can shift every ' +
+        'following byte by a few bits. Some commands need CS held low for the whole multi-byte sequence.',
         'Every target must also release MISO when its CS is high. Some low-cost modules (and SD cards in SPI mode, until ' +
         'they receive one extra clock) do not, which causes errors that are difficult to diagnose on a shared bus.',
       ],

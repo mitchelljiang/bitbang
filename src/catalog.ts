@@ -9,6 +9,8 @@ export interface Entry {
   blurb: string;
   /** The signal names, shown as a hint of what's on the wire. */
   wires: string;
+  /** Has a page that says it's under construction, instead of being an unlinked "soon" item. */
+  wip?: string;
 }
 
 export interface Category {
@@ -43,15 +45,34 @@ export const catalog: Category[] = [
     ],
   },
   {
-    id: 'high-speed',
-    name: 'High-speed I/O',
-    blurb: 'Differential pairs, line coding, clock recovery.',
+    id: 'expansion',
+    name: 'Expansion buses',
+    blurb: 'Connections inside a computer, to expansion cards and drives.',
+    entries: [
+      { id: 'pci', name: 'PCI', blurb: 'The parallel bus PCI Express replaced: 32 shared lines and a 33 MHz clock.', wires: 'AD[31:0] · C/BE# · FRAME# · …' },
+      { id: 'pcie', name: 'PCIe', blurb: '8b/10b on the early generations, 128b/130b after that.', wires: 'TX± · RX±' },
+      { id: 'sata', name: 'SATA', blurb: '8b/10b symbols, primitives and frames.', wires: 'TX± · RX±' },
+    ],
+  },
+  {
+    id: 'usb',
+    name: 'USB',
+    blurb: 'Plug-in devices, connected through a host.',
     entries: [
       { id: 'usb', name: 'USB 2.0', blurb: 'NRZI, bit stuffing, and a sync pattern in front of every packet.', wires: 'D+ · D−' },
-      { id: 'pcie', name: 'PCIe', blurb: '8b/10b on the early generations, 128b/130b after that.', wires: 'TX± · RX±' },
-      { id: 'mipi', name: 'MIPI CSI-2', blurb: 'Camera lanes that drop in and out of a low-power mode.', wires: 'CLK± · D0–3±' },
+      { id: 'usb3', name: 'USB 3.x', blurb: 'SuperSpeed: separate transmit and receive pairs, 8b/10b and then 128b/132b.', wires: 'SSTX± · SSRX± · D+ · D−',
+        wip: 'USB 3.x (SuperSpeed) adds two dedicated differential pairs alongside the USB 2.0 pair, one for each direction, so it is full duplex. The first generation (5 Gbit/s) uses 8b/10b encoding with scrambling, the same encoding as PCIe Gen1 and Gen2; later generations (10 and 20 Gbit/s) use 128b/132b. Packets are framed with dedicated K-symbol sequences, and link training resembles PCIe.' },
+      { id: 'usb4', name: 'USB4', blurb: 'Tunnels USB, DisplayPort and PCIe over one USB-C link.', wires: 'TX1± · TX2± · RX1± · RX2±',
+        wip: 'USB4 is built on the Thunderbolt 3 protocol. It runs two lanes per direction over a USB-C cable at up to 20 Gbit/s each (40 Gbit/s in total, 80 Gbit/s in version 2 with PAM3 signaling), and instead of a single protocol it carries tunnels: USB 3.x, DisplayPort and PCIe traffic share the link at the same time, allocated by a connection manager.' },
+    ],
+  },
+  {
+    id: 'video',
+    name: 'Video & display',
+    blurb: 'High-bandwidth links for cameras and displays.',
+    entries: [
       { id: 'hdmi', name: 'HDMI', full: 'TMDS', blurb: '8 bits in, 10 bits out, with as few transitions as possible.', wires: 'D0–2± · CLK±' },
-      { id: 'sata', name: 'SATA', blurb: '8b/10b symbols, primitives and frames.', wires: 'TX± · RX±' },
+      { id: 'mipi', name: 'MIPI CSI-2', blurb: 'Camera lanes that drop in and out of a low-power mode.', wires: 'CLK± · D0–3±' },
     ],
   },
   {

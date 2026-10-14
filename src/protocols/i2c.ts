@@ -18,7 +18,7 @@ export const i2c: Protocol = {
     addressing: '7-bit addresses sent at the start of each transfer, so about 112 usable. An optional 10-bit mode sends the address in two bytes.',
     flow: 'ACK/NACK after every byte, plus clock stretching when a target needs more time.',
     errors: 'ACK only shows that someone received a byte, not that it was right. There\'s no checksum (SMBus adds an optional CRC-8, called PEC).',
-    speed: '100 kHz (Standard), 400 kHz (Fast), 1 MHz (Fast-mode Plus), and 3.4 MHz (High-speed, rarely used).',
+    speed: '100 kHz (Standard), 400 kHz (Fast), 1 MHz (Fast-mode Plus), 3.4 MHz (High-speed, rarely used), and 5 MHz Ultra-fast mode, which is write-only and push-pull.',
     reach: 'Board level. The spec allows at most 400 pF on the bus, which is roughly a meter of wiring plus the devices.',
   },
   strengths: [
@@ -51,7 +51,7 @@ export const i2c: Protocol = {
         '1 kΩ at 3.3 V.',
         'The largest is set by rise time: R = t_r / (0.8473 × C_bus), where t_r is at most 1000 ns in Standard mode, ' +
         '300 ns in Fast mode and 120 ns in Fast-mode Plus. A Fast-mode bus with 200 pF of capacitance needs about 1.8 ' +
-        'kΩ or less. That\'s why 2.2 kΩ to 4.7 kΩ are the usual choices. Too big a resistor makes the shark-fin rises ' +
+        'kΩ or less. Smaller buses with less capacitance are why 2.2 kΩ to 4.7 kΩ are the usual choices. Too big a resistor makes the shark-fin rises ' +
         'so slow that bits get misread.',
       ],
     },

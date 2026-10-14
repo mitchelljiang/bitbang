@@ -5,11 +5,17 @@ export type Level = 0 | 1 | 'z';
 export interface Trace {
   name: string;
   /** `soft` marks a rise that happens through a pull-up rather than a driver, for buses that switch modes (I3C). */
-  points: { t: number; v: Level; soft?: boolean }[];
+  /** `label` names a bus value, for traces drawn as a bus (`bus: true`). */
+  points: { t: number; v: Level; soft?: boolean; label?: string }[];
   /** Pulled high by a resistor (I²C), so it rises slowly along an RC curve and falls fast. */
   openDrain?: boolean;
   /** Labels for the low and high levels when they aren't plain logic levels, e.g. ['−12 V', '+12 V']. */
   levels?: [string, string];
+  /**
+   * Draw as a multi-bit bus: a band with each value written inside, crossing over at every change.
+   * Points with v = 'z' are drawn as a single center line (not driven); any other v is a driven value.
+   */
+  bus?: boolean;
 }
 
 export type Kind = 'start' | 'stop' | 'data' | 'parity' | 'ack' | 'nack' | 'addr' | 'rw' | 'cmd' | 'dummy';

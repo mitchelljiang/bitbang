@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build --base ./",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify": "esbuild scripts/verify.ts --bundle --platform=node --log-level=warning --outfile=node_modules/.cache/verify.cjs && node node_modules/.cache/verify.cjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
