@@ -9,6 +9,7 @@ import { mountMenu } from './menu';
 import { protocols } from './protocols';
 import { mountThemeToggle } from './theme';
 import { mountTour } from './tour';
+import { mountEye } from './eye';
 import { TOURS } from './tours';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -27,6 +28,19 @@ const limits = $('#limits');
 const legend = $('#legend');
 const deep = $('#deep');
 const deepBody = $('#deep-body');
+const extra = $('#extra');
+
+/** Interactive figures that belong to one protocol's page. */
+const EXTRAS: Record<string, { title: string; intro: string; mount(root: HTMLElement): void }> = {
+  pcie: {
+    title: 'Eye diagram',
+    intro: 'An eye diagram overlays every bit of a long signal on top of each other. The open area in the middle is the ' +
+      'margin the receiver has to decide 1 or 0: the taller and wider it is, the more noise and timing error the link ' +
+      'can tolerate. Change the channel and jitter to see the eye close, and turn de-emphasis on to see it reopen.',
+    mount: mountEye,
+  },
+};
+let extraFor = '';
 const controls = $('#controls');
 const scope = $('#scope');
 const error = $('#error');
@@ -118,6 +132,15 @@ function buildSpecs() {
   const items = (list: string[]) => list.map((t) => Object.assign(document.createElement('li'), { textContent: t }));
   strengths.replaceChildren(...items(proto.strengths));
   limits.replaceChildren(...items(proto.limits));
+
+  const fig = EXTRAS[proto.id];
+  extra.hidden = !fig;
+  if (fig && extraFor !== proto.id) {
+    $('#extra-title').textContent = fig.title;
+    $('#extra-intro').textContent = fig.intro;
+    fig.mount($('#extra-body'));
+  }
+  extraFor = fig ? proto.id : '';
 
   deep.hidden = !proto.deepDive?.length;
   deepBody.replaceChildren(...(proto.deepDive ?? []).map(({ title, body }) => {

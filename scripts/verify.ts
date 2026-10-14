@@ -18,6 +18,7 @@ import type { Level, Protocol, Trace, Waveform } from '../src/core/types';
 import { protocols } from '../src/protocols';
 import { encode8b10b } from '../src/protocols/pcie';
 import { TOURS } from '../src/tours';
+import { fold, simulate } from '../src/eye';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -264,6 +265,17 @@ section('3. Protocol-specific checks');
     if (!ok) pciBad++;
   }
   check('PCI: 36 combinations follow the IRDY#/TRDY#/DEVSEL#/FRAME# rules', pciBad === 0, `${pciBad} broken`);
+  // PCIe eye diagram: a long trace should fail without de-emphasis and recover with it; short and typical traces pass.
+  const eye = (loss: number, deemph: boolean) => {
+    const { bits, y } = simulate({ loss, jitter: 0.015, deemph });
+    return fold(bits, y);
+  };
+  const short = eye(0.2, false);
+  const longOff = eye(1.05, false);
+  const longOn = eye(1.05, true);
+  check('PCIe eye: short trace open, long trace closes, de-emphasis reopens it',
+    short.height > 1.5 && longOn.height > longOff.height && longOn.width > longOff.width + 0.1,
+    `short ${(short.height / 2 * 100).toFixed(0)}%, long off ${(longOff.height / 2 * 100).toFixed(0)}% / ${longOff.width.toFixed(2)} UI, long on ${(longOn.height / 2 * 100).toFixed(0)}% / ${longOn.width.toFixed(2)} UI`);
 }
 
 // ---- 4. sigrok ----

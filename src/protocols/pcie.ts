@@ -125,6 +125,56 @@ export const pcie: Protocol = {
       ],
     },
     {
+      title: 'Reading an eye diagram',
+      body: [
+        'An eye diagram is built by slicing a long signal into windows two bits wide and drawing every window on top of ' +
+        'the others. Transitions cross in an X at each bit boundary, and the open space between the crossings is the ' +
+        'eye. Its height is the voltage margin the receiver has to decide between 1 and 0; its width is the timing margin ' +
+        'for where it samples. The eye diagram above is generated this way from a simulated link.',
+      ],
+    },
+    {
+      title: 'What closes the eye',
+      body: [
+        'Circuit-board traces, connectors and cables lose more of the high frequencies than the low ones. A short pulse, ' +
+        'such as a single 1 between 0s, therefore never reaches its full level before the next bit begins, and bits ' +
+        'blur into their neighbours. This inter-symbol interference (ISI) squeezes the eye vertically. Jitter, ' +
+        'variation in when edges occur, narrows it horizontally, and noise, crosstalk and reflections thicken every ' +
+        'trace. At several gigabits per second over typical board material, an unequalized eye can close completely.',
+      ],
+    },
+    {
+      title: 'De-emphasis and equalization',
+      body: [
+        'Gen1 and Gen2 transmitters use de-emphasis: the first bit after a transition is sent at full amplitude, and ' +
+        'repeated bits are sent smaller (by 3.5 dB, or 6 dB at Gen2 for longer channels). Reducing the low-frequency ' +
+        'content counteracts the channel\'s high-frequency loss, so after the channel the levels even out and the eye ' +
+        'reopens. A scope probe at the transmitter therefore shows four amplitudes even though the data has only two states.',
+        'From Gen3, each transmitter has a configurable three-tap filter, and receivers add a continuous-time linear ' +
+        'equalizer (CTLE) and a decision feedback equalizer (DFE). During link training, the two ends run an ' +
+        'equalization procedure in which each receiver asks the far transmitter to try settings until its eye is open enough.',
+      ],
+    },
+    {
+      title: 'Compliance and masks',
+      body: [
+        'The specification sets minimum eye dimensions at the transmitter and at the receiver, measured with a defined ' +
+        'test pattern and setup. For Gen1, for example, the transmitter eye must be at least 0.75 UI wide and the ' +
+        'receiver must work with an eye as small as 0.4 UI wide and 175 mV high. Test equipment overlays a mask, a ' +
+        'keep-out region in the middle of the eye, and any trace that enters it is a failure. The mask in the figure ' +
+        'above is illustrative, not the specification\'s exact shape.',
+      ],
+    },
+    {
+      title: 'PAM4 eyes',
+      body: [
+        'Gen6 uses four signal levels, so its eye diagram shows three eyes stacked vertically, one between each pair of ' +
+        'adjacent levels. Each eye is about a third the height of an NRZ eye at the same swing, which leaves much less ' +
+        'margin for noise. That is why Gen6 adds forward error correction: a low bit error rate is expected and corrected ' +
+        'rather than avoided.',
+      ],
+    },
+    {
       title: 'Gen3 and later',
       body: [
         'From Gen3, PCIe replaced 8b/10b with 128b/130b: a 2-bit sync header followed by 128 scrambled bits, reducing the ' +
