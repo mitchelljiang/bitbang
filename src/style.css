@@ -129,9 +129,9 @@ main, .top, footer {
   letter-spacing: -0.02em;
   text-decoration: none;
 }
-.logo span { color: var(--faint); font-weight: 400; }
-.logo svg { width: 30px; height: 15px; }
-.logo svg path { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
+.logo .name span { color: var(--faint); font-weight: 400; }
+.logo svg { width: 24px; height: 24px; }
+.logo svg path { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: miter; }
 
 .theme, .menu summary {
   display: flex;
