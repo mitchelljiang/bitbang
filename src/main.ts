@@ -404,7 +404,7 @@ mountThemeToggle($<HTMLButtonElement>('#theme'));
 
 // The feedback address is put together here rather than written in the page, so simple scrapers can't harvest it.
 // Without JavaScript the link falls back to GitHub issues.
-$<HTMLAnchorElement>('#feedback').href = `mailto:${['feedback', 'bitbang.fyi'].join('@')}?subject=${encodeURIComponent('bitbang feedback')}`;
+$<HTMLAnchorElement>('#feedback').href = `mailto:${['feedback', 'bitbang.fyi'].join('@')}?subject=${encodeURIComponent('[BITBANG FEEDBACK] ')}`;
 
 mountGuide(guideView);
 
