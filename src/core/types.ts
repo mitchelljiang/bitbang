@@ -46,6 +46,16 @@ export interface Note {
   text: string;
 }
 
+/** One stop of a walkthrough: what to show, what to highlight, and what to say about it. */
+export interface TourStop {
+  title: string;
+  text: string;
+  /** Time range to zoom to. */
+  view: [number, number];
+  /** Time range to keep bright; omit to highlight the whole view. Null highlights nothing. */
+  focus?: [number, number] | null;
+}
+
 export interface Waveform {
   traces: Trace[];
   bits: Bit[];
@@ -56,6 +66,8 @@ export interface Waveform {
   unitTime: number;
   /** Smallest pixels-per-unit "fit" will use before scrolling. Lower it when one unit is a small slice of a bit. */
   minPpu?: number;
+  /** Optional guided walkthrough, for frames too long to take in at once. */
+  tour?: TourStop[];
 }
 
 export type Param =
@@ -78,6 +90,8 @@ export interface Protocol {
   legend?: Partial<Record<Kind, string>>;
   strengths: string[];
   limits: string[];
+  /** Optional longer explanations shown under the spec sheet, one topic each. */
+  deepDive?: { title: string; body: string[] }[];
   params: Param[];
   /** Throws an Error with a user-facing message on invalid input. */
   encode(params: Record<string, string>): Waveform;

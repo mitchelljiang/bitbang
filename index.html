@@ -62,11 +62,21 @@
             <span id="step-label"></span>
           </div>
           <div class="group">
+            <button id="tour-start" class="tour-start" hidden>Walk through</button>
             <button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
             <button id="zoom-fit" title="Fit to width">Fit</button>
             <button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
             <button id="copy-link" title="Copy a link to exactly this frame">Copy link</button>
           </div>
+        </div>
+        <div class="tour" id="tour-bar" hidden>
+          <div class="tour-head">
+            <button class="tour-prev"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg>Back</button>
+            <p class="tour-where"><span class="tour-count"></span> <b class="tour-title"></b></p>
+            <button class="tour-next">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
+            <button class="tour-exit" aria-label="Exit walkthrough" title="Exit (Esc)">✕</button>
+          </div>
+          <div class="strip" aria-hidden="true"></div>
         </div>
         <div class="scope" id="scope" tabindex="0" aria-label="Waveform. Use the arrow keys to step through bits."></div>
         <div class="explain" id="step-info" aria-live="polite"></div>
@@ -88,13 +98,21 @@
           <ul class="cons" id="limits"></ul>
         </div>
       </section>
+
+      <section class="deep" id="deep" aria-labelledby="deep-title" hidden>
+        <h2 id="deep-title">Going deeper</h2>
+        <div id="deep-body"></div>
+      </section>
     </main>
     <main id="guide" hidden></main>
     </div>
 
     <footer>
       <span>bitbang.fyi</span>
-      <a href="https://github.com/mitchelljiang/bitbang">Source on GitHub</a>
+      <span class="links">
+        <a href="mailto:jiangmitchell@gmail.com?subject=bitbang%20feedback">Send feedback</a>
+        <a href="https://github.com/mitchelljiang/bitbang">Source on GitHub</a>
+      </span>
     </footer>
 
     <script type="module" src="/src/main.ts"></script>

@@ -251,6 +251,8 @@ main, .top, footer {
 .sample { stroke: var(--faint); stroke-dasharray: 1 4; opacity: 0.6; }
 .sample-dot { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
 .sel { fill: var(--sel); }
+.dim { fill: var(--paper); opacity: 0.78; pointer-events: none; }
+.focus-edge { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.6; pointer-events: none; }
 
 .note line { stroke: var(--accent); stroke-width: 1.25; }
 .note circle { fill: var(--accent); }
@@ -396,6 +398,56 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .legend .tag.dashed { background: none; border: 1.5px dashed var(--muted); }
 .legend .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
 
+/* ---- walkthrough ---- */
+
+.tour-start { border-color: var(--accent) !important; color: var(--accent) !important; font-weight: 600 !important; }
+.tour { margin-bottom: 10px; }
+.tour-head { display: flex; align-items: center; gap: 8px; }
+.tour-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  font: 500 14px var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--ease);
+}
+.tour-head button:hover:not(:disabled) { border-color: var(--faint); }
+.tour-head button:disabled { opacity: 0.4; cursor: not-allowed; }
+.tour-head button svg { width: 12px; height: 12px; }
+.tour-head button svg path { fill: currentColor; }
+.tour-head .tour-next { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tour-head .tour-next:hover:not(:disabled) { border-color: var(--accent); filter: brightness(1.08); }
+.tour-where { flex: 1; margin: 0; text-align: center; font-size: 15px; }
+.tour-count { font: 13px var(--mono); color: var(--faint); margin-right: 6px; }
+.tour-title { font-weight: 600; }
+@media (pointer: coarse) { .tour-head button { min-height: 44px; } }
+
+.strip {
+  position: relative;
+  height: 14px;
+  margin-top: 10px;
+  border-radius: 4px;
+  background: var(--line-soft);
+  cursor: pointer;
+  overflow: hidden;
+}
+.strip .block { position: absolute; top: 2px; bottom: 2px; background: color-mix(in srgb, var(--k) 55%, transparent); border-right: 1px solid var(--paper); }
+.strip .window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  transition: left 0.45s ease-in-out, width 0.45s ease-in-out;
+}
+.tour-text { font-size: 17px; line-height: 1.6; max-width: 72ch; }
+
 /* ---- spec sheet ---- */
 
 .specs {
@@ -424,6 +476,14 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .cons li::before { content: '−'; color: var(--k-nack); }
 
 @media (max-width: 900px) { .specs { grid-template-columns: 1fr; } }
+
+/* ---- going deeper ---- */
+
+.deep { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--line); }
+.deep h2 { margin: 0 0 8px; font: 700 22px/1.2 var(--sans); letter-spacing: -0.015em; }
+#deep-body { max-width: 72ch; }
+#deep-body h3 { margin: 18px 0 6px; font: 600 17px/1.3 var(--sans); }
+#deep-body p { margin: 0 0 10px; color: var(--muted); font-size: 16px; max-width: 68ch; }
 
 /* ---- guide ---- */
 
@@ -470,6 +530,7 @@ footer {
   color: var(--faint);
 }
 footer a { color: var(--muted); text-underline-offset: 3px; }
+footer .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 footer a:hover { color: var(--ink); }
 
 @media (max-width: 600px) {

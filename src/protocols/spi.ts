@@ -39,6 +39,55 @@ export const spi: Protocol = {
     'Not really a single standard: clock mode, bit order, word size and max speed vary from chip to chip, so you check each datasheet.',
     'Only works over short distances.',
   ],
+  deepDive: [
+    {
+      title: 'Finding the mode in a datasheet',
+      body: [
+        'Datasheets often show a timing diagram instead of saying "mode 0". Two questions answer it. Where does SCLK ' +
+        'sit when CS goes low? Low means CPOL = 0, high means CPOL = 1. Is the data already valid at the first clock ' +
+        'edge? If the chip samples on that first edge, CPHA = 0; if data changes on it and is sampled on the second, ' +
+        'CPHA = 1.',
+        'Modes 0 and 3 cover most chips, and many accept both, because in both the data is sampled on a rising edge.',
+      ],
+    },
+    {
+      title: 'MOSI, MISO, SDO, SDI, COPI, CIPO',
+      body: [
+        'The classic names are MOSI and MISO. Newer datasheets use SDO and SDI, named from each chip\'s own point of ' +
+        'view, so the controller\'s SDO connects to the target\'s SDI. The open hardware community now uses COPI and ' +
+        'CIPO (controller out, peripheral in). Chip select also goes by CS, SS, nCS, CE and SYNC.',
+      ],
+    },
+    {
+      title: 'What really limits the speed',
+      body: [
+        'Writing is easy to make fast. Reading is harder: the clock edge has to travel to the target, the target takes ' +
+        'some time to change MISO, and MISO has to travel back, all before the controller samples. At 50 MHz that ' +
+        'whole round trip has to fit in 10 ns. Many SPI peripherals have a "delayed sampling" option to sample MISO ' +
+        'later, and short traces help.',
+      ],
+    },
+    {
+      title: 'Chip select does more than select',
+      body: [
+        'Many chips act on CS going high: an ADC starts converting, a DAC updates its output, a flash chip starts an ' +
+        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can throw every ' +
+        'following byte off by a few bits. Some commands need CS held low for the whole multi-byte sequence.',
+        'Every target must also release MISO when its CS is high. A few cheap modules (and SD cards in SPI mode, until ' +
+        'they get one extra clock) don\'t, which breaks a shared bus in confusing ways.',
+      ],
+    },
+    {
+      title: '3-wire SPI and daisy chains',
+      body: [
+        '3-wire SPI merges MOSI and MISO into one bidirectional data line to save a pin, at the cost of full duplex: ' +
+        'the controller sends a command, then lets go of the line and reads.',
+        'A daisy chain goes the other way: one CS for many chips, with each chip\'s output feeding the next one\'s input. ' +
+        'Shifting 16 bits through two 74HC595 shift registers and then raising CS updates both at once. LED drivers and ' +
+        'some DACs are built for this.',
+      ],
+    },
+  ],
   params: [
     { key: 'data', label: 'MOSI', type: 'text', default: '9F 00 00', placeholder: '9F 00 00' },
     { key: 'miso', label: 'MISO', type: 'text', default: 'FF EF 40', placeholder: 'FF EF 40' },

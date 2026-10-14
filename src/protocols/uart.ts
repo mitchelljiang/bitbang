@@ -32,6 +32,66 @@ export const uart: Protocol = {
     'No addressing: each pair of wires connects exactly two devices.',
     'Parity misses two flipped bits in the same byte, and there\'s no acknowledgment that anything was received.',
   ],
+  deepDive: [
+    {
+      title: 'Baud rate error',
+      body: [
+        'Each side makes its baud rate by dividing its own clock, and the division rarely comes out exact. An Arduino ' +
+        'Uno\'s 16 MHz clock can\'t make 115200 baud: the closest it gets is 117647, about 2.1% fast. That\'s why some ' +
+        'boards use odd-looking crystals like 14.7456 MHz, which divides evenly into every standard baud rate.',
+        'How much error is too much? The receiver times every bit from the falling edge of the start bit and samples ' +
+        'in the middle of each one, usually by taking 16 samples per bit and voting on the middle three. By the stop ' +
+        'bit, about 9.5 bits later, the two clocks may only have drifted apart by under half a bit, roughly 5% in ' +
+        'total. In practice, keep each side within about 2%.',
+      ],
+    },
+    {
+      title: 'Reading "8N1" and friends',
+      body: [
+        'Serial settings are written as data bits, parity, stop bits. 8N1 is 8 data bits, no parity, 1 stop bit, and ' +
+        'it\'s the default almost everywhere. 7E1 (7 bits, even parity, 1 stop bit) comes from old terminals that only ' +
+        'sent 7-bit ASCII. 8N1 won because bytes are 8 bits and a single parity bit catches too little to be worth ' +
+        'it; protocols on top add their own checksums instead.',
+      ],
+    },
+    {
+      title: 'The break condition',
+      body: [
+        'A break is the line held low for longer than a whole frame: start bit, data, parity and stop bit. No normal ' +
+        'byte can look like that, because the stop bit is always high, so receivers flag it separately. LIN and DMX512 ' +
+        'start every frame with a break, and some bootloaders and consoles treat it as an attention signal.',
+      ],
+    },
+    {
+      title: 'Flow control and overruns',
+      body: [
+        'Many microcontroller UARTs only hold one received byte, or a small FIFO. If software doesn\'t read it before ' +
+        'the next byte finishes arriving, the old one is overwritten and the UART flags an overrun. At 115200 baud a ' +
+        'new byte arrives every 87 µs.',
+        'Hardware flow control fixes this with two extra wires: the receiver turns off its RTS output when it\'s ' +
+        'nearly full, and the sender, watching that as CTS, pauses. Software flow control sends XON and XOFF ' +
+        'characters instead, which only works if those byte values never appear in the data. Most firmware just uses ' +
+        'interrupts or DMA into a ring buffer.',
+      ],
+    },
+    {
+      title: 'Where does a message end?',
+      body: [
+        'UART frames bytes, not messages, so protocols on top have to mark message boundaries themselves. The usual ' +
+        'ways are a gap (Modbus RTU ends a message with 3.5 character times of silence), a special character (a ' +
+        'newline for text, or framing schemes like SLIP and COBS for binary), or a length field at the start. Many ' +
+        'UARTs have an "idle line" interrupt that fires after one character time of silence, which pairs well with DMA.',
+      ],
+    },
+    {
+      title: 'Same frames, different wires',
+      body: [
+        'The bit pattern above is the same everywhere UART is used. What changes is the electrical layer: 3.3 V or ' +
+        '5 V logic between chips, inverted ±12 V as RS-232, or a differential pair as RS-485. Both have their own ' +
+        'pages in the Protocols menu.',
+      ],
+    },
+  ],
   params: [
     { key: 'data', label: 'Data', type: 'text', default: 'Hi', placeholder: 'Hi' },
     {

@@ -1,4 +1,4 @@
-import type { Bit, Field, Kind, Note, Protocol } from '../core/types';
+import type { Bit, Field, Kind, Note, Protocol, TourStop } from '../core/types';
 import { TraceBuilder, hex, parseBytes } from '../core/util';
 
 const MIN_PAYLOAD = 46;
@@ -106,6 +106,7 @@ export const ethernet: Protocol = {
     };
 
     let t = 1;
+    const span: Record<string, [number, number]> = {};
     for (const sec of sections) {
       if (!sec.bytes.length) continue;
       const start = t;
@@ -126,6 +127,7 @@ export const ethernet: Protocol = {
         }
       });
       fields.push({ lane: 1, t0: start, t1: t, label: sec.label, kind: sec.kind });
+      span[sec.kind === 'addr' ? (span.dst ? 'src' : 'dst') : sec.label.split(' ')[0].toLowerCase()] = [start, t];
     }
 
     // End of frame: hold high briefly (TP_IDL), then go quiet at 0 V.
@@ -139,6 +141,86 @@ export const ethernet: Protocol = {
         'Between frames, 10BASE-T sends a short "link pulse" every 16 ms so each end knows the cable is connected.',
     });
 
-    return { traces: [data.trace, tx.trace], bits, fields, notes, duration: t + 3, unitTime: 1e-7, minPpu: 8 };
+    const duration = t + 3;
+    const end = t;
+    const pad1 = (r: [number, number], before = 4, after = 4): [number, number] => [Math.max(0, r[0] - before), Math.min(duration, r[1] + after)];
+    const us = (bitsCount: number) => `${(bitsCount * 0.1).toFixed(1)} µs`;
+    const totalBytes = 8 + frame.length + 4;
+    const tour: TourStop[] = [
+      {
+        title: 'The whole frame',
+        text: `One Ethernet frame: ${totalBytes} bytes, ${totalBytes * 8} bits, ${us(totalBytes * 8)} on the wire. The top ` +
+          'line is the data being sent. The bottom line is what actually goes down the cable. Step through it one ' +
+          'part at a time.',
+        view: [0, duration], focus: null,
+      },
+      {
+        title: 'Manchester encoding, up close',
+        text: 'Every bit has a transition in its middle: low-to-high is a 1, high-to-low is a 0. Between bits the line ' +
+          'sometimes flips too, just to get into position for the next transition, and the receiver ignores those. ' +
+          'Because every bit has an edge, the receiver can recover the clock from the data.',
+        view: [1, 5],
+      },
+      {
+        title: 'Preamble',
+        text: 'Seven bytes of 0x55, which comes out as 1010… over and over. It carries no data. It gives the ' +
+          'receiver 56 bits of steady transitions to lock its clock onto before anything important arrives.',
+        view: pad1(span.preamble), focus: span.preamble,
+      },
+      {
+        title: 'Start frame delimiter',
+        text: 'One byte, 0xD5. It matches the preamble pattern until its last two bits, which are 11 instead of 10. ' +
+          'That break in the pattern tells the receiver the frame itself starts on the very next bit.',
+        view: pad1(span.sfd, 16, 8), focus: span.sfd,
+      },
+      {
+        title: 'Destination address',
+        text: `Six bytes: who the frame is for, ${macText(dst)}. ${dst.every((b) => b === 0xff)
+          ? 'All ones is the broadcast address, so every device on the network accepts it.'
+          : 'A network card drops frames whose destination isn\'t its own address (or broadcast).'}`,
+        view: pad1(span.dst), focus: span.dst,
+      },
+      {
+        title: 'Source address',
+        text: `Six bytes: who sent it, ${macText(src)}. Switches learn which port each source address lives on, so ` +
+          'they know where to send frames addressed back to it.',
+        view: pad1(span.src), focus: span.src,
+      },
+      {
+        title: 'EtherType',
+        text: `Two bytes, 0x${typeText.toUpperCase().padStart(4, '0')}, saying what kind of data the payload holds: ` +
+          '0x0800 is IPv4, 0x86DD is IPv6, 0x0806 is ARP. Unlike the bits inside each byte, these two bytes go most ' +
+          'significant first.',
+        view: pad1(span.type, 8, 8), focus: span.type,
+      },
+      {
+        title: 'Payload',
+        text: `The actual data: ${payload.length} byte${payload.length === 1 ? '' : 's'}. On a real network this would ` +
+          'usually be an IP packet, which carries its own headers inside.',
+        view: pad1(span.payload), focus: span.payload,
+      },
+      ...(span.padding ? [{
+        title: 'Padding',
+        text: `${pad} bytes of zeros, because the payload has to be at least 46 bytes. That makes every frame at least ` +
+          '64 bytes long, which on old shared networks guaranteed a sender was still transmitting when news of a ' +
+          'collision got back to it.',
+        view: pad1(span.padding), focus: span.padding,
+      }] : []),
+      {
+        title: 'Frame check sequence',
+        text: `A CRC-32 of everything from the destination address to the end of the padding: 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}. ` +
+          'The receiver computes the same CRC and silently drops the frame if they differ. It catches every burst ' +
+          'error up to 32 bits long.',
+        view: pad1(span.fcs), focus: span.fcs,
+      },
+      {
+        title: 'End of frame',
+        text: 'The transmitter holds the line high for about two bit times, then stops driving it, and the line settles ' +
+          'at 0 V. After a short gap the next frame can start with its own preamble.',
+        view: [end - 8, duration], focus: [end, end + 2],
+      },
+    ];
+
+    return { traces: [data.trace, tx.trace], bits, fields, notes, duration, unitTime: 1e-7, minPpu: 8, tour };
   },
 };

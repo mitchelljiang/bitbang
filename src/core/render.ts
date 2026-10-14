@@ -94,6 +94,8 @@ export interface RenderOptions {
   zoom: number | 'fit';
   onPick(step: number): void;
   onHover(bit: Bit | null, cell: Element | null): void;
+  /** Time range to keep bright; everything outside it is dimmed. Used by the walkthrough. */
+  focus?: [number, number] | null;
 }
 
 export interface Rendered {
@@ -209,6 +211,16 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     parts.push(
       `<g class="field k-${f.kind}"><rect x="${fx}" y="${ry + 2}" width="${fw}" height="${ROW_H - 4}" rx="2"/>` +
       (label ? `<text x="${fx + fw / 2}" y="${ry + ROW_H / 2 + 4}">${esc(label)}</text>` : '') + `</g>`,
+    );
+  }
+
+  if (opts.focus) {
+    const [f0, f1] = opts.focus.map(x);
+    parts.push(
+      `<rect class="dim" x="0" y="0" width="${Math.max(0, f0)}" height="${height}"/>` +
+      `<rect class="dim" x="${f1}" y="0" width="${Math.max(0, width - f1)}" height="${height}"/>` +
+      `<line class="focus-edge" x1="${f0}" x2="${f0}" y1="0" y2="${height}"/>` +
+      `<line class="focus-edge" x1="${f1}" x2="${f1}" y1="0" y2="${height}"/>`,
     );
   }
 

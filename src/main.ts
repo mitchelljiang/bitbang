@@ -1,6 +1,6 @@
 import './style.css';
 import { GUTTER, esc, groupSteps, render, type Rendered, type Step } from './core/render';
-import type { Bit, Kind, Protocol, Waveform } from './core/types';
+import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { formatTime } from './core/util';
 import { categoryOf } from './catalog';
 import { FACTS } from './facts';
@@ -8,6 +8,8 @@ import { mountGuide } from './guide';
 import { mountMenu } from './menu';
 import { protocols } from './protocols';
 import { mountThemeToggle } from './theme';
+import { mountTour } from './tour';
+import { TOURS } from './tours';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -22,6 +24,8 @@ const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
 const legend = $('#legend');
+const deep = $('#deep');
+const deepBody = $('#deep-body');
 const controls = $('#controls');
 const scope = $('#scope');
 const error = $('#error');
@@ -36,6 +40,7 @@ const zoomIn = $<HTMLButtonElement>('#zoom-in');
 const copyBtn = $<HTMLButtonElement>('#copy-link');
 const instrument = $('.instrument');
 const tooltip = $('#tooltip');
+const toolbar = $('.toolbar');
 
 let proto: Protocol = protocols[0];
 let params: Record<string, string> = {};
@@ -47,6 +52,9 @@ let timer: number | undefined;
 let zoom: number | 'fit' = 'fit';
 let unitTime = 1;
 let inputs: Record<string, HTMLInputElement | HTMLSelectElement> = {};
+let wave: Waveform | null = null;
+/** Time range the walkthrough keeps bright, or null for no dimming. */
+let focus: [number, number] | null = null;
 
 const defaults = (p: Protocol) => Object.fromEntries(p.params.map((x) => [x.key, x.default]));
 
@@ -109,6 +117,14 @@ function buildSpecs() {
   const items = (list: string[]) => list.map((t) => Object.assign(document.createElement('li'), { textContent: t }));
   strengths.replaceChildren(...items(proto.strengths));
   limits.replaceChildren(...items(proto.limits));
+
+  deep.hidden = !proto.deepDive?.length;
+  deepBody.replaceChildren(...(proto.deepDive ?? []).map(({ title, body }) => {
+    const topic = document.createElement('section');
+    topic.append(Object.assign(document.createElement('h3'), { textContent: title }));
+    for (const para of body) topic.append(Object.assign(document.createElement('p'), { textContent: para }));
+    return topic;
+  }));
 }
 
 function buildAll() {
@@ -128,9 +144,9 @@ function buildAll() {
 function update(changed?: string) {
   stop();
   writeUrl();
-  let wave;
+  let next: Waveform;
   try {
-    wave = proto.encode(params);
+    next = proto.encode(params);
   } catch (e) {
     // Keep the last good waveform on screen, dimmed, while the user is mid-edit.
     error.textContent = (e as Error).message;
@@ -142,13 +158,27 @@ function update(changed?: string) {
   error.hidden = true;
   scope.classList.remove('stale');
   for (const input of Object.values(inputs)) input.removeAttribute('aria-invalid');
+  wave = next;
+  try {
+    wave.tour ??= TOURS[proto.id]?.(wave, params);
+  } catch (e) {
+    console.error('Walkthrough failed to build; showing the diagram without it.', e);
+  }
   steps = groupSteps(wave.bits);
   buildLegend(wave);
   laneNames = wave.traces.map((t) => t.name);
   unitTime = wave.unitTime;
   hideTip();
+  draw();
+  go(current < steps.length ? current : -1);
+  tour.refresh();
+}
+
+function draw() {
+  if (!wave) return;
   drawn = render(scope, wave, steps, {
     zoom,
+    focus,
     onPick(i) {
       stop();
       go(i);
@@ -156,8 +186,59 @@ function update(changed?: string) {
     onHover: showTip,
   });
   zoomFit.setAttribute('aria-pressed', String(zoom === 'fit'));
-  go(current < steps.length ? current : -1);
 }
+
+// ---- walkthrough: zooms from stop to stop, dimming the rest ----
+
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let anim = 0;
+
+/** Width of the drawing area right of the lane names, and the time at its center. */
+const viewWidth = () => scope.clientWidth - GUTTER - 16;
+const centerTime = () => (drawn ? (scope.scrollLeft + viewWidth() / 2) / drawn.ppu : 0);
+
+function zoomTo(ppu: number, center: number) {
+  zoom = ppu;
+  draw();
+  scope.scrollLeft = center * ppu - viewWidth() / 2;
+}
+
+function showStop(s: TourStop, animate: boolean) {
+  cancelAnimationFrame(anim);
+  const [v0, v1] = s.view;
+  focus = s.focus === undefined ? s.view : s.focus;
+  const toPpu = Math.min(200, viewWidth() / (v1 - v0));
+  const toCenter = (v0 + v1) / 2;
+  if (!animate || reducedMotion.matches || !drawn) return zoomTo(toPpu, toCenter);
+  const fromPpu = drawn.ppu;
+  const fromCenter = centerTime();
+  const t0 = performance.now();
+  const DURATION = 450;
+  const frame = (now: number) => {
+    const k = Math.min(1, (now - t0) / DURATION);
+    const e = k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2; // ease in-out
+    // Zoom moves geometrically, so going from 1× to 8× feels as even as 8× to 64×.
+    zoomTo(fromPpu * (toPpu / fromPpu) ** e, fromCenter + (toCenter - fromCenter) * e);
+    if (k < 1) anim = requestAnimationFrame(frame);
+  };
+  anim = requestAnimationFrame(frame);
+}
+
+const tour = mountTour($('#tour-bar'), toolbar, $<HTMLButtonElement>('#tour-start'), {
+  wave: () => wave,
+  show: showStop,
+  caption(s) {
+    if (!s) return go(-1);
+    stepInfo.replaceChildren(Object.assign(document.createElement('p'), { className: 'tour-text', textContent: s.text }));
+  },
+  exit() {
+    cancelAnimationFrame(anim);
+    focus = null;
+    zoom = 'fit';
+    draw();
+    scope.scrollLeft = 0;
+  },
+});
 
 /** Bit kinds that share a color share a legend entry. Only entries this waveform actually uses are shown. */
 const LEGEND: { kinds: Kind[]; label: string }[] = [
@@ -283,6 +364,13 @@ playBtn.addEventListener('click', play);
 
 document.addEventListener('keydown', (e) => {
   if (vizView.hidden) return;
+  if (tour.active()) {
+    if (e.target instanceof Element && e.target.closest('input, select, textarea')) return;
+    const action = ({ ArrowRight: tour.next, ArrowLeft: tour.prev, Escape: tour.stop } as Record<string, () => void>)[e.key];
+    if (!action || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    return action();
+  }
   if (e.target instanceof Element && e.target.closest('input, select, textarea, button, a')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const keys: Record<string, () => void> = {
@@ -327,6 +415,7 @@ function route() {
     menu.setCurrent('basics');
     document.title = 'How protocols work · bitbang';
   } else {
+    if (p !== proto) tour.stop();
     menu.setCurrent(p.id);
     readUrl(q, p);
     buildAll();
