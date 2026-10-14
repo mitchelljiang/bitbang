@@ -23,8 +23,8 @@ export const uart: Protocol = {
   },
   strengths: [
     'Only two signal wires, and no clock line to route.',
-    'Nearly every microcontroller has one, and a cheap USB adapter lets a computer talk to it.',
-    'Human-readable when you send text, which is why it\'s the default debug console.',
+    'Nearly every microcontroller has one, and an inexpensive USB adapter connects it to a computer.',
+    'Human-readable when used for text, which is why it\'s the default debug console.',
   ],
   limits: [
     'Both sides must be set to the same baud rate. Their clocks may drift apart by only about 2% each before bits are misread.',
@@ -70,7 +70,7 @@ export const uart: Protocol = {
         'new byte arrives every 87 µs.',
         'Hardware flow control fixes this with two extra wires: the receiver turns off its RTS output when it\'s ' +
         'nearly full, and the sender, watching that as CTS, pauses. Software flow control sends XON and XOFF ' +
-        'characters instead, which only works if those byte values never appear in the data. Most firmware just uses ' +
+        'characters instead, which only works if those byte values never appear in the data. Most firmware instead uses ' +
         'interrupts or DMA into a ring buffer.',
       ],
     },

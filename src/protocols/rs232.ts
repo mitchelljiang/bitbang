@@ -25,14 +25,14 @@ export const rs232: Protocol = {
     topology: 'Point-to-point. One device on each end, traditionally a computer (DTE) and a modem (DCE).',
     addressing: 'None.',
     flow: 'Hardware flow control on RTS/CTS, or software XON/XOFF characters.',
-    errors: 'Whatever the UART framing has: an optional parity bit and framing errors.',
+    errors: 'Those provided by the UART framing: an optional parity bit and framing errors.',
     speed: 'Usually 9600 to 115200 baud. The original standard only promised 20 kbit/s; modern transceivers manage around 1 Mbit/s on short cables.',
     reach: 'About 15 m at moderate speeds. Longer cables work at lower baud rates.',
   },
   strengths: [
     'Large voltage swings tolerate noise far better than 3.3 V UART pins.',
-    'Still everywhere on industrial and lab equipment, and USB adapters are cheap.',
-    'Simple: the software side is just a UART.',
+    'Still everywhere on industrial and lab equipment, and USB adapters are inexpensive.',
+    'Simple: in software it is an ordinary UART.',
   ],
   limits: [
     'Needs a transceiver chip. Wiring RS-232 straight to a microcontroller pin can destroy it.',

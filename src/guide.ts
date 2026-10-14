@@ -21,7 +21,7 @@ const SECTIONS = `
 <section id="wires">
   <h2>Wires and signaling</h2>
   <p><b>Single-ended</b> signals are one wire measured against ground: 0 V is a 0, and 3.3 V (or 5 V, or 1.8 V) is a 1.
-    That's cheap, but any noise picked up along the way, or any difference between the two grounds, shows up directly
+    That is inexpensive, but any noise picked up along the way, or any difference between the two grounds, shows up directly
     in the signal.</p>
   <p><b>Differential</b> signals use a pair of wires driven in opposite directions, and the receiver looks only at the
     difference. Noise hits both wires about equally and cancels out, which is why long-distance and high-speed links
@@ -46,7 +46,7 @@ const SECTIONS = `
 <section id="duplex">
   <h2>Duplex: which directions, and when</h2>
   <ul>
-    <li><b>Simplex:</b> one direction only, like a GPS module that just streams position.</li>
+    <li><b>Simplex:</b> one direction only, such as a GPS module that continuously streams position data.</li>
     <li><b>Half duplex:</b> both directions, but taking turns on the same wire. I²C and RS-485 work like this, and
       something has to decide whose turn it is.</li>
     <li><b>Full duplex:</b> both directions at once, on separate wires. UART and SPI have one wire per direction.</li>
@@ -57,7 +57,7 @@ const SECTIONS = `
   <h2>Topology: who's connected to whom</h2>
   <ul>
     <li><b>Point-to-point:</b> exactly two devices (UART). Nothing to coordinate, but every new device needs new wires.</li>
-    <li><b>Shared bus:</b> everyone on the same wires (I²C, CAN, RS-485). Cheap to extend, but devices need addresses and
+    <li><b>Shared bus:</b> everyone on the same wires (I²C, CAN, RS-485). Inexpensive to extend, but devices need addresses and
       a way to avoid talking over each other.</li>
     <li><b>Star with selects:</b> shared data wires, plus a separate select wire to each device (SPI).</li>
     <li><b>Daisy chain:</b> each device's output feeds the next one's input (JTAG, some SPI parts, LED strips). Few wires,
@@ -71,7 +71,7 @@ const SECTIONS = `
     selects: simple and fast, but one pin per device) or with <b>addresses</b> in the data (I²C's 7-bit address: no extra
     pins, but it costs time on every transfer, and two parts with the same fixed address can't share a bus).</p>
   <p>If more than one device can start a transfer, the protocol also needs <b>arbitration</b> for when two start at
-    once. I²C and CAN use the wired-AND trick: every sender watches the wire while it transmits, and anyone who sends a 1
+    once. I²C and CAN use wired-AND arbitration: every sender watches the wire while it transmits, and anyone who sends a 1
     but sees a 0 has lost and backs off. The winner never notices, so no time is wasted.</p>
 </section>
 
@@ -87,8 +87,8 @@ const SECTIONS = `
 
 <section id="flow">
   <h2>Flow control: who sets the pace?</h2>
-  <p>If the sender is faster than the receiver can handle, data gets dropped. Some protocols leave that to you. SPI's
-    controller simply clocks as fast as it's told to. Others give the receiver a way to push back: UART's optional
+  <p>If the sender is faster than the receiver can handle, data gets dropped. Some protocols leave this to the application. SPI's
+    controller clocks at whatever rate it is configured for. Others give the receiver a way to push back: UART's optional
     RTS/CTS wires or XON/XOFF characters, I²C's clock stretching (a target holds SCL low until it's ready), or an
     ACK/NACK after each chunk of data.</p>
 </section>
@@ -97,12 +97,12 @@ const SECTIONS = `
   <h2>Error checking</h2>
   <ul>
     <li><b>Parity:</b> one extra bit that makes the count of 1s even (or odd). Catches any single flipped bit, but two
-      flips in the same byte cancel out. Cheap, and weak.</li>
+      flips in the same byte cancel out. Inexpensive, but weak.</li>
     <li><b>Checksum:</b> add up the bytes and send the total. Catches more, but misses errors that happen to balance out,
       such as two bytes swapped.</li>
     <li><b>CRC:</b> a remainder from polynomial division over the whole message. Catches every burst of errors shorter
       than the CRC and almost everything else, which is why Ethernet, USB, CAN and SD cards all use one.</li>
-    <li><b>Acknowledgment:</b> the receiver confirms each byte or message. That tells you someone heard it, not that they
+    <li><b>Acknowledgment:</b> the receiver confirms each byte or message. That confirms that the data was received, not that it was
       heard it correctly, so an ACK is not error detection on its own.</li>
   </ul>
   <p>Detecting an error is only half of it. What to do next (retry, drop the message, reset the bus) is usually left to
@@ -111,7 +111,7 @@ const SECTIONS = `
 
 <section id="speed">
   <h2>Speed: what limits it</h2>
-  <p>Raw bit rate is rarely what limits you. Asynchronous links are limited by how well two independent clocks agree.
+  <p>Raw bit rate is rarely the limiting factor. Asynchronous links are limited by how well two independent clocks agree.
     Open-drain buses are limited by RC rise time. Fast synchronous links are limited by <b>skew</b>, the clock and data
     arriving at slightly different times. And every protocol spends some bits on overhead: UART's 8N1 uses 10 bits to send 8,
     and an I²C write of one byte also needs the address byte, two ACKs and the START and STOP conditions.</p>

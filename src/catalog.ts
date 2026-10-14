@@ -24,7 +24,7 @@ export const catalog: Category[] = [
     name: 'Synchronous buses',
     blurb: 'A controller drives a clock line, and data is read on its edges.',
     entries: [
-      { id: 'spi', name: 'SPI', blurb: 'Clock, data out, data in, chip select. Fast and dumb in a good way.', wires: 'SCLK · MOSI · MISO · CS' },
+      { id: 'spi', name: 'SPI', blurb: 'Clock, data out, data in and chip select. Simple and fast.', wires: 'SCLK · MOSI · MISO · CS' },
       { id: 'qspi', name: 'Quad SPI', blurb: 'SPI with four data lines. How most microcontrollers read external flash.', wires: 'SCLK · IO0–3 · CS' },
       { id: 'i2c', name: 'I²C', blurb: 'Two wires shared by everything on the board. Every byte gets an ACK.', wires: 'SCL · SDA' },
       { id: 'i3c', name: 'I3C', blurb: 'I²C, but faster, and targets can interrupt.', wires: 'SCL · SDA' },
@@ -35,7 +35,7 @@ export const catalog: Category[] = [
     name: 'Asynchronous serial',
     blurb: 'No clock line: timing comes from an agreed baud rate or from pulse widths.',
     entries: [
-      { id: 'uart', name: 'UART', blurb: 'No clock. Both ends agree on a speed ahead of time and trust each other.', wires: 'TX · RX' },
+      { id: 'uart', name: 'UART', blurb: 'No clock line. Both ends agree on a baud rate in advance.', wires: 'TX · RX' },
       { id: 'rs232', name: 'RS-232', blurb: 'UART at ±12 V, inverted. The old serial port.', wires: 'TxD · RxD · GND' },
       { id: 'rs485', name: 'RS-485', blurb: 'UART over a differential pair. Long cables, many devices.', wires: 'A · B' },
       { id: 'onewire', name: '1-Wire', blurb: 'Data and power on the same wire, in microsecond time slots.', wires: 'DQ' },
@@ -67,8 +67,8 @@ export const catalog: Category[] = [
     name: 'Automotive & industrial',
     blurb: 'Shared buses that tie together the sensors, motors and controllers in a car or a factory.',
     entries: [
-      { id: 'can', name: 'CAN', blurb: 'The lowest ID wins arbitration, one bit at a time. Basically every car has one.', wires: 'CANH · CANL' },
-      { id: 'lin', name: 'LIN', blurb: 'A cheap single-wire car bus. Mostly UART underneath.', wires: 'LIN' },
+      { id: 'can', name: 'CAN', blurb: 'Bitwise arbitration where the lowest ID wins. Standard in vehicles.', wires: 'CANH · CANL' },
+      { id: 'lin', name: 'LIN', blurb: 'A low-cost single-wire vehicle bus, based on UART framing.', wires: 'LIN' },
       { id: 'modbus', name: 'Modbus RTU', full: 'RS-485', blurb: 'Request and response over a twisted pair. All over industrial gear.', wires: 'A · B' },
     ],
   },
@@ -87,7 +87,7 @@ export const catalog: Category[] = [
     name: 'Debug & programming',
     blurb: 'How a debugger gets inside the chip.',
     entries: [
-      { id: 'jtag', name: 'JTAG', blurb: 'A 16-state machine that you walk around with TMS.', wires: 'TCK · TMS · TDI · TDO' },
+      { id: 'jtag', name: 'JTAG', blurb: 'A 16-state TAP controller, navigated with TMS.', wires: 'TCK · TMS · TDI · TDO' },
       { id: 'swd', name: 'SWD', blurb: 'ARM\'s two-pin answer to JTAG.', wires: 'SWCLK · SWDIO' },
     ],
   },

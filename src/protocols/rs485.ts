@@ -30,13 +30,13 @@ export const rs485: Protocol = {
   },
   strengths: [
     'Long cables: over a kilometer at moderate speeds.',
-    'Differential signaling shrugs off noise and ground differences.',
-    'Many devices on one cheap twisted pair.',
+    'Differential signaling rejects common-mode noise and ground differences.',
+    'Many devices on a single inexpensive twisted pair.',
   ],
   limits: [
     'Half duplex: getting the DE timing wrong cuts off the end of a message or collides with the reply.',
     'Needs termination and bias resistors, and long buses need a ground reference too.',
-    'It\'s only an electrical standard, so you still need a protocol on top.',
+    'It\'s only an electrical standard, so a higher-level protocol is still required.',
     'Vendors disagree about which wire is called A and which is B.',
   ],
   params: uart.params,

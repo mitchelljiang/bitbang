@@ -44,7 +44,7 @@ export const i3c: Protocol = {
   usedIn: 'Newer phone and wearable sensors, sensor hubs, and the sideband bus on DDR5 memory modules (JEDEC uses I3C Basic).',
   facts: {
     clock: 'Synchronous. The controller drives SCL push-pull, up to 12.5 MHz. Targets can\'t stretch the clock.',
-    wires: 'SCL and SDA, plus ground, shared by every device, just like I²C.',
+    wires: 'SCL and SDA, plus ground, shared by every device, as in I²C.',
     drive: 'Mixed. SDA is open-drain while addresses and ACKs go by, so several devices can share it, and push-pull for data. SCL is always push-pull.',
     duplex: 'Half duplex. SDA carries data in one direction at a time.',
     topology: 'Multi-drop bus with one active controller. Other controllers can ask to take over, and many I²C devices can share the bus.',
@@ -81,9 +81,9 @@ export const i3c: Protocol = {
       title: 'ENTDAA: how the addresses are handed out',
       body: [
         'The controller broadcasts the ENTDAA command (0x07). Then it repeats one question: a repeated START and 0x7E ' +
-        'with R, meaning "next device without an address, speak up". Every device still waiting ACKs and starts sending ' +
+        'with R, requesting a response from the next device without an address. Every device still waiting ACKs and starts sending ' +
         'its 48-bit ID, then its BCR and DCR, most significant bit first, all in open-drain.',
-        'On an open-drain wire a 0 always wins. A device that sends a 1 but reads back a 0 knows it lost, and stops. ' +
+        'On an open-drain wire a 0 always wins. A device that transmits a 1 but reads back a 0 has lost arbitration and stops transmitting. ' +
         'After 64 bits exactly one device is left, the one with the lowest ID. The controller sends it a 7-bit address ' +
         'plus an odd parity bit, it ACKs, and it sits out the rest. When the question gets no ACK, every device has an ' +
         'address. Set Transfer to ENTDAA above to step through one round.',
@@ -315,7 +315,7 @@ export const i3c: Protocol = {
     };
 
     const ack = (info: string) => {
-      notes.push({ lane: 1, t: t + 0.25, text: present ? 'ACK, then push-pull: sharp edges' : 'nobody answers: NACK' });
+      notes.push({ lane: 1, t: t + 0.25, text: present ? 'ACK, then push-pull: sharp edges' : 'no response: NACK' });
       if (present) slot(0, true, 'ACK', 'ack', 'target', info);
       else {
         slot(1, true, 'NACK', 'nack', 'controller',
@@ -356,7 +356,7 @@ export const i3c: Protocol = {
       };
       ask(true);
       if (!present) {
-        notes.push({ lane: 1, t: t + 0.25, text: 'nobody needs an address: NACK' });
+        notes.push({ lane: 1, t: t + 0.25, text: 'no target without an address: NACK' });
         slot(1, true, 'NACK', 'nack', 'controller', 'NACK: no target is waiting for an address, so ENTDAA is over.');
       } else {
         slot(0, true, 'ACK', 'ack', 'target', 'ACK: at least one target still needs an address.');
@@ -392,9 +392,9 @@ export const i3c: Protocol = {
           `ACK: the target accepts ${hex(addr)} as its dynamic address and sits out the rest of ENTDAA.`);
 
         ask(false);
-        notes.push({ lane: 1, t: t + 0.25, text: 'nobody left: NACK, done' });
+        notes.push({ lane: 1, t: t + 0.25, text: 'all targets addressed: NACK' });
         slot(1, true, 'NACK', 'nack', 'controller',
-          'NACK: every target has an address now, so nobody pulls SDA low. The controller ends ENTDAA with STOP.');
+          'NACK: every target has an address now, so no device pulls SDA low. The controller ends ENTDAA with STOP.');
       }
     } else if (ddr) {
       if (read) throw new Error('The HDR-DDR diagram only covers writes so far. Set Direction to Write.');

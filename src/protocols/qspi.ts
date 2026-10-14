@@ -129,7 +129,7 @@ export const qspi: Protocol = {
         'Mode bits M7 to M0. Some chips let a special value here skip the instruction on the next read ("continuous read"). 0x00 means a normal read.');
     }
 
-    // Dummy clocks: nobody drives the IO lines while they turn around from controller to flash.
+    // Dummy clocks: no device drives the IO lines while they turn around from controller to flash.
     const dStart = t;
     for (let l = 0; l < 4; l++) if (dLanes === 4 || l < 2) io[l].set(t, 'z');
     for (let c = 0; c < m.dummy; c++) {
@@ -149,7 +149,7 @@ export const qspi: Protocol = {
     bytes.forEach((b) =>
       phase(b, 8, dLanes, 'data', 'target', `${hex(b)} ${printable(b)}`.trim(),
         dLanes === 4
-          ? 'The flash now drives all four lines, so each byte takes just 2 clocks.'
+          ? 'The flash now drives all four lines, so each byte takes only 2 clocks.'
           : 'The flash shifts the byte out on IO1 (MISO), one bit per clock.'));
     notes.push({ lane: dLanes === 4 ? 2 : 3, t: dataStart, text: dLanes === 4 ? 'data: 4 lines, 2 clocks per byte' : 'data on IO1, 8 clocks per byte' });
 

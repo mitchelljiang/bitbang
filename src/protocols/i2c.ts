@@ -23,7 +23,7 @@ export const i2c: Protocol = {
   },
   strengths: [
     'Two wires for any number of devices. Adding a sensor costs no extra pins.',
-    'Addressing and acknowledgments are built in, so you can tell when a device is missing.',
+    'Addressing and acknowledgments are built in, so a missing device is detected immediately.',
     'Several controllers can share one bus. Arbitration on SDA decides who wins without corrupting anything.',
   ],
   limits: [
@@ -39,7 +39,7 @@ export const i2c: Protocol = {
         'Most I²C sensors behave like a small memory with an internal pointer. To read one, the controller writes the ' +
         'register number, then does a repeated START, then sends the address again with R and reads. Most devices ' +
         'step the pointer forward after each byte, so a multi-byte read walks through consecutive registers.',
-        'The repeated START matters: it keeps the bus, so another controller can\'t sneak a transfer in between the ' +
+        'The repeated START matters: it keeps the bus, so another controller cannot start a transfer between the ' +
         'write and the read. Set Direction to "Register read" above to see the whole sequence.',
       ],
     },
@@ -59,7 +59,7 @@ export const i2c: Protocol = {
       title: 'Clock stretching',
       body: [
         'A target that needs more time can hold SCL low after the controller releases it. The controller has to notice ' +
-        'that SCL didn\'t actually rise and wait, which is why it must read back SCL rather than just timing it. Set ' +
+        'that SCL didn\'t actually rise and wait, which is why it must read back SCL rather than assuming it rose on schedule. Set ' +
         'Clock stretching above to see it.',
         'Not every controller handles it well. The original Raspberry Pi\'s I²C controller had a well-known bug with ' +
         'short stretches, and SMBus caps how long a stretch can last.',
@@ -76,9 +76,9 @@ export const i2c: Protocol = {
     {
       title: 'When two devices want the same address',
       body: [
-        'Many parts have one to three address pins that select between a few addresses, so you can fit two or four of ' +
+        'Many parts have one to three address pins that select between a few addresses, allowing two or four of ' +
         'the same sensor. Past that, an I²C multiplexer like the TCA9548A splits the bus into eight branches and ' +
-        'connects one at a time. A few parts let software change their address, and some designs simply use a second bus.',
+        'connects one at a time. A few parts let software change their address, and some designs use a second bus.',
       ],
     },
     {
@@ -241,14 +241,14 @@ export const i2c: Protocol = {
     };
 
     const addrAck = (who: string) => {
-      notes.push({ lane: 1, t: t + 0.25, text: present ? 'target pulls SDA low: ACK' : 'nobody answers: NACK' });
+      notes.push({ lane: 1, t: t + 0.25, text: present ? 'target pulls SDA low: ACK' : 'no response: NACK' });
       if (present) {
         slot(0, 'ACK', 'ack', 'target',
           `ACK: ${who} pulls SDA low during this clock cycle. The controller released SDA, so the wire is now driven by ` +
           'the target.');
       } else {
         slot(1, 'NACK', 'nack', 'controller',
-          `NACK: no device answered to ${hex(addr)}, so nobody pulled SDA low and the pull-up kept it high. The ` +
+          `NACK: no device answered to ${hex(addr)}, so no device pulled SDA low and the pull-up held it high. The ` +
           'controller gives up and sends STOP. This is exactly what an I²C bus scanner looks for.');
       }
     };
@@ -264,7 +264,7 @@ export const i2c: Protocol = {
       const firstRead = read && !regMode;
       rwSlot(firstRead,
         `Together with the address, this makes the first byte ${hex((addr << 1) | (firstRead ? 1 : 0))}. That's why ` +
-        'datasheets sometimes list an "8-bit address" that is really the 7-bit address shifted left.');
+        'datasheets sometimes list an "8-bit address" that is the 7-bit address shifted left by one.');
       fields.push({ lane: 1, t0: addrStart, t1: t, label: `${hex(addr)} ${firstRead ? 'R' : 'W'}`, kind: 'addr' });
       addrAck(`the target at ${hex(addr)} recognized its address and`);
       if (regMode && present) {

@@ -27,7 +27,7 @@ export const onewire: Protocol = {
   facts: {
     clock: 'None. Each bit is a time slot the controller starts with a falling edge, and devices time the rest from that edge.',
     wires: 'One data wire (DQ) plus ground. Devices can even run on "parasite power" stolen from the data line.',
-    drive: 'Open-drain with a pull-up resistor, typically 4.7 kΩ. Anyone can pull the line low; nobody drives it high.',
+    drive: 'Open-drain with a pull-up resistor, typically 4.7 kΩ. Any device can pull the line low; no device drives it high.',
     duplex: 'Half duplex. One wire, one direction at a time.',
     topology: 'Multi-drop bus: one controller and many devices on the same wire.',
     addressing: 'Every chip has a unique 64-bit ROM ID burned in at the factory: an 8-bit family code, a 48-bit serial number and an 8-bit CRC. A Search ROM command discovers them.',
@@ -38,8 +38,8 @@ export const onewire: Protocol = {
   },
   strengths: [
     'A single wire plus ground, even for power, which makes it ideal for probes on long cables.',
-    'Every device has a unique ID, so you can put dozens of sensors on one wire with no address setup.',
-    'Cheap parts and very simple wiring.',
+    'Every device has a unique ID, so dozens of sensors can share one wire with no address setup.',
+    'Low-cost parts and minimal wiring.',
   ],
   limits: [
     'Slow: a single bit takes about 70 µs.',

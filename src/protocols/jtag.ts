@@ -45,7 +45,7 @@ export const jtag: Protocol = {
     drive: 'Push-pull. TDO is only driven in the Shift-IR and Shift-DR states and is high-Z the rest of the time.',
     duplex: 'Full duplex while shifting: one bit goes in on TDI as one comes out on TDO.',
     topology: 'Daisy chain: TDO of each chip feeds TDI of the next, and they all share TCK and TMS.',
-    addressing: 'None. Chips in a chain are told apart by position; the ones you aren\'t talking to get the 1-bit BYPASS instruction.',
+    addressing: 'None. Chips in a chain are told apart by position; devices not being accessed are given the 1-bit BYPASS instruction.',
     flow: 'None. The debugger sets the pace, and TMS alone decides what the chips do next.',
     errors: 'None in the protocol. Tools sanity-check the chain by reading IDCODEs and watching for the known patterns the standard requires.',
     speed: 'TCK from about 1 to 50 MHz, limited by the slowest chip in the chain and the cable.',
@@ -57,7 +57,7 @@ export const jtag: Protocol = {
     'Boundary scan can test the connections on a board without running any code on it.',
   ],
   limits: [
-    'Four or five pins, which is a lot on a small microcontroller (hence SWD).',
+    'Requires four or five pins, a significant cost on a small microcontroller (the motivation for SWD).',
     'Every access spends extra clocks walking the state machine.',
     'A chain runs at the speed of its slowest chip, and one dead chip breaks the whole chain.',
     'The interesting instructions (debug, flash programming) are vendor-specific.',

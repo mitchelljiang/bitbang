@@ -29,14 +29,14 @@ export const spi: Protocol = {
     reach: 'Board level: centimeters, maybe a short cable. Fast edges and clock-to-data skew limit longer runs.',
   },
   strengths: [
-    'Fast, and simple to build: underneath it\'s just two shift registers and a clock.',
+    'Fast, and simple to build: at its core it is two shift registers and a clock.',
     'Full duplex, with no address or acknowledgment overhead. Every clock cycle carries data.',
     'Any word length and any data rate the target can handle; no fixed framing.',
   ],
   limits: [
     'Pin count grows with every target, because each one needs its own CS line.',
-    'No acknowledgment. If no target is connected, the controller just reads back whatever is on MISO, usually all 1s or all 0s.',
-    'Not really a single standard: clock mode, bit order, word size and max speed vary from chip to chip, so you check each datasheet.',
+    'No acknowledgment. If no target is connected, the controller reads back whatever level is on MISO, usually all 1s or all 0s.',
+    'Not a single formal standard: clock mode, bit order, word size and max speed vary from chip to chip, so each datasheet must be checked.',
     'Only works over short distances.',
   ],
   deepDive: [
@@ -59,7 +59,7 @@ export const spi: Protocol = {
       ],
     },
     {
-      title: 'What really limits the speed',
+      title: 'What limits the clock rate',
       body: [
         'Writing is easy to make fast. Reading is harder: the clock edge has to travel to the target, the target takes ' +
         'some time to change MISO, and MISO has to travel back, all before the controller samples. At 50 MHz that ' +
@@ -71,10 +71,10 @@ export const spi: Protocol = {
       title: 'Chip select does more than select',
       body: [
         'Many chips act on CS going high: an ADC starts converting, a DAC updates its output, a flash chip starts an ' +
-        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can throw every ' +
+        'erase. CS going low also resets the chip\'s bit counter, so a glitch on CS mid-transfer can misalign every ' +
         'following byte off by a few bits. Some commands need CS held low for the whole multi-byte sequence.',
-        'Every target must also release MISO when its CS is high. A few cheap modules (and SD cards in SPI mode, until ' +
-        'they get one extra clock) don\'t, which breaks a shared bus in confusing ways.',
+        'Every target must also release MISO when its CS is high. Some low-cost modules (and SD cards in SPI mode, until ' +
+        'they receive one extra clock) do not, which causes errors that are difficult to diagnose on a shared bus.',
       ],
     },
     {

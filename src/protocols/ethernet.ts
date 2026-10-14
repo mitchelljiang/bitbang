@@ -28,7 +28,7 @@ export const ethernet: Protocol = {
     'The original twisted-pair Ethernet. Every bit is Manchester encoded: a 1 is a low-to-high transition in the middle ' +
     'of the bit and a 0 is high-to-low, so the receiver can recover the clock from the data itself. A frame is a ' +
     'preamble, two MAC addresses, a type, at least 46 bytes of payload, and a CRC-32.',
-  usedIn: 'Old hubs and networks, cheap microcontroller Ethernet chips like the ENC28J60, and the frame format every faster Ethernet still uses.',
+  usedIn: 'Legacy hubs and networks, low-cost microcontroller Ethernet controllers such as the ENC28J60, and the frame format every faster Ethernet still uses.',
   facts: {
     clock: 'Embedded. Manchester encoding guarantees a transition in every bit, and the 56-bit preamble gives the receiver time to lock onto it.',
     wires: 'Two twisted pairs in an RJ45 cable: one to transmit (pins 1 and 2) and one to receive (pins 3 and 6).',
@@ -148,75 +148,74 @@ export const ethernet: Protocol = {
     const totalBytes = 8 + frame.length + 4;
     const tour: TourStop[] = [
       {
-        title: 'The whole frame',
-        text: `One Ethernet frame: ${totalBytes} bytes, ${totalBytes * 8} bits, ${us(totalBytes * 8)} on the wire. The top ` +
-          'line is the data being sent. The bottom line is what actually goes down the cable. Step through it one ' +
-          'part at a time.',
+        title: 'Overview',
+        text: `One Ethernet frame: ${totalBytes} bytes (${totalBytes * 8} bits), transmitted in ${us(totalBytes * 8)}. The ` +
+          'upper trace shows the data bits; the lower trace shows the Manchester-encoded signal on the cable.',
         view: [0, duration], focus: null,
       },
       {
-        title: 'Manchester encoding, up close',
-        text: 'Every bit has a transition in its middle: low-to-high is a 1, high-to-low is a 0. Between bits the line ' +
-          'sometimes flips too, just to get into position for the next transition, and the receiver ignores those. ' +
-          'Because every bit has an edge, the receiver can recover the clock from the data.',
+        title: 'Manchester encoding',
+        text: 'Each bit contains a transition at its midpoint: low-to-high represents a 1 and high-to-low represents a 0. ' +
+          'An additional transition at the bit boundary is inserted where needed to set up the next mid-bit transition; ' +
+          'the receiver disregards it. Because every bit contains an edge, the receiver can recover the clock from the data.',
         view: [1, 5],
       },
       {
         title: 'Preamble',
-        text: 'Seven bytes of 0x55, which comes out as 1010… over and over. It carries no data. It gives the ' +
-          'receiver 56 bits of steady transitions to lock its clock onto before anything important arrives.',
+        text: 'Seven bytes of 0x55, producing an alternating 1010… pattern. The preamble carries no data; it provides 56 bits ' +
+          'of regular transitions for the receiver to synchronize its clock before the frame begins.',
         view: pad1(span.preamble), focus: span.preamble,
       },
       {
         title: 'Start frame delimiter',
-        text: 'One byte, 0xD5. It matches the preamble pattern until its last two bits, which are 11 instead of 10. ' +
-          'That break in the pattern tells the receiver the frame itself starts on the very next bit.',
+        text: 'A single byte, 0xD5. It continues the preamble pattern except for its final two bits, which are 11 rather than ' +
+          '10. This deviation signals that the frame begins with the next bit.',
         view: pad1(span.sfd, 16, 8), focus: span.sfd,
       },
       {
         title: 'Destination address',
-        text: `Six bytes: who the frame is for, ${macText(dst)}. ${dst.every((b) => b === 0xff)
-          ? 'All ones is the broadcast address, so every device on the network accepts it.'
-          : 'A network card drops frames whose destination isn\'t its own address (or broadcast).'}`,
+        text: `Six bytes identifying the intended recipient: ${macText(dst)}. ${dst.every((b) => b === 0xff)
+          ? 'An address of all ones is the broadcast address, which every device on the network accepts.'
+          : 'A network interface discards frames whose destination is neither its own address nor the broadcast address.'}`,
         view: pad1(span.dst), focus: span.dst,
       },
       {
         title: 'Source address',
-        text: `Six bytes: who sent it, ${macText(src)}. Switches learn which port each source address lives on, so ` +
-          'they know where to send frames addressed back to it.',
+        text: `Six bytes identifying the sender: ${macText(src)}. Switches record the port on which each source address ` +
+          'appears, which allows them to forward return traffic to the correct port.',
         view: pad1(span.src), focus: span.src,
       },
       {
         title: 'EtherType',
-        text: `Two bytes, 0x${typeText.toUpperCase().padStart(4, '0')}, saying what kind of data the payload holds: ` +
-          '0x0800 is IPv4, 0x86DD is IPv6, 0x0806 is ARP. Unlike the bits inside each byte, these two bytes go most ' +
-          'significant first.',
+        text: `Two bytes, 0x${typeText.toUpperCase().padStart(4, '0')}, identifying the payload protocol; for example, 0x0800 ` +
+          'is IPv4, 0x86DD is IPv6 and 0x0806 is ARP. Although bits within each byte are sent least significant first, the ' +
+          'two bytes of this field are sent most significant byte first.',
         view: pad1(span.type, 8, 8), focus: span.type,
       },
       {
         title: 'Payload',
-        text: `The actual data: ${payload.length} byte${payload.length === 1 ? '' : 's'}. On a real network this would ` +
-          'usually be an IP packet, which carries its own headers inside.',
+        text: `The frame's data: ${payload.length} byte${payload.length === 1 ? '' : 's'}. On a typical network, the payload ` +
+          'is an IP packet with its own headers.',
         view: pad1(span.payload), focus: span.payload,
       },
       ...(span.padding ? [{
         title: 'Padding',
-        text: `${pad} bytes of zeros, because the payload has to be at least 46 bytes. That makes every frame at least ` +
-          '64 bytes long, which on old shared networks guaranteed a sender was still transmitting when news of a ' +
-          'collision got back to it.',
+        text: `${pad} bytes of zeros, added because the payload must be at least 46 bytes. This enforces a minimum frame ` +
+          'length of 64 bytes, which on shared-medium networks ensured that a sender was still transmitting when a ' +
+          'collision was detected.',
         view: pad1(span.padding), focus: span.padding,
       }] : []),
       {
         title: 'Frame check sequence',
-        text: `A CRC-32 of everything from the destination address to the end of the padding: 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}. ` +
-          'The receiver computes the same CRC and silently drops the frame if they differ. It catches every burst ' +
-          'error up to 32 bits long.',
+        text: `A CRC-32 computed over the destination address through the end of the padding: 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}. ` +
+          'The receiver recomputes the CRC and discards the frame if the values differ. CRC-32 detects all burst errors ' +
+          'up to 32 bits long.',
         view: pad1(span.fcs), focus: span.fcs,
       },
       {
         title: 'End of frame',
-        text: 'The transmitter holds the line high for about two bit times, then stops driving it, and the line settles ' +
-          'at 0 V. After a short gap the next frame can start with its own preamble.',
+        text: 'The transmitter holds the line high for approximately two bit periods, then stops driving it, and the line ' +
+          'returns to 0 V. After the interframe gap, the next frame may begin with its own preamble.',
         view: [end - 8, duration], focus: [end, end + 2],
       },
     ];

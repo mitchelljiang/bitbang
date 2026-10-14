@@ -24,7 +24,7 @@ export const swd: Protocol = {
   facts: {
     clock: 'Synchronous. The debugger drives SWCLK. It changes SWDIO on the falling edge and the target samples on the rising edge; the target changes SWDIO on the rising edge and the debugger samples on the falling edge.',
     wires: 'SWCLK and SWDIO, plus ground. An optional SWO pin streams trace output.',
-    drive: 'Push-pull, with a pull-up on SWDIO. Whenever the direction changes there is a turnaround clock where nobody drives.',
+    drive: 'Push-pull, with a pull-up on SWDIO. Whenever the direction changes, a turnaround cycle is inserted during which no device drives the line.',
     duplex: 'Half duplex on the single SWDIO wire.',
     topology: 'Point-to-point: one probe, one chip. SWD version 2 adds a multi-drop mode.',
     addressing: 'Each request picks the debug port (DP) or an access port (AP) and one of four registers. The DP\'s SELECT register chooses which AP and register bank.',
@@ -107,7 +107,7 @@ export const swd: Protocol = {
       const until = to === 'target' ? t + 0.5 : t + 1;
       bits.push({
         lane: 1, t0: from, t1: until, label: 'Trn', kind: 'dummy',
-        info: `Turnaround: for one clock nobody drives SWDIO (the pull-up holds it), while control passes to the ${to === 'target' ? 'target' : 'debugger'}. ` +
+        info: `Turnaround: for one cycle no device drives SWDIO (the pull-up holds it), while control passes to the ${to === 'target' ? 'target' : 'debugger'}. ` +
           'Without it, both sides could drive the wire at once.',
       });
       tick();
