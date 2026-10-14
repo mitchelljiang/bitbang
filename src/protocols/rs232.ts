@@ -11,6 +11,7 @@ const SWINGS: Record<string, [string, string]> = {
 export const rs232: Protocol = {
   id: 'rs232',
   name: 'RS-232',
+  fullName: 'Recommended Standard 232 (now TIA‑232)',
   summary:
     'The old serial port. The framing is exactly UART, but a transceiver turns the logic levels into large voltages ' +
     'and inverts them: a 1 (called mark) is negative, somewhere between −3 and −15 V, and a 0 (space) is positive. ' +

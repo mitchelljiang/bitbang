@@ -68,6 +68,8 @@ export type FactKey = 'clock' | 'wires' | 'drive' | 'duplex' | 'topology' | 'add
 export interface Protocol {
   id: string;
   name: string;
+  /** What the abbreviation stands for, shown under the title. */
+  fullName?: string;
   summary: string;
   /** Where you'd run into it in practice: a short list of real parts and uses. */
   usedIn: string;

@@ -12,6 +12,7 @@ const MODES: Record<string, { cmd: number; name: string; lanes: [number, number,
 export const qspi: Protocol = {
   id: 'qspi',
   name: 'Quad SPI',
+  fullName: 'Quad Serial Peripheral Interface',
   summary:
     'SPI with four data lines instead of one each way. A flash read sends an instruction, an address and some dummy ' +
     'clocks, then the flash answers four bits per clock. Which phases use one line and which use four depends on the ' +

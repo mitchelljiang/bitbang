@@ -15,6 +15,7 @@ const crumbCat = $('#crumb-cat');
 const title = $('#proto-name');
 const summary = $('#proto-summary');
 const usedIn = $('#proto-used');
+const fullName = $('#proto-full');
 const vizView = $('#viz');
 const guideView = $('#guide');
 const glance = $('#glance');
@@ -112,6 +113,8 @@ function buildSpecs() {
 
 function buildAll() {
   title.textContent = proto.name;
+  fullName.textContent = proto.fullName ?? '';
+  fullName.hidden = !proto.fullName;
   crumbCat.textContent = categoryOf(proto.id)?.name ?? '';
   summary.textContent = proto.summary;
   usedIn.textContent = proto.usedIn;

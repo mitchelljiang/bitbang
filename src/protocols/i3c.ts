@@ -31,6 +31,7 @@ function crc5(words: number[]) {
 export const i3c: Protocol = {
   id: 'i3c',
   name: 'I3C',
+  fullName: 'Improved Inter-Integrated Circuit',
   summary:
     'I²C\'s successor, on the same two wires. The controller drives SCL push-pull at up to 12.5 MHz. Each transfer ' +
     'starts in open-drain mode so devices can arbitrate and acknowledge, then switches to push-pull for the data. ' +

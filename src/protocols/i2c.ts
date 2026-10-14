@@ -4,6 +4,7 @@ import { TraceBuilder, bin, hex, parseBytes, printable } from '../core/util';
 export const i2c: Protocol = {
   id: 'i2c',
   name: 'I²C',
+  fullName: 'Inter-Integrated Circuit',
   summary:
     'Two wires with pull-up resistors. Devices can pull a line low but never drive it high. Each ' +
     'target has an address (7 bits, or optionally 10), and whoever receives a byte answers with an ACK.',

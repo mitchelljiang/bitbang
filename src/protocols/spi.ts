@@ -11,6 +11,7 @@ const MODE_INFO = [
 export const spi: Protocol = {
   id: 'spi',
   name: 'SPI',
+  fullName: 'Serial Peripheral Interface',
   summary:
     'The controller drives the clock and pulls CS low to pick a device. Each clock cycle moves one ' +
     'bit out on MOSI and one bit back on MISO, at the same time.',

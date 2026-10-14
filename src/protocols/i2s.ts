@@ -4,6 +4,7 @@ import { TraceBuilder, hex } from '../core/util';
 export const i2s: Protocol = {
   id: 'i2s',
   name: 'I²S',
+  fullName: 'Inter-IC Sound',
   summary:
     'A continuous stream of audio samples. The bit clock (SCK) ticks once per bit, word select (WS) says which channel ' +
     'is being sent (low for left, high for right), and SD carries each sample most significant bit first. In standard ' +

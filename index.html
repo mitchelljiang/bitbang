@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>bitbang</title>
-    <meta name="description" content="Timing diagrams for UART, SPI and I²C, drawn from the bytes you type in. Click any bit to see what it does." />
+    <meta name="description" content="In-depth, bit-level timing diagrams of communication protocols." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="bitbang.fyi" />
+    <meta property="og:url" content="https://bitbang.fyi/" />
+    <meta property="og:title" content="bitbang" />
+    <meta property="og:description" content="In-depth, bit-level timing diagrams of communication protocols." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="bitbang" />
+    <meta name="twitter:description" content="In-depth, bit-level timing diagrams of communication protocols." />
     <script>
       try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
     </script>
@@ -37,6 +45,7 @@
       <section class="intro">
         <p class="crumbs" id="crumb-cat"></p>
         <h1 id="proto-name"></h1>
+        <p class="fullname" id="proto-full"></p>
         <p id="proto-summary"></p>
         <p class="used"><b>Used in</b> <span id="proto-used"></span></p>
       </section>

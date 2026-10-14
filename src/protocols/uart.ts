@@ -4,6 +4,7 @@ import { TraceBuilder, bin, hex, parseBytes, printable } from '../core/util';
 export const uart: Protocol = {
   id: 'uart',
   name: 'UART',
+  fullName: 'Universal Asynchronous Receiver-Transmitter',
   summary:
     'One wire each way and no clock. Both sides agree on a baud rate in advance. The line sits high ' +
     'when idle, and the receiver times everything from the falling edge of the start bit.',

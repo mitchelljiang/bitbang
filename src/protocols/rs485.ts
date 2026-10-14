@@ -10,6 +10,7 @@ import { uart } from './uart';
 export const rs485: Protocol = {
   id: 'rs485',
   name: 'RS-485',
+  fullName: 'Recommended Standard 485 (now TIA‑485)',
   summary:
     'UART frames sent over a twisted pair as a difference in voltage: A above B is a 1, B above A is a 0. Noise ' +
     'hits both wires equally and cancels out, so it runs for over a kilometer, and up to 32 devices can share the ' +

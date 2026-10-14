@@ -5,7 +5,8 @@ import { TraceBuilder, hex, parseBytes } from '../core/util';
 const US = 0.1;
 const SLOT = 70;
 const RESET_LOW = 480;
-const RESET_SLOT = 960;
+/** Reset low time plus recovery. The spec's minimum recovery is 480 µs; real controllers leave some margin. */
+const RESET_SLOT = RESET_LOW + 500;
 const PRESENCE_WAIT = 30;
 const PRESENCE_LOW = 120;
 
@@ -17,6 +18,7 @@ const COMMANDS: Record<number, string> = {
 export const onewire: Protocol = {
   id: 'onewire',
   name: '1-Wire',
+  fullName: 'Dallas/Maxim single-wire bus',
   summary:
     'One wire for data, and often for power too. There is no clock: the controller starts every bit by pulling the ' +
     'line low, and how long it stays low is the bit. A short pulse is a 1 and a long one is a 0. Every transaction ' +
