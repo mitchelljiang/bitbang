@@ -34,6 +34,39 @@ export const i2s: Protocol = {
     'Limited to two channels per data line unless TDM is used.',
   ],
   legend: { dummy: 'padding' },
+  deepDive: [
+    {
+      title: 'Master clock and sample-rate families',
+      body: [
+        'Most audio codecs require a master clock (MCLK) at a fixed multiple of the sample rate, commonly 256 × fs, to run their internal oversampling converters. That is 12.288 MHz for 48 kHz and 11.2896 MHz for 44.1 kHz. Because neither frequency divides evenly into the other, equipment that supports both rate families typically needs two crystals or a fractional PLL.',
+      ],
+    },
+    {
+      title: 'Which side drives the clocks',
+      body: [
+        'Either side can generate SCK and WS. When the codec is the clock source, the microcontroller follows the codec\'s clock domain, which is common for recording. When the microcontroller is the source, it must produce exact rates from its own clock tree. Both sides must agree on which one drives the clocks; if both drive them, the outputs contend.',
+      ],
+    },
+    {
+      title: 'I²S, left-justified and right-justified',
+      body: [
+        'The three common formats differ only in where the sample sits relative to the WS edge. Standard I²S starts the most significant bit one clock after the edge. Left-justified starts it on the edge. Right-justified aligns the least significant bit with the end of the slot, so the receiver must know the word length in advance.',
+        'A format mismatch shifts every sample by one or more bits, which typically doubles or halves the amplitude, or corrupts the sign bit and produces loud distortion.',
+      ],
+    },
+    {
+      title: 'TDM: more than two channels',
+      body: [
+        'Time-division multiplexing (TDM) extends the same idea to many channels. A short frame-sync pulse replaces WS, followed by a fixed number of slots, for example eight 32-bit slots per frame. At 48 kHz that requires a 12.288 MHz bit clock. TDM is used for microphone arrays, multichannel codecs and automotive audio.',
+      ],
+    },
+    {
+      title: 'PDM microphones',
+      body: [
+        'Many digital MEMS microphones output pulse-density modulation (PDM) instead of I²S: a single-bit stream at several megahertz whose density of 1s follows the audio waveform. Two microphones can share one data line by transmitting on opposite clock edges. The receiver must apply a decimation filter to convert PDM to PCM samples. Microphones with an I²S output, such as the INMP441, contain that filter internally.',
+      ],
+    },
+  ],
   params: [
     { key: 'left', label: 'Left sample', type: 'text', default: '12000', placeholder: '12000 (signed)' },
     { key: 'right', label: 'Right sample', type: 'text', default: '-3000', placeholder: '-3000 (signed)' },

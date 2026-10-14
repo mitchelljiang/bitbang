@@ -52,6 +52,45 @@ export const ethernet: Protocol = {
     'Obsolete as a physical layer; today\'s ports run 100 Mbit/s and up, though most still fall back to 10BASE-T.',
   ],
   legend: { start: 'preamble / SFD', addr: 'MAC address', cmd: 'EtherType', dummy: 'padding', parity: 'CRC-32', stop: 'end of frame' },
+  deepDive: [
+    {
+      title: 'Link pulses and autonegotiation',
+      body: [
+        'When no frames are being sent, a 10BASE-T transmitter emits a normal link pulse (NLP), a single pulse roughly every 16 ms, so the other end knows the cable is connected. Faster Ethernet replaced these with bursts of fast link pulses that carry autonegotiation messages advertising each side\'s capabilities. A 10BASE-T device still appears to a modern port as a device sending plain link pulses, and the port falls back to 10 Mbit/s.',
+      ],
+    },
+    {
+      title: 'Collisions and CSMA/CD',
+      body: [
+        'On a hub, every device shares one collision domain. A device listens before transmitting (carrier sense), and if it detects another transmission while sending, it sends a 32-bit jam signal, stops, and waits a random number of slot times before retrying, doubling the range after each collision (binary exponential backoff).',
+        'One slot time is 512 bit times, 51.2 µs at 10 Mbit/s, which is exactly the 64-byte minimum frame: a frame must last long enough for a collision at the far end of the network to be detected before the sender finishes. Switches and full-duplex links have eliminated collisions in practice.',
+      ],
+    },
+    {
+      title: 'Interframe gap',
+      body: [
+        'After each frame, a transmitter must wait at least 96 bit times, 9.6 µs at 10 Mbit/s, before starting the next preamble. Together with the preamble and minimum frame size, this sets the maximum frame rate: about 14,880 minimum-size frames per second at 10 Mbit/s.',
+      ],
+    },
+    {
+      title: 'Isolation transformers',
+      body: [
+        'Every Ethernet port connects to the cable through transformers, often built into the RJ45 jack, which provide at least 1500 V of isolation between devices. Transformers cannot pass a DC level, which is why Ethernet uses line codes such as Manchester that average to zero.',
+      ],
+    },
+    {
+      title: 'Faster Ethernet, same frame',
+      body: [
+        '100BASE-TX replaced Manchester with 4B5B coding and three-level MLT-3 signaling at 125 Mbaud. 1000BASE-T uses all four pairs in both directions at once, with five-level PAM-5 signaling and echo cancellation. The frame format shown here, from preamble to FCS, is unchanged at every speed.',
+      ],
+    },
+    {
+      title: 'Bit order and multicast',
+      body: [
+        'Because each byte is sent least significant bit first, the very first bit of the destination address on the wire is the individual/group bit. A 1 there marks a multicast or broadcast frame, so a receiver can decide whether to accept the frame after a single bit.',
+      ],
+    },
+  ],
   params: [
     { key: 'dst', label: 'Destination', type: 'text', default: 'ff:ff:ff:ff:ff:ff', placeholder: 'ff:ff:ff:ff:ff:ff' },
     { key: 'src', label: 'Source', type: 'text', default: '02:00:00:00:00:01', placeholder: '02:00:00:00:00:01' },

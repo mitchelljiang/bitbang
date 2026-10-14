@@ -42,6 +42,45 @@ export const qspi: Protocol = {
     'Signal integrity gets hard at 100+ MHz: traces need matched lengths and short runs.',
   ],
   legend: { cmd: 'instruction' },
+  deepDive: [
+    {
+      title: 'Execute in place (XIP)',
+      body: [
+        'Most QSPI controllers have a memory-mapped mode in which the external flash appears as ordinary read-only memory. When the CPU fetches an instruction from that address range, the controller issues the read command automatically. This allows code to run directly from external flash, at the cost of higher latency than internal flash, which caches mitigate.',
+        'Continuous read mode reduces the overhead further: after the first read, the mode bits tell the flash to expect another read, so subsequent accesses skip the instruction byte.',
+      ],
+    },
+    {
+      title: 'Enabling quad mode',
+      body: [
+        'In single-line mode, IO2 and IO3 serve as the write-protect (WP#) and hold (HOLD#) pins. Most flash devices therefore require a Quad Enable (QE) bit in a status register to be set before quad commands work; on many Winbond parts it is bit 1 of Status Register 2. If quad reads return incorrect data while single-line reads succeed, an unset QE bit is the usual cause. On many devices the bit is non-volatile, so it only needs to be set once.',
+      ],
+    },
+    {
+      title: 'Dummy cycles and clock rate',
+      body: [
+        'The number of dummy cycles a read requires depends on the clock frequency: the flash needs a fixed amount of time to access its array, so faster clocks need more cycles. Some devices make the count configurable. If the controller and the flash disagree on the count, every byte is read shifted by a few bits.',
+      ],
+    },
+    {
+      title: '3-byte and 4-byte addresses',
+      body: [
+        'A 24-bit address reaches 16 MB. Larger devices either switch into 4-byte address mode (command 0xB7, Enter 4-Byte Address Mode) or provide separate 4-byte commands, such as 0xEC for a quad I/O read with a 4-byte address.',
+      ],
+    },
+    {
+      title: 'SFDP: discovering capabilities',
+      body: [
+        'Most modern flash devices implement Serial Flash Discoverable Parameters (JEDEC JESD216), a table read with command 0x5A. It describes the supported read commands, their dummy cycle counts, the address modes and the erase sizes, which allows a driver to configure a device it has no specific knowledge of.',
+      ],
+    },
+    {
+      title: 'Beyond quad: DTR and octal',
+      body: [
+        'Double transfer rate (DTR) modes transfer data on both clock edges. Octal SPI, standardized as xSPI (JESD251), uses eight data lines and a data strobe (DQS) that the flash drives alongside the data, so the controller can sample reliably at 200 MHz DDR and above, for roughly 400 MB/s.',
+      ],
+    },
+  ],
   params: [
     {
       key: 'mode', label: 'Command', type: 'select', default: '144',

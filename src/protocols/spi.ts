@@ -25,7 +25,7 @@ export const spi: Protocol = {
     addressing: 'By wire: the CS line is the address. No address bits go over the bus.',
     flow: 'None. The controller sets the pace, and a target has no way to say "wait".',
     errors: 'None in the protocol. Some devices add their own CRC or status bytes.',
-    speed: 'Commonly 1 to 50 MHz. Quad SPI flash runs above 100 MHz using four data lines.',
+    speed: 'Not fixed by any standard: the clock can run as fast as both chips and the wiring allow. Commonly 1 to 50 MHz, up to about 80 MHz for fast flash and displays, and above 100 MHz for some flash chips.',
     reach: 'Board level: centimeters, maybe a short cable. Fast edges and clock-to-data skew limit longer runs.',
   },
   strengths: [
@@ -105,11 +105,11 @@ export const spi: Protocol = {
     },
     {
       key: 'clock', label: 'Clock', type: 'select', default: '1000000',
-      options: [
-        { value: '100000', label: '100 kHz' },
-        { value: '1000000', label: '1 MHz' },
-        { value: '10000000', label: '10 MHz' },
-      ],
+      // SPI defines no fixed rates or maximum; these are common settings, up to the 80 MHz many fast parts support.
+      options: [100e3, 400e3, 1e6, 2e6, 4e6, 5e6, 8e6, 10e6, 16e6, 20e6, 25e6, 40e6, 50e6, 80e6].map((hz) => ({
+        value: String(hz),
+        label: hz < 1e6 ? `${hz / 1e3} kHz` : `${hz / 1e6} MHz`,
+      })),
     },
   ],
 

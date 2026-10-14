@@ -39,6 +39,45 @@ export const rs485: Protocol = {
     'It\'s only an electrical standard, so a higher-level protocol is still required.',
     'Vendors disagree about which wire is called A and which is B.',
   ],
+  deepDive: [
+    {
+      title: 'Termination',
+      body: [
+        'At higher speeds or over long cables, signals reflect from the unterminated ends of the pair. A resistor equal to the cable\'s characteristic impedance, typically 120 Ω, at each of the two ends of the bus absorbs those reflections. Termination belongs only at the two physical ends, not at every device, and branches from the main cable should be kept short. Short, slow buses often work without it.',
+      ],
+    },
+    {
+      title: 'Fail-safe biasing',
+      body: [
+        'When no driver is enabled, termination pulls A and B to the same voltage, a differential of 0 V that receivers cannot interpret reliably. Bias resistors, a pull-up on A and a pull-down on B, hold the idle bus at a defined state of at least +200 mV, which receivers read as 1, the UART idle level. Many modern transceivers instead provide fail-safe behavior internally.',
+      ],
+    },
+    {
+      title: 'Unit loads and device count',
+      body: [
+        'The standard specifies the bus in unit loads, where one unit load is a 12 kΩ receiver input, and allows 32 unit loads. Transceivers rated at 1/4 or 1/8 unit load allow 128 or 256 devices on one bus.',
+      ],
+    },
+    {
+      title: 'Controlling the driver',
+      body: [
+        'In half-duplex operation, firmware must enable the driver before the first start bit and disable it only after the last stop bit has left the shift register. A common error is to disable the driver on the UART\'s transmit-buffer-empty event, which occurs one character early and truncates the final byte. The correct signal is transmission complete. Many microcontroller UARTs include an RS-485 mode that drives DE automatically.',
+      ],
+    },
+    {
+      title: 'Ground and the A/B naming',
+      body: [
+        'RS-485 is differential, but receivers tolerate only a limited common-mode voltage, typically −7 V to +12 V, so devices still need a shared ground reference; long runs between buildings often use isolated transceivers.',
+        'The TIA standard defines A as the inverting line, but many transceiver manufacturers label their pins the opposite way. If a link does not communicate, swapping A and B is a reasonable first check.',
+      ],
+    },
+    {
+      title: 'Protocols carried over RS-485',
+      body: [
+        'RS-485 defines only the electrical layer. Common protocols on top of it include Modbus RTU (industrial control), DMX512 (stage lighting, at 250 kbaud with 2 stop bits and a break before each packet), Profibus DP and BACnet MS/TP.',
+      ],
+    },
+  ],
   params: uart.params,
 
   encode(p) {

@@ -44,6 +44,45 @@ export const swd: Protocol = {
     'A packet spends several clocks on the request, turnarounds and ACK for every 32-bit access.',
   ],
   legend: { cmd: 'request', ack: 'ACK', dummy: 'turnaround', start: 'start / stop / park' },
+  deepDive: [
+    {
+      title: 'Line reset and switching from JTAG',
+      body: [
+        'Most Arm debug ports accept both JTAG and SWD on shared pins (SWJ-DP) and start in JTAG mode. To switch, the debugger sends at least 50 clocks with SWDIO high (a line reset), the 16-bit sequence 0xE79E, and another line reset. The first transaction after that must read DPIDR; until it does, the debug port ignores other requests.',
+        'Newer debug ports start in a dormant state and are activated by a 128-bit selection alert sequence instead.',
+      ],
+    },
+    {
+      title: 'Debug port and access ports',
+      body: [
+        'The debug port (DP) handles the link: DPIDR identifies it, CTRL/STAT requests debug and system power-up and reports errors, and SELECT chooses an access port (AP) and register bank. A memory access port (MEM-AP) then provides access to the processor\'s memory map: write an address to TAR, then read or write DRW. Every register, peripheral and flash controller is reachable this way.',
+      ],
+    },
+    {
+      title: 'Posted AP reads',
+      body: [
+        'Reads from an access port are posted: the value returned by an AP read is the result of the previous AP read. The first AP read in a sequence therefore returns stale data, and the result of the last read is obtained by reading the DP\'s RDBUFF register. Debug tools account for this automatically, but it is a common source of confusion when interpreting captured traffic.',
+      ],
+    },
+    {
+      title: 'WAIT, FAULT and sticky errors',
+      body: [
+        'A WAIT acknowledge means the previous access has not completed, for example while a slow bus transaction is in progress, and the debugger should repeat the request. FAULT means an error flag, such as STICKYERR, is set in CTRL/STAT. Every subsequent access faults until the debugger clears the flag by writing to the ABORT register.',
+      ],
+    },
+    {
+      title: 'SWO trace output',
+      body: [
+        'SWO is an optional third pin that streams trace data from the core, most often instrumentation trace (ITM) output used for printf-style logging without a UART. It runs independently of SWDIO and SWCLK, using UART-style or Manchester encoding.',
+      ],
+    },
+    {
+      title: 'Multi-drop SWD',
+      body: [
+        'SWD version 2 allows several targets on one SWDIO/SWCLK pair. After a line reset, the debugger writes the DP\'s TARGETSEL register to select one target, and the others remain inactive. The RP2040, for example, uses multi-drop SWD to expose its two cores and a rescue debug port.',
+      ],
+    },
+  ],
   params: [
     {
       key: 'op', label: 'Operation', type: 'select', default: 'r',

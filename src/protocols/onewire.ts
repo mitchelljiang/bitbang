@@ -48,6 +48,46 @@ export const onewire: Protocol = {
     'Mostly a single-vendor ecosystem (Maxim, now Analog Devices).',
   ],
   legend: { start: 'reset', ack: 'presence', nack: 'no presence', cmd: 'command (written)', data: 'data (read)' },
+  deepDive: [
+    {
+      title: 'The 64-bit ROM ID',
+      body: [
+        'Every 1-Wire device carries a factory-programmed 64-bit ID, transmitted least significant bit first: an 8-bit family code (0x28 for the DS18B20, 0x01 for the DS2401 serial number), a 48-bit serial number, and a CRC-8 over the first seven bytes (polynomial x⁸ + x⁵ + x⁴ + 1). The family code identifies the device type, and the CRC lets the controller verify that the ID was read correctly.',
+      ],
+    },
+    {
+      title: 'Search ROM: finding every device',
+      body: [
+        'The Search ROM command (0xF0) discovers all devices on the bus one ID at a time, as a binary tree search. For each bit position, every participating device transmits its ID bit and then the complement of that bit. Because the bus is wired-AND, the controller reads 0 then 1 if all devices have a 0, 1 then 0 if all have a 1, and 0 then 0 if both values are present.',
+        'The controller then writes the bit value it chooses to follow, and devices whose ID differs drop out until the next search. After 64 bits exactly one ID has been read; repeating the search with different choices at each conflict enumerates the rest.',
+      ],
+    },
+    {
+      title: 'Parasite power',
+      body: [
+        'A device in parasite-power mode has no supply pin connected. It charges an internal capacitor from the data line while the line is high. Some operations, such as a DS18B20 temperature conversion, draw more current than the pull-up resistor can supply, so the controller must switch in a strong pull-up, typically a MOSFET to the supply rail, within about 10 µs of issuing the command and hold it for the duration of the conversion.',
+      ],
+    },
+    {
+      title: 'Reading a DS18B20',
+      body: [
+        'A typical temperature read is two transactions. The first is a reset, Skip ROM (0xCC) and Convert T (0x44), followed by a wait of up to 750 ms at 12-bit resolution. The second is a reset, Skip ROM and Read Scratchpad (0xBE), followed by nine bytes: the temperature (least significant byte first, in units of 1/16 °C), two alarm thresholds, a configuration byte, three reserved bytes and a CRC.',
+        'The default read data on this page, 0x50 0x05, is 0x0550, or 85.0 °C. That is the DS18B20\'s power-on value, so a reading of exactly 85 °C usually means a conversion was never triggered or had not finished.',
+      ],
+    },
+    {
+      title: 'Overdrive speed',
+      body: [
+        'Many devices support overdrive, with timing roughly ten times shorter: for example, a reset low time of about 48 µs instead of 480 µs. The controller switches a device into overdrive with the Overdrive Skip ROM (0x3C) or Overdrive Match ROM (0x69) command.',
+      ],
+    },
+    {
+      title: 'Long cables',
+      body: [
+        '1-Wire can run tens to hundreds of meters, but cable capacitance slows each rise through the pull-up, and branches cause reflections. Linear topologies with short stubs work best. For long networks, bridge chips such as the DS2482 replace the simple resistor with an actively controlled pull-up and precise slot timing.',
+      ],
+    },
+  ],
   params: [
     { key: 'write', label: 'Write', type: 'text', default: 'CC BE', placeholder: 'CC BE (hex)' },
     { key: 'read', label: 'Then read', type: 'text', default: '50 05', placeholder: '50 05 (hex, or empty)' },

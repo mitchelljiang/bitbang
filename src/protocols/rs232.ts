@@ -40,6 +40,40 @@ export const rs232: Protocol = {
     'Point-to-point only, and slow compared to anything differential.',
     'Many connector pinouts and "null modem" cable variants to get wrong.',
   ],
+  deepDive: [
+    {
+      title: 'DTE and DCE',
+      body: [
+        'RS-232 defines two device roles. Data terminal equipment (DTE), such as a computer, transmits on TxD and receives on RxD. Data circuit-terminating equipment (DCE), such as a modem, uses the same pin names from the DTE\'s perspective, so a straight-through cable connects a DTE to a DCE correctly.',
+        'Connecting two DTE devices requires a null-modem cable or adapter, which crosses TxD with RxD and the handshake lines with their counterparts. A link that stays silent is very often a straight cable where a null modem was needed, or the reverse.',
+      ],
+    },
+    {
+      title: 'The DB9 connector',
+      body: [
+        'On a DB9 DTE connector: 1 DCD (carrier detect), 2 RxD, 3 TxD, 4 DTR (terminal ready), 5 ground, 6 DSR (set ready), 7 RTS (request to send), 8 CTS (clear to send), 9 RI (ring indicator). Many modern devices use only pins 2, 3 and 5.',
+      ],
+    },
+    {
+      title: 'The handshake lines today',
+      body: [
+        'RTS and CTS remain in use for hardware flow control. DTR also has a common secondary use: many development boards, including Arduino boards, connect DTR through a capacitor to the microcontroller\'s reset pin, so opening the serial port resets the board into its bootloader.',
+      ],
+    },
+    {
+      title: 'Levels and transceivers',
+      body: [
+        'Receivers interpret any voltage above +3 V as space (0) and below −3 V as mark (1); the region between is undefined. Drivers output between ±5 V and ±15 V. Transceivers such as the MAX232 (5 V supply) and MAX3232 (3 to 5.5 V) generate these voltages with internal charge pumps.',
+        'Many inexpensive USB serial adapters provide 3.3 V or 5 V logic levels, not RS-232. Connecting one to an RS-232 port fails because of the inverted polarity and can damage the adapter because of the voltage.',
+      ],
+    },
+    {
+      title: 'Cable length',
+      body: [
+        'The original standard limits the load capacitance to 2500 pF, which corresponds to about 15 m of typical cable at 19.2 kbaud. Lower baud rates and low-capacitance cable allow considerably longer runs. For longer distances or multiple devices, RS-422 or RS-485 is the usual replacement.',
+      ],
+    },
+  ],
   params: [
     ...uart.params,
     {

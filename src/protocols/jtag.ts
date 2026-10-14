@@ -63,6 +63,45 @@ export const jtag: Protocol = {
     'The interesting instructions (debug, flash programming) are vendor-specific.',
   ],
   legend: { cmd: 'TMS', addr: 'instruction (IR)', data: 'data (DR)' },
+  deepDive: [
+    {
+      title: 'Boundary scan',
+      body: [
+        'JTAG was created for testing assembled boards. Every pin of a compliant chip has a boundary-scan cell that can capture the pin\'s state or override it. With the EXTEST instruction, a tester drives values onto one chip\'s pins and reads them on another\'s, verifying each solder joint and trace without running any firmware. BSDL files describe each chip\'s boundary-scan cells for test software.',
+      ],
+    },
+    {
+      title: 'Required instructions',
+      body: [
+        'IEEE 1149.1 requires BYPASS, SAMPLE/PRELOAD and EXTEST. BYPASS must use the all-ones opcode and selects a 1-bit data register, which shortens the chain through devices that are not being accessed. IDCODE is optional but nearly universal, and a device that implements it selects it automatically on reset.',
+      ],
+    },
+    {
+      title: 'Scanning a chain',
+      body: [
+        'In a chain, the instruction register lengths add up, and every IR scan must shift a full instruction into every device. To access one device, a debugger places the others in BYPASS, so each contributes a single bit to the data path.',
+        'After reset, a DR scan reads every device\'s IDCODE back to back. Because every IDCODE ends in a 1 and every BYPASS register captures a 0, a debugger can count the devices and identify each one.',
+      ],
+    },
+    {
+      title: 'Debug and programming',
+      body: [
+        'Debug access is built on vendor-defined instructions. On Arm processors, the JTAG-DP uses DPACC and APACC instructions to reach the same debug access port that SWD uses. RISC-V cores expose a debug transport module, and FPGAs load configuration bitstreams through dedicated JTAG instructions.',
+      ],
+    },
+    {
+      title: 'Adaptive clocking',
+      body: [
+        'Some older Arm cores synchronize JTAG to their own clock and return a copy of TCK on an RTCK pin. A debugger using adaptive clocking waits for each RTCK edge before continuing, so it never runs faster than the core can follow, which matters when the core runs from a slow clock.',
+      ],
+    },
+    {
+      title: 'Fewer pins: cJTAG',
+      body: [
+        'IEEE 1149.7, compact JTAG, carries the same TAP operations over two pins, TCKC and TMSC, by multiplexing TMS, TDI and TDO onto a single bidirectional line. It addresses the same pin-count problem as SWD, on non-Arm devices as well.',
+      ],
+    },
+  ],
   params: [
     { key: 'idcode', label: 'IDCODE', type: 'text', default: '4BA00477', placeholder: '4BA00477 (hex, 32-bit)' },
     {
