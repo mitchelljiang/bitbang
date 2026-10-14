@@ -87,7 +87,7 @@ export const i3c: Protocol = {
       sda.set(t + 0.25, v, openDrain);
       scl.set(t + 0.5, 1);
       scl.set(t + 1, 0);
-      bits.push({ lane: 1, t0: t, t1: t + 1, label, kind, by, sample: t + 0.75, info });
+      bits.push({ lane: 1, t0: t, t1: t + 1, label, kind, by, sample: t + 0.5, info }); // latched on SCL's rising edge
       t += 1;
     };
 
@@ -143,7 +143,7 @@ export const i3c: Protocol = {
           const v = ((b >> i) & 1) as 0 | 1;
           slot(v, false, `${i}`, 'data', sender,
             `Data bit ${i} of ${hex(b)} = ${v}, driven push-pull by the ${sender}, most significant bit first. Both ` +
-            'edges are driven, so the bit settles quickly and the clock can run at 12.5 MHz.');
+            'edges are driven, so the bit settles well before SCL rises, and the receiver latches it on that rising edge.');
         }
         fields.push({ lane: 1, t0: start, t1: t, label: `${hex(b)} ${printable(b)}`.trim(), kind: 'data' });
 
