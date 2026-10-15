@@ -1,5 +1,5 @@
 /**
- * Every protocol bitbang covers or plans to cover, grouped for the Protocols menu.
+ * Every protocol bitbang covers or plans to cover, grouped for the Protocols sidebar.
  * An entry is live when a protocol with the same id exists in src/protocols.
  */
 export interface Entry {
@@ -8,7 +8,7 @@ export interface Entry {
   full?: string;
   blurb: string;
   /** The signal names, shown as a hint of what's on the wire. */
-  wires: string;
+  wires?: string;
   /** Has a page that says it's under construction, instead of being an unlinked "soon" item. */
   wip?: string;
 }
@@ -22,17 +22,6 @@ export interface Category {
 
 export const catalog: Category[] = [
   {
-    id: 'synchronous',
-    name: 'Synchronous buses',
-    blurb: 'A controller drives a clock line, and data is read on its edges.',
-    entries: [
-      { id: 'spi', name: 'SPI', blurb: 'Clock, data out, data in and chip select. Simple and fast.', wires: 'SCLK · MOSI · MISO · CS' },
-      { id: 'qspi', name: 'Quad SPI', blurb: 'SPI with four data lines, used by most microcontrollers to read external flash.', wires: 'SCLK · IO0–3 · CS' },
-      { id: 'i2c', name: 'I²C', blurb: 'Two wires shared by every device on the board, with an acknowledgment for each byte.', wires: 'SCL · SDA' },
-      { id: 'i3c', name: 'I3C', blurb: 'A faster successor to I²C, with dynamic addresses and in-band interrupts.', wires: 'SCL · SDA' },
-    ],
-  },
-  {
     id: 'asynchronous',
     name: 'Asynchronous serial',
     blurb: 'No clock line: timing comes from an agreed baud rate or from pulse widths.',
@@ -42,6 +31,17 @@ export const catalog: Category[] = [
       { id: 'rs485', name: 'RS-485', blurb: 'UART over a differential pair, for long cables and many devices.', wires: 'A · B' },
       { id: 'onewire', name: '1-Wire', blurb: 'Data and power on a single wire, in microsecond time slots.', wires: 'DQ' },
       { id: 'ws2812', name: 'WS2812', full: 'NeoPixel', blurb: 'Addressable LED strips, where a long pulse is a 1 and a short pulse is a 0.', wires: 'DIN' },
+    ],
+  },
+  {
+    id: 'synchronous',
+    name: 'Synchronous buses',
+    blurb: 'A controller drives a clock line, and data is read on its edges.',
+    entries: [
+      { id: 'spi', name: 'SPI', blurb: 'Clock, data out, data in and chip select. Simple and fast.', wires: 'SCLK · MOSI · MISO · CS' },
+      { id: 'qspi', name: 'Quad SPI', blurb: 'SPI with four data lines, used by most microcontrollers to read external flash.', wires: 'SCLK · IO0–3 · CS' },
+      { id: 'i2c', name: 'I²C', blurb: 'Two wires shared by every device on the board, with an acknowledgment for each byte.', wires: 'SCL · SDA' },
+      { id: 'i3c', name: 'I3C', blurb: 'A faster successor to I²C, with dynamic addresses and in-band interrupts.', wires: 'SCL · SDA' },
     ],
   },
   {

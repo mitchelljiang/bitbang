@@ -1,5 +1,9 @@
 import type { TourStop, Waveform } from './core/types';
 
+/** Every walkthrough motion (the page scroll and the diagram's zoom and pan) shares this timing, so they move as one. */
+export const MOTION_MS = 450;
+export const easeInOut = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
+
 export interface TourHooks {
   /** The waveform currently on screen. */
   wave(): Waveform | null;
@@ -9,6 +13,11 @@ export interface TourHooks {
   caption(stop: TourStop | null): void;
   /** Called when the tour ends, to restore the normal view. */
   exit(): void;
+  /**
+   * Fixes the caption box at the height of the tallest caption in this tour (true), or lets it fit its text again
+   * (false), so stepping through never changes the layout.
+   */
+  holdCaptionHeight(on: boolean): void;
 }
 
 /**
@@ -24,7 +33,40 @@ export function mountTour(bar: HTMLElement, toolbar: HTMLElement, button: HTMLBu
   const strip = bar.querySelector<HTMLElement>('.strip')!;
   let index = -1;
 
+  const instrument = bar.closest<HTMLElement>('.instrument') ?? bar;
+
   const stops = () => hooks.wave()?.tour ?? [];
+
+  let scrollAnim = 0;
+  /**
+   * Centers the walkthrough (bar, diagram and caption) in the window, or puts its top at the top if it is taller than
+   * the window. It runs frame by frame alongside the first zoom, with the same duration and easing, so the two arrive
+   * together. Any scroll by the reader cancels it.
+   */
+  function center() {
+    cancelAnimationFrame(scrollAnim);
+    const MARGIN = 12;
+    const box = instrument.getBoundingClientRect();
+    const by = box.height > window.innerHeight - 2 * MARGIN
+      ? box.top - MARGIN
+      : box.top + box.height / 2 - window.innerHeight / 2;
+    if (Math.abs(by) < 2) return;
+    const from = window.scrollY;
+    const jump = (y: number) => window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return jump(from + by);
+    const cancel = () => cancelAnimationFrame(scrollAnim);
+    window.addEventListener('wheel', cancel, { once: true, passive: true });
+    window.addEventListener('touchstart', cancel, { once: true, passive: true });
+    const t0 = performance.now();
+    const frame = (now: number) => {
+      const k = Math.min(1, (now - t0) / MOTION_MS);
+      jump(from + by * easeInOut(k));
+      if (k < 1) scrollAnim = requestAnimationFrame(frame);
+    };
+    scrollAnim = requestAnimationFrame(frame);
+  }
+
+
   const active = () => index >= 0;
 
   /** One block per field, sized by time, plus a frame showing the stop's view. */
@@ -69,15 +111,20 @@ export function mountTour(bar: HTMLElement, toolbar: HTMLElement, button: HTMLBu
     bar.hidden = false;
     toolbar.hidden = true;
     drawStrip();
+    hooks.holdCaptionHeight(true);
+    next.focus({ preventScroll: true });
+    // The layout is final now (bar shown, caption height held), so one centering is all it takes.
     goTo(0);
-    next.focus();
+    center();
   }
 
   function stop() {
     if (!active()) return;
     index = -1;
+    cancelAnimationFrame(scrollAnim);
     bar.hidden = true;
     toolbar.hidden = false;
+    hooks.holdCaptionHeight(false);
     hooks.caption(null);
     hooks.exit();
     button.focus();
@@ -114,6 +161,7 @@ export function mountTour(bar: HTMLElement, toolbar: HTMLElement, button: HTMLBu
       if (!active()) return;
       if (!stops().length) return stop();
       drawStrip();
+      hooks.holdCaptionHeight(true);
       goTo(index, false);
     },
   };

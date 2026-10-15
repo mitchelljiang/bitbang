@@ -112,8 +112,11 @@ function edgeEnd(trace: Trace, t: number) {
 }
 
 export interface RenderOptions {
-  /** Pixels per time unit, or 'fit' to fill the available width. */
-  zoom: number | 'fit';
+  /**
+   * Pixels per time unit; 'all' to show the whole frame, however small; or 'fit' to show the whole frame unless the
+   * bits would get too narrow to read, in which case it scrolls. Pages open at 'fit'.
+   */
+  zoom: number | 'fit' | 'all';
   onPick(step: number): void;
   onHover(bit: Bit | null, cell: Element | null): void;
   /** Time range to keep bright; everything outside it is dimmed. Used by the walkthrough. */
@@ -124,12 +127,23 @@ export interface Rendered {
   select(step: Step | null): void;
   ppu: number;
   fitPpu: number;
+  /** The zoom that shows the whole frame. */
+  allPpu: number;
+  /** Seconds per graticule division, as drawn. */
+  divTime: number;
+}
+
+/** The scope-style step (1, 2 or 5 times a power of ten) nearest to `t`, so the screen shows about ten divisions. */
+function niceStep(t: number) {
+  const p = 10 ** Math.floor(Math.log10(t));
+  return [1, 2, 5, 10].map((m) => m * p).reduce((a, b) => (Math.abs(Math.log(b / t)) < Math.abs(Math.log(a / t)) ? b : a));
 }
 
 /** Draws the waveform as SVG into `host`. */
 export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: RenderOptions): Rendered {
-  const fitPpu = Math.max(w.minPpu ?? MIN_FIT_PPU, (host.clientWidth - GUTTER - 16) / w.duration);
-  const ppu = opts.zoom === 'fit' ? fitPpu : opts.zoom;
+  const allPpu = (host.clientWidth - GUTTER - 16) / w.duration;
+  const fitPpu = Math.max(w.minPpu ?? MIN_FIT_PPU, allPpu);
+  const ppu = opts.zoom === 'fit' ? fitPpu : opts.zoom === 'all' ? allPpu : opts.zoom;
   const x = (t: number) => GUTTER + t * ppu;
   const width = Math.ceil(x(w.duration) + 8);
 
@@ -154,17 +168,24 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   const parts: string[] = [];
   parts.push(`<rect id="sel" class="sel" x="0" y="0" width="0" height="${height}" visibility="hidden"/>`);
 
-  // Ruler: a tick per unit (or fewer when zoomed out), with labels spaced to stay readable.
-  const tickEvery = ppu < 6 ? Math.ceil(6 / ppu) : 1;
-  const labelEvery = Math.max(tickEvery, Math.ceil(70 / ppu / tickEvery) * tickEvery);
-  for (let u = 0; u <= Math.floor(w.duration); u += tickEvery) {
-    const labeled = u % labelEvery === 0;
-    parts.push(`<line class="tick${labeled ? ' major' : ''}" x1="${x(u)}" x2="${x(u)}" y1="${TOP - (labeled ? 10 : 5)}" y2="${height}"/>`);
-    if (labeled) parts.push(`<text class="ruler" x="${x(u) + 3}" y="${TOP - 14}">${formatTime(u * w.unitTime)}</text>`);
+  // Graticule and ruler, as on a scope: a round time per division (1, 2 or 5 times a power of ten) close to a tenth
+  // of the visible width, a vertical line at every multiple of it from time zero, and labels on those lines, spaced
+  // so they stay readable. The readout shows the same value, so the grid, the ruler and the readout always agree.
+  const visible = Math.max(1, host.clientWidth - GUTTER - 16) / ppu;
+  const divTime = niceStep((visible * w.unitTime) / 10);
+  const div = divTime / w.unitTime;
+  const labelEvery = Math.max(1, Math.ceil(70 / (div * ppu)));
+  for (let k = 0; k * div <= w.duration + 1e-9; k++) {
+    const gx = x(k * div);
+    parts.push(`<line class="grid" x1="${gx}" x2="${gx}" y1="${TOP - 10}" y2="${height}"/>`);
+    if (k % labelEvery === 0) parts.push(`<text class="ruler" x="${gx + 3}" y="${TOP - 14}">${formatTime(k * divTime)}</text>`);
   }
+
 
   w.traces.forEach((trace, i) => {
     const ly = layout[i].y;
+    // Each lane is a numbered channel, as on a scope, and takes that channel's color (six colors, then round again).
+    parts.push(`<g class="ch ch${(i % 6) + 1}">`);
     parts.push(`<text class="lane-name" x="8" y="${ly + LANE_H / 2 + 4}">${esc(trace.name)}</text>`);
     if (trace.levels) {
       const [lo, hi] = trace.levels;
@@ -176,6 +197,7 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     parts.push(trace.bus
       ? busParts(trace, w.duration, x, yOf(i, 1), yOf(i, 0))
       : `<path class="trace" d="${tracePath(trace, w.duration, x, (v) => yOf(i, v))}"/>`);
+    parts.push('</g>');
   });
 
   // Callouts: a label above the lane with a thin leader down to the wire. Skipped when it would overlap the previous one.
@@ -269,6 +291,8 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   return {
     ppu,
     fitPpu,
+    allPpu,
+    divTime,
     select(step) {
       svg.querySelectorAll('.cell.active').forEach((c) => c.classList.remove('active'));
       if (!step) {
@@ -288,4 +312,10 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
       }
     },
   };
+}
+
+/** The scope's readout bar: each lane's channel and name, the time per graticule division, and what is decoded. */
+export function readout(w: Waveform, divTime: number, decode: string) {
+  return w.traces.map((t, i) => `<span class="rd-ch ch${(i % 6) + 1}"><b>CH${i + 1}</b> ${esc(t.name)}</span>`).join('') +
+    `<span class="rd-div">${formatTime(divTime)}/div</span><span class="rd-cursor"></span><span class="rd-decode">Decode ${esc(decode)}</span>`;
 }

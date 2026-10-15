@@ -28,20 +28,20 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V4h6v17h6V4h6v17" /></svg>
         <span class="name">bitbang<span>.fyi</span></span>
       </a>
+      <nav class="tabs" id="tabs" aria-label="Sections"></nav>
       <div class="top-search" id="top-search"></div>
       <div class="top-right">
       <button class="theme" id="theme" type="button" aria-label="Switch to dark theme">
         <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></svg>
         <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 0v2.5M8 13.5V16M0 8h2.5M13.5 8H16M2.3 2.3l1.8 1.8M11.9 11.9l1.8 1.8M2.3 13.7l1.8-1.8M11.9 4.1l1.8-1.8"/></svg>
       </button>
-      <details class="menu" id="menu">
-        <summary>Protocols</summary>
-        <nav class="menu-panel" aria-label="Protocols"></nav>
-      </details>
       </div>
     </header>
 
+    <div class="shell" id="shell">
+    <aside class="side" id="side" hidden></aside>
     <div id="content" tabindex="-1">
+    <main id="home" hidden></main>
     <main id="viz">
       <section class="intro">
         <p class="crumbs" id="crumb-cat"></p>
@@ -66,7 +66,7 @@
           <div class="group">
             <button id="tour-start" class="tour-start" hidden>Walk through</button>
             <button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
-            <button id="zoom-fit" title="Fit to width">Fit</button>
+            <button id="zoom-fit" title="Show the whole frame (0)">Fit</button>
             <button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
             <button id="copy-link" title="Copy a link to exactly this frame">Copy link</button>
           </div>
@@ -80,6 +80,7 @@
           </div>
           <div class="strip" aria-hidden="true"></div>
         </div>
+        <div class="readout" id="readout" aria-hidden="true"></div>
         <div class="scope" id="scope" tabindex="0" aria-label="Waveform. Use the arrow keys to step through bits."></div>
         <div class="explain" id="step-info" aria-live="polite"></div>
         <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
@@ -120,10 +121,12 @@
         <h1 id="wip-name"></h1>
         <p class="fullname">Under construction</p>
         <p id="wip-text"></p>
-        <p class="wip-note">An interactive diagram for this protocol is in progress. In the meantime, the related pages below cover the parts it shares with other protocols.</p>
+        <p class="wip-note" id="wip-note"></p>
         <p class="wip-links" id="wip-links"></p>
       </section>
     </main>
+    <nav class="pager" id="pager" aria-label="Previous and next" hidden></nav>
+    </div>
     </div>
 
     <footer>

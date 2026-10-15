@@ -144,6 +144,8 @@ section('1d. Internal links point to real pages');
       if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
     }
   }
+  const ids = [...index.map((e) => e.id), 'basics', 'about'];
+  check('page ids are unique across protocols, bit manipulation topics and other pages', new Set(ids).size === ids.length);
   check(`${count} links in Going deeper and the guide lead to existing pages`, broken.length === 0, broken.join('; '));
 }
 

@@ -1,3 +1,4 @@
+import { bitTopics } from './bits';
 import { catalog } from './catalog';
 import { esc } from './core/render';
 import { protocols } from './protocols';
@@ -20,8 +21,8 @@ export interface SearchEntry {
 const tokens = (text: string) =>
   text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
 
-/** Every protocol in the menu, with the words a search can match: names, description, group and tags. */
-export const index: SearchEntry[] = catalog.flatMap((cat) =>
+/** Every page and planned page on the site, with the words a search can match: names, description, group and tags. */
+export const index: SearchEntry[] = [...catalog, ...bitTopics].flatMap((cat) =>
   cat.entries.map((e) => {
     const p = byId.get(e.id);
     const tags = p?.tags ?? [];
@@ -53,7 +54,7 @@ export const matches = (entry: SearchEntry, query: string) =>
 function resultsHtml(q: string, tag: string | null) {
   const found = index.filter((e) => (tag ? e.tags.includes(tag) : matches(e, q)))
     .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1));
-  if (!found.length) return `<li class="none">No protocols match “${esc(q)}”.</li>`;
+  if (!found.length) return `<li class="none">Nothing matches “${esc(q)}”.</li>`;
   return found.map((e) => {
     const head = `<span class="r-name">${esc(e.name)}</span><span class="r-group">${esc(e.group)}</span>` +
       (e.status === 'live' ? '' : `<span class="r-status">${e.status === 'wip' ? 'in progress' : 'soon'}</span>`);
@@ -71,7 +72,7 @@ function resultsHtml(q: string, tag: string | null) {
  */
 export function mountSearch(root: HTMLElement) {
   root.innerHTML = `
-    <input type="search" placeholder="Search protocols by name or tag" aria-label="Search protocols"
+    <input type="search" placeholder="Search by name or tag" aria-label="Search bitbang"
       aria-controls="search-results" autocomplete="off" spellcheck="false">
     <ul class="search-results" id="search-results" hidden></ul>`;
   const input = root.querySelector('input')!;

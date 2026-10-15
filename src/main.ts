@@ -1,15 +1,19 @@
 import './style.css';
-import { GUTTER, esc, groupSteps, render, type Rendered, type Step } from './core/render';
+import { GUTTER, esc, groupSteps, readout, render, type Rendered, type Step } from './core/render';
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { formatTime } from './core/util';
+import { bitTopics } from './bits';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountAbout } from './about';
 import { mountGuide } from './guide';
-import { mountMenu } from './menu';
+import { mountHome } from './home';
+import { mountNav } from './nav';
+import { mountProgress } from './progress';
+import { mountScopeAids } from './cursor';
 import { protocols } from './protocols';
 import { mountThemeToggle } from './theme';
-import { mountTour } from './tour';
+import { MOTION_MS, easeInOut, mountTour } from './tour';
 import { mountEye } from './eye';
 import { TOURS } from './tours';
 import { mountSearch } from './search';
@@ -26,6 +30,7 @@ const vizView = $('#viz');
 const guideView = $('#guide');
 const wipView = $('#wip');
 const aboutView = $('#about');
+const homeView = $('#home');
 const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
@@ -68,7 +73,7 @@ let laneNames: string[] = [];
 let current = -1;
 let drawn: Rendered | null = null;
 let timer: number | undefined;
-let zoom: number | 'fit' = 'fit';
+let zoom: number | 'fit' | 'all' = 'fit';
 let unitTime = 1;
 let inputs: Record<string, HTMLInputElement | HTMLSelectElement> = {};
 let wave: Waveform | null = null;
@@ -151,6 +156,26 @@ function keepOnScreen(help: HTMLElement) {
   if (over > 0) help.style.left = `${-over}px`;
 }
 
+/**
+ * Splits the settings into the fewest rows that fit, with the same number in each (the first rows take any extra),
+ * so a setting never sits alone on a line. Phones use a fixed two-per-row grid instead, set in CSS.
+ */
+function balanceControls() {
+  controls.querySelectorAll('.ctl-break').forEach((b) => b.remove());
+  const items = [...controls.querySelectorAll<HTMLElement>(':scope > .ctl')];
+  if (items.length < 2 || matchMedia('(max-width: 600px)').matches) return;
+  for (let rows = 1; rows <= items.length; rows++) {
+    const per = Math.ceil(items.length / rows);
+    controls.querySelectorAll('.ctl-break').forEach((b) => b.remove());
+    for (let i = per; i < items.length; i += per) {
+      items[i - 1].after(Object.assign(document.createElement('div'), { className: 'ctl-break' }));
+    }
+    // It fits when every item sits on the same line as the first item of its row.
+    const fits = items.every((el, i) => el.offsetTop === items[i - (i % per)].offsetTop);
+    if (fits) return;
+  }
+}
+
 /** Closes any setting explanation opened by a click or tap. */
 function closeHelp() {
   for (const t of controls.querySelectorAll('.help-tip[aria-expanded="true"]')) t.setAttribute('aria-expanded', 'false');
@@ -227,7 +252,7 @@ function buildAll() {
   crumbCat.textContent = categoryOf(proto.id)?.name ?? '';
   summary.textContent = proto.summary;
   usedIn.textContent = proto.usedIn;
-  // Each tag searches the menu for every protocol that shares it.
+  // Each tag searches the site for every protocol that shares it.
   tagList.replaceChildren(...proto.tags.map((tag) => {
     const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tag-chip', textContent: tag });
     b.title = `Find other ${tag} protocols`;
@@ -238,6 +263,7 @@ function buildAll() {
   buildSpecs();
   document.title = `${proto.name} · bitbang`;
   buildControls();
+  balanceControls();
   update();
 }
 
@@ -271,7 +297,6 @@ function update(changed?: string) {
   unitTime = wave.unitTime;
   hideTip();
   draw();
-  reserveExplainHeight();
   go(current < steps.length ? current : -1);
   tour.refresh();
 }
@@ -287,8 +312,13 @@ function draw() {
     },
     onHover: showTip,
   });
-  zoomFit.setAttribute('aria-pressed', String(zoom === 'fit'));
+  $('#readout').innerHTML = readout(wave, drawn.divTime, proto.name);
+  scopeAids.refresh();
+  // Lit whenever the whole frame is on screen.
+  zoomFit.setAttribute('aria-pressed', String(drawn.ppu <= drawn.allPpu + 0.01));
 }
+
+const scopeAids = mountScopeAids(scope, $('#readout'), () => (drawn && wave ? { ppu: drawn.ppu, duration: wave.duration, unitTime: wave.unitTime } : null));
 
 // ---- walkthrough: zooms from stop to stop, dimming the rest ----
 
@@ -315,10 +345,9 @@ function showStop(s: TourStop, animate: boolean) {
   const fromPpu = drawn.ppu;
   const fromCenter = centerTime();
   const t0 = performance.now();
-  const DURATION = 450;
   const frame = (now: number) => {
-    const k = Math.min(1, (now - t0) / DURATION);
-    const e = k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2; // ease in-out
+    const k = Math.min(1, (now - t0) / MOTION_MS);
+    const e = easeInOut(k);
     // Zoom moves geometrically, so going from 1× to 8× feels as even as 8× to 64×.
     zoomTo(fromPpu * (toPpu / fromPpu) ** e, fromCenter + (toCenter - fromCenter) * e);
     if (k < 1) anim = requestAnimationFrame(frame);
@@ -339,6 +368,23 @@ const tour = mountTour($('#tour-bar'), toolbar, $<HTMLButtonElement>('#tour-star
     zoom = 'fit';
     draw();
     scope.scrollLeft = 0;
+  },
+  holdCaptionHeight(on) {
+    stepInfo.style.minHeight = '';
+    if (!on) return;
+    // Measure every caption in this tour in an invisible copy of the box, and hold the tallest height.
+    const probe = stepInfo.cloneNode(false) as HTMLElement;
+    probe.removeAttribute('id');
+    probe.setAttribute('aria-hidden', 'true');
+    Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', left: '0', top: '0', width: `${stepInfo.offsetWidth}px` });
+    instrument.append(probe);
+    let tallest = stepInfo.offsetHeight;
+    for (const stop of wave?.tour ?? []) {
+      probe.replaceChildren(tourNode(stop.text));
+      tallest = Math.max(tallest, probe.offsetHeight);
+    }
+    probe.remove();
+    stepInfo.style.minHeight = `${tallest}px`;
   },
 });
 
@@ -366,18 +412,19 @@ function buildLegend(wave: Waveform) {
 
 // ---- zoom: keeps whatever is in the middle of the view in the middle ----
 
-function setZoom(next: number | 'fit') {
+function setZoom(next: number | 'all') {
   if (!drawn) return;
   const center = (scope.scrollLeft + scope.clientWidth / 2 - GUTTER) / drawn.ppu;
-  zoom = next !== 'fit' && Math.abs(next - drawn.fitPpu) < 0.5 ? 'fit' : next;
+  zoom = next !== 'all' && Math.abs(next - drawn.allPpu) < 0.5 ? 'all' : next;
   update();
   scope.scrollLeft = GUTTER + center * drawn.ppu - scope.clientWidth / 2;
 }
 
-const clampZoom = (z: number) => Math.min(200, Math.max(6, z));
+/** Zooming out stops once the whole frame is on screen; zooming further out would only add empty space. */
+const clampZoom = (z: number) => Math.min(200, Math.max(drawn?.allPpu ?? 6, z));
 zoomIn.addEventListener('click', () => drawn && setZoom(clampZoom(drawn.ppu * 1.5)));
 zoomOut.addEventListener('click', () => drawn && setZoom(clampZoom(drawn.ppu / 1.5)));
-zoomFit.addEventListener('click', () => setZoom('fit'));
+zoomFit.addEventListener('click', () => setZoom('all'));
 
 // ---- hover tooltip ----
 
@@ -435,36 +482,6 @@ function stepNodes(step: Step) {
 }
 
 const tourNode = (text: string) => Object.assign(document.createElement('p'), { className: 'tour-text', textContent: text });
-
-/**
- * Reserves the height of the tallest explanation this diagram can show (every step, the hint and every walkthrough
- * caption), so the box below the diagram doesn't change size while stepping through it.
- */
-function reserveExplainHeight() {
-  stepInfo.style.minHeight = '';
-  const probe = stepInfo.cloneNode(false) as HTMLElement;
-  probe.removeAttribute('id');
-  probe.setAttribute('aria-hidden', 'true');
-  Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', left: '0', top: '0', width: `${stepInfo.offsetWidth}px` });
-  instrument.append(probe);
-  let tallest = 0;
-  const measure = (nodes: Node[] | string) => {
-    if (typeof nodes === 'string') probe.innerHTML = nodes;
-    else probe.replaceChildren(...nodes);
-    tallest = Math.max(tallest, probe.offsetHeight);
-  };
-  measure(HINT);
-  const seen = new Set<string>();
-  for (const step of steps) {
-    const key = step.bits.map((b) => b.label + b.info).join('|');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    measure(stepNodes(step));
-  }
-  for (const stop of wave?.tour ?? []) measure([tourNode(stop.text)]);
-  probe.remove();
-  stepInfo.style.minHeight = `${tallest}px`;
-}
 
 function go(i: number) {
   current = i;
@@ -534,14 +551,19 @@ document.addEventListener('keydown', (e) => {
 let resizeTimer: number | undefined;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = window.setTimeout(() => !vizView.hidden && update(), 150);
+  resizeTimer = window.setTimeout(() => {
+    if (vizView.hidden) return;
+    balanceControls();
+    update();
+  }, 150);
 });
 
 // ---- routing: ?p=<id> shows that protocol; anything else (including no ?p) shows the guide ----
 
-const menu = mountMenu($<HTMLDetailsElement>('#menu'));
+const nav = mountNav($('#tabs'), $('#side'), $('#pager'));
 const search = mountSearch($('#top-search'));
 mountThemeToggle($<HTMLButtonElement>('#theme'));
+mountProgress();
 
 // The feedback address is put together here rather than written in the page, so simple scrapers can't harvest it.
 // Without JavaScript the link falls back to GitHub issues.
@@ -549,40 +571,48 @@ $<HTMLAnchorElement>('#feedback').href = `mailto:${['feedback', 'bitbang.fyi'].j
 
 mountGuide(guideView);
 mountAbout(aboutView);
+const home = mountHome(homeView);
 
 function route() {
   const q = new URLSearchParams(location.search);
-  const p = protocols.find((x) => x.id === q.get('p'));
-  const wip = p ? undefined : catalog.flatMap((c) => c.entries).find((e) => e.id === q.get('p') && e.wip);
-  const showAbout = q.get('p') === 'about';
-  const showGuide = !p && !wip && !showAbout;
-  vizView.hidden = !p;
-  guideView.hidden = !showGuide;
-  wipView.hidden = !wip;
-  aboutView.hidden = !showAbout;
-  if (showAbout) {
+  const id = q.get('p') ?? '';
+  const p = protocols.find((x) => x.id === id);
+  const wipCat = p ? undefined : [...catalog, ...bitTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const wip = wipCat?.entries.find((e) => e.id === id);
+  const page = p ? 'viz' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : 'home';
+  vizView.hidden = page !== 'viz';
+  wipView.hidden = page !== 'wip';
+  guideView.hidden = page !== 'guide';
+  aboutView.hidden = page !== 'about';
+  homeView.hidden = page !== 'home';
+  // The home page and About belong to no section, so they have no sidebar.
+  nav.show(page === 'home' || page === 'about' ? null : id);
+  $('#shell').classList.toggle('no-side', page === 'home' || page === 'about');
+  if (page !== 'viz') {
     stop();
     tour.stop();
-    menu.setCurrent('about');
-    document.title = 'About · bitbang';
-  } else if (wip) {
-    stop();
-    tour.stop();
-    menu.setCurrent(wip.id);
-    $('#wip-cat').textContent = categoryOf(wip.id)?.name ?? '';
+  }
+  if (wip) {
+    const isBits = bitTopics.includes(wipCat!);
+    $('#wip-cat').textContent = wipCat!.name;
     $('#wip-name').textContent = wip.name;
     $('#wip-text').textContent = wip.wip!;
-    const related = ['usb', 'pcie'].filter((id) => protocols.some((x) => x.id === id));
+    $('#wip-note').textContent = isBits
+      ? 'An interactive visualization for this topic is in progress.'
+      : 'An interactive diagram for this protocol is in progress. In the meantime, the related pages below cover the parts it shares with other protocols.';
+    const related = isBits ? [] : ['usb', 'pcie'].filter((x) => protocols.some((y) => y.id === x));
     $('#wip-links').innerHTML = related
-      .map((id) => `<a href="?p=${id}" data-nav>${esc(protocols.find((x) => x.id === id)!.name)}</a>`).join('');
+      .map((x) => `<a href="?p=${x}" data-nav>${esc(protocols.find((y) => y.id === x)!.name)}</a>`).join('');
     document.title = `${wip.name} · bitbang`;
-  } else if (showGuide) {
-    stop();
-    menu.setCurrent('basics');
+  } else if (page === 'guide') {
     document.title = 'How protocols work · bitbang';
+  } else if (page === 'about') {
+    document.title = 'About · bitbang';
+  } else if (page === 'home') {
+    document.title = 'bitbang';
+    home.show();
   } else if (p) {
     if (p !== proto) tour.stop();
-    menu.setCurrent(p.id);
     readUrl(q, p);
     buildAll();
   }
