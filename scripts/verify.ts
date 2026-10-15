@@ -21,6 +21,9 @@ import { TOURS } from '../src/tours';
 import { fold, simulate } from '../src/eye';
 import { SECTIONS } from '../src/guide';
 import { index } from '../src/search';
+import { RESOURCES } from '../src/resources';
+import { apply, type Op } from '../src/topics/bitwise';
+import { decodeFloat32, encodeFloat32, fixedValue, qRsqrt, toInt8 } from '../src/topics/numbers';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -66,6 +69,7 @@ const CASES: [string, Params][] = [
   ['pci', {}], ['pci', { cmd: 'write', devsel: 'fast', wait: '0' }],
   ['pcie', {}], ['pcie', { content: 'skp' }], ['pcie', { content: 'ts1' }], ['pcie', { content: 'ts1', lanes: '4' }], ['pcie', { lanes: '4', content: 'data' }], ['pcie', { lanes: '8' }],
   ['usb', {}], ['usb', { xfer: 'out', data: 'FF FF 00' }], ['usb', { xfer: 'in', speed: 'low', data: '01 02 03', toggle: 'DATA1' }],
+  ['ws2812', {}], ['ws2812', { colors: '123456 ABCDEF 000000', reset: '50' }],
   ['usb', { xfer: 'out', data: '', hs: 'NAK' }], ['usb', { xfer: 'in', hs: 'NAK', data: '' }], ['usb', { speed: 'high' }],
   ['usb', { speed: 'high', xfer: 'out', data: 'FF FF 00 7E', hs: 'NYET' }], ['usb', { speed: 'high', xfer: 'in', hs: 'STALL', data: '' }],
 ];
@@ -146,6 +150,11 @@ section('1d. Internal links point to real pages');
   }
   const ids = [...index.map((e) => e.id), 'basics', 'about'];
   check('page ids are unique across protocols, bit manipulation topics and other pages', new Set(ids).size === ids.length);
+  const badRes = Object.entries(RESOURCES).flatMap(([id, list]) => [
+    ...(pages.has(id) ? [] : [`${id} is not a page`]),
+    ...list.filter((r) => !/^https:\/\//.test(r.url) || !r.title.trim()).map((r) => `${id}: ${r.title || '(no title)'} needs a title and an https link`),
+  ]);
+  check(`related resources: ${Object.values(RESOURCES).flat().length} entries, all on real pages with https links`, badRes.length === 0, badRes.join('; '));
   check(`${count} links in Going deeper and the guide lead to existing pages`, broken.length === 0, broken.join('; '));
 }
 
@@ -340,6 +349,89 @@ section('3. Protocol-specific checks');
   check('PCIe eye: short trace open, long trace closes, de-emphasis reopens it',
     short.height > 1.5 && longOn.height > longOff.height && longOn.width > longOff.width + 0.1,
     `short ${(short.height / 2 * 100).toFixed(0)}%, long off ${(longOff.height / 2 * 100).toFixed(0)}% / ${longOff.width.toFixed(2)} UI, long on ${(longOn.height / 2 * 100).toFixed(0)}% / ${longOn.width.toFixed(2)} UI`);
+}
+
+// ---- 3b. Bit manipulation ----
+section('3b. Bitwise logic panel');
+{
+  const cases: [Op, number, number, number][] = [['and', 0xb2, 0x6b, 0x22], ['or', 0xb2, 0x6b, 0xfb], ['xor', 0xb2, 0x6b, 0xd9], ['not', 0xb2, 0x6b, 0x4d], ['not', 0x00, 0, 0xff]];
+  const bad = cases.filter(([op, a, b, want]) => apply(op, a, b) !== want).map(([op, a, b, want]) => `${op} ${a} ${b}: got ${apply(op, a, b)}, want ${want}`);
+  check('AND, OR, XOR and NOT on 8-bit values match worked examples', bad.length === 0, bad.join('; '));
+}
+
+section('3c. Representing numbers');
+{
+  // Two's complement and fixed point, against worked examples.
+  const twos: [number, number][] = [[0xb2, -78], [0x80, -128], [0x7f, 127], [0xff, -1], [0, 0]];
+  check('uint8_t patterns read as int8_t', twos.every(([v, want]) => toInt8(v) === want), twos.map(([v]) => toInt8(v)).join(' '));
+  check('UQ4.4 0xB2 is 11.125, UQ0.8 0x80 is 0.5, UQ8.0 0xFF is 255', fixedValue(0xb2, 4) === 11.125 && fixedValue(0x80, 8) === 0.5 && fixedValue(0xff, 0) === 255);
+  // IEEE 754: bit patterns and exact decimal values, against Python's struct and Decimal as an independent reference.
+  const values = ['0.1', '1', '-2.5', '3.4028234663852886e38', '1e-45', '5.877472e-39', '0', '-0.0', '123.456'];
+  const py = execFileSync('python3', ['-c', `
+import struct, decimal, sys
+for s in sys.argv[1:]:
+    b = struct.unpack('>I', struct.pack('>f', float(s)))[0]
+    v = struct.unpack('>f', struct.pack('>I', b))[0]
+    d = format(decimal.Decimal(v), 'f')
+    if '.' in d: d = d.rstrip('0').rstrip('.')
+    if d in ('-0',): d = '-0'
+    print(f'{b:08X} {d}')
+`, ...values]).toString().trim().split('\n');
+  const mine = values.map((v) => {
+    const b = encodeFloat32(Number(v));
+    const d = decodeFloat32(b);
+    return `${b.toString(16).toUpperCase().padStart(8, '0')} ${d.exact === '-0' || (d.kind === 'zero' && d.sign) ? '-0' : d.exact}`;
+  });
+  const diffs = values.map((v, i) => (mine[i] === py[i] ? '' : `${v}: ${mine[i]} vs python ${py[i]}`)).filter(Boolean);
+  check(`${values.length} floats: bit patterns and exact decimal values match Python`, diffs.length === 0, diffs.join('; '));
+  const special = [[0x7f800000, 'infinity'], [0xff800000, 'infinity'], [0x7fc00000, 'nan'], [0x00000001, 'subnormal'], [0x80000000, 'zero']] as const;
+  check('infinity, NaN, subnormal and zero are recognized', special.every(([b, k]) => decodeFloat32(b).kind === k));
+  // Fast inverse square root: the page's steps against the C code itself, compiled and run.
+  {
+    const inputs = ['2', '0.25', '1000', '3.14159', '1e-20'];
+    const hexN = (v: number) => (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    const dir = mkdtempSync(join(tmpdir(), 'qrsqrt-'));
+    const src = join(dir, 'q.c');
+    writeFileSync(src, `#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+int main(int argc, char **argv) {
+  for (int a = 1; a < argc; a++) {
+    float number = strtof(argv[a], 0), x2 = number * 0.5f, y = number;
+    uint32_t i, i0;
+    memcpy(&i, &y, sizeof i); i0 = i;
+    i = 0x5F3759DF - (i >> 1);
+    memcpy(&y, &i, sizeof y);
+    float y0 = y;
+    y = y * (1.5f - (x2 * y * y));
+    printf("%08X %08X %a %a\\n", i0, i, (double)y0, (double)y);
+  }
+}`);
+    const exe = join(dir, 'q');
+    let out = '';
+    try {
+      execFileSync('cc', ['-O0', '-ffp-contract=off', '-o', exe, src]);
+      out = execFileSync(exe, inputs).toString().trim();
+    } catch {
+      out = '';
+    }
+    const hexf = (v: number) => {
+      // %a formatting of a double, to compare exactly with C.
+      if (v === 0) return '0x0p+0';
+      const dv = new DataView(new ArrayBuffer(8));
+      dv.setFloat64(0, v);
+      const hi = dv.getUint32(0), lo = dv.getUint32(4);
+      const exp = ((hi >>> 20) & 0x7ff) - 1023;
+      const mant = ((BigInt(hi & 0xfffff) << 32n) | BigInt(lo)).toString(16).padStart(13, '0').replace(/0+$/, '');
+      return `${v < 0 ? '-' : ''}0x1${mant ? '.' + mant : ''}p${exp >= 0 ? '+' : ''}${exp}`;
+    };
+    const mine = inputs.map((x) => {
+      const q = qRsqrt(Number(x));
+      return `${hexN(q.i0)} ${hexN(q.i1)} ${hexf(q.y0)} ${hexf(q.y1)}`;
+    }).join('\n');
+    check('fast inverse square root matches the C code compiled and run', out !== '' && mine === out, out ? `page: ${mine.split('\n')[0]} vs C: ${out.split('\n')[0]}` : 'could not compile with cc');
+  }
 }
 
 // ---- 3u. USB high speed ----

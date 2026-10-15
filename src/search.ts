@@ -2,6 +2,7 @@ import { bitTopics } from './bits';
 import { catalog } from './catalog';
 import { esc } from './core/render';
 import { protocols } from './protocols';
+import { topics } from './topics';
 
 const byId = new Map(protocols.map((p) => [p.id, p]));
 
@@ -32,7 +33,7 @@ export const index: SearchEntry[] = [...catalog, ...bitTopics].flatMap((cat) =>
       group: cat.name,
       blurb: e.blurb,
       tags,
-      status: p ? 'live' : e.wip ? 'wip' : 'soon',
+      status: p || topics[e.id] ? 'live' : e.wip ? 'wip' : 'soon',
       // Include the id and a plain-digit spelling, so "i2c" finds I²C.
       words: tokens([e.id, e.name, e.name.replace('²', '2').replace('³', '3'), e.full, e.blurb, cat.name, p?.fullName, ...tags]
         .filter(Boolean).join(' ')),

@@ -100,7 +100,7 @@ export function mountHome(root: HTMLElement) {
     const timing = { delay: DELAY, duration: DURATION, easing: 'linear', fill: 'both' } as const;
     svg.animate([{ clipPath: `inset(0 ${width - GUTTER}px 0 0)` }, { clipPath: 'inset(0 0 0 0)' }], timing);
     const run = beam.animate([{ transform: `translateX(${GUTTER}px)` }, { transform: `translateX(${width}px)` }], timing);
-    setTimeout(() => say('<p class="hint">Triggered on the falling edge of the first start bit.</p>'), DELAY);
+    setTimeout(() => say('<p class="hint">Start condition met!</p>'), DELAY);
     run.finished.then(() => {
       beam.remove();
       say(HINT);

@@ -68,6 +68,9 @@
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 /* Headings break into even lines, and paragraphs avoid leaving one word alone on the last line. */
 h1, h2, h3 { text-wrap: balance; }
+/* Code shows the characters you would type: no ligatures turning |= or != into single symbols. Marked important
+   because a later font shorthand would otherwise reset it. */
+code, pre, kbd, code *, pre * { font-variant-ligatures: none !important; font-feature-settings: 'calt' 0, 'liga' 0, 'clig' 0 !important; }
 p, li, dd { text-wrap: pretty; }
 /*
  * No scrollbars anywhere: everything still scrolls by trackpad, wheel, touch and keyboard. The progress line at the
@@ -258,6 +261,16 @@ main, .top, footer {
 .side-key i { margin-left: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* Related resources: sources and further reading, at the bottom of every page in a section. */
+.resources { max-width: 760px; margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--line); }
+.resources h2 { margin: 0 0 8px; font: 700 22px/1.2 var(--sans); letter-spacing: -0.015em; }
+.resources h3 { margin: 18px 0 6px; font: 600 14px var(--sans); color: var(--faint); }
+.resources ul { margin: 0; padding: 0; list-style: none; }
+.resources li { padding: 4px 0; }
+.resources li a { font-weight: 500; color: var(--accent); }
+.resources li span { color: var(--muted); }
+.resources-empty { margin: 0; color: var(--faint); }
+.resources + .pager { margin-top: 40px; }
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 64px; }
 .pager a {
   display: flex;
@@ -706,6 +719,154 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .legend .tag { width: 14px; height: 10px; padding: 0; }
 .legend .tag.dashed { background: none; border: 1.5px dashed var(--muted); }
 .legend .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
+
+/*
+ * The bit manipulation pages are drawn as a debugger paused on a line of C: source on the left, a Variables pane on
+ * the right with every bit visible, and a status line. Values that changed are highlighted, as debuggers do.
+ */
+.debugger {
+  --dbg-bg: #151a21;
+  --dbg-panel: #1b2129;
+  --dbg-line: #2a323d;
+  --dbg-text: #d5dde5;
+  --dbg-dim: #7d8995;
+  --dbg-pc: #f2c230;
+  --dbg-changed: #ff9f5a;
+  margin-top: 24px;
+  overflow: hidden;
+  color: var(--dbg-text);
+  background: var(--dbg-bg);
+  border: 1px solid #0b0f14;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.dbg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; background: var(--dbg-panel); border-bottom: 1px solid var(--dbg-line); font: 13px var(--sans); }
+.dbg-file { padding: 4px 10px; font: 500 13px var(--mono); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-bottom-color: var(--dbg-bg); border-radius: 6px 6px 0 0; margin-bottom: -9px; }
+.dbg-state { display: inline-flex; align-items: center; gap: 6px; color: var(--dbg-dim); }
+.dbg-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--dbg-pc); }
+.dbg-ops { display: inline-flex; gap: 2px; margin-left: auto; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
+.dbg-ops button { height: 30px; padding: 0 12px; font: 600 13px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
+.dbg-ops button code { font: 700 14px var(--mono); margin-right: 4px; }
+.dbg-ops button:hover { color: var(--dbg-text); }
+.dbg-ops button[aria-checked='true'] { color: #10151b; background: var(--dbg-text); }
+.dbg-ops button:focus-visible, .bit:focus-visible { outline: 2px solid #5b8cff; outline-offset: 1px; }
+
+.dbg-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.dbg-code { margin: 0; padding: 14px 0; overflow-x: auto; font: 14px/1.75 var(--mono); border-right: 1px solid var(--dbg-line); }
+.dbg-code .ln { display: block; padding-right: 16px; white-space: pre; }
+.dbg-code .gutter { display: inline-block; width: 44px; padding-right: 14px; text-align: right; color: #4f5b67; user-select: none; }
+/* The line the debugger is paused on: a band and an arrow in the gutter, as in any IDE. */
+.dbg-code .ln.pc { background: rgba(242, 194, 48, 0.1); box-shadow: inset 3px 0 0 var(--dbg-pc); }
+.dbg-code .ln.pc .gutter { color: var(--dbg-pc); }
+.c-comment { color: #6f7c88; }
+.c-type { color: #7fb1f5; }
+.c-num { color: #f0b45a; }
+
+.dbg-vars { padding: 12px 16px 16px; overflow-x: auto; }
+.dbg-vars h3 { margin: 0 0 8px; font: 600 12px var(--sans); color: var(--dbg-dim); }
+.dbg-vars table { border-collapse: collapse; font: 14px var(--mono); }
+.dbg-vars th, .dbg-vars td { padding: 7px 10px 7px 0; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--dbg-line); }
+.dbg-vars thead th { font: 500 11px var(--mono); color: var(--dbg-dim); padding-bottom: 4px; }
+.dbg-vars th small, .dbg-vars td small { font-size: 12px; color: var(--dbg-dim); }
+.dbg-vars th code { font-weight: 700; }
+.bits-head, .bits { display: grid; grid-template-columns: repeat(4, 26px) 6px repeat(4, 26px); gap: 4px; }
+.bits-head span { text-align: center; }
+.bits-head > :nth-child(5), .bits > :nth-child(5) { grid-column-start: 6; }
+.bit {
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  font: 600 13px var(--mono);
+  color: var(--dbg-dim);
+  background: var(--dbg-panel);
+  border: 1px solid var(--dbg-line);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.bit:hover { border-color: var(--dbg-dim); }
+.bit.on { color: #10151b; background: var(--dbg-text); border-color: var(--dbg-text); }
+tr[data-var='r'] .bit { cursor: default; }
+/* Changed since the last edit, the way debuggers mark values that changed after a step. */
+tr.changed .hex { color: var(--dbg-changed); }
+.bit.flipped { box-shadow: 0 0 0 2px var(--dbg-changed); }
+tr.unused { opacity: 0.4; }
+.dbg-status { margin: 0; min-height: 42px; padding: 11px 16px; font: 14px var(--sans); color: var(--dbg-text); background: var(--dbg-panel); border-top: 1px solid var(--dbg-line); }
+
+/* Pages with wide registers stack the code above the variables. */
+.dbg-body.stacked { grid-template-columns: minmax(0, 1fr); }
+.dbg-body.stacked .dbg-code { border-right: 0; border-bottom: 1px solid var(--dbg-line); }
+.dbg-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-left: auto; }
+.dbg-seg, .dbg-presets { display: inline-flex; gap: 2px; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
+.dbg-seg button, .dbg-btn { height: 30px; padding: 0 12px; font: 600 13px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
+.dbg-seg button:hover, .dbg-btn:hover { color: var(--dbg-text); }
+.dbg-seg button[aria-checked='true'] { color: #10151b; background: var(--dbg-text); }
+.dbg-controls > .dbg-btn { border: 1px solid var(--dbg-line); background: var(--dbg-bg); }
+.dbg-set { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--mono); color: var(--dbg-dim); }
+.dbg-set input, .dbg-set select { height: 32px; width: 12ch; padding: 0 8px; font: 14px var(--mono); color: var(--dbg-text); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 6px; }
+.dbg-set select { width: auto; }
+.dbg-set input:focus-visible, .dbg-set select:focus-visible, .dbg-btn:focus-visible, .dbg-seg button:focus-visible { outline: 2px solid #5b8cff; outline-offset: 1px; }
+
+table.vars { border-collapse: collapse; font: 14px var(--mono); }
+table.vars th, table.vars td { padding: 8px 14px 8px 0; text-align: left; vertical-align: top; white-space: nowrap; border-bottom: 1px solid var(--dbg-line); }
+table.vars th small, table.vars td small { font-size: 12px; color: var(--dbg-dim); }
+table.vars th code { font-weight: 700; }
+table.vars .hex { font-weight: 600; }
+/*
+ * A row of bits. Each bit is a column (the cell, then its label), so labels always line up. Groups (hex digits, or a
+ * float's fields) are separated by space and can be named above or labelled below, in plain text.
+ */
+.bitrow { display: flex; align-items: flex-end; gap: 14px; }
+.grp { display: flex; flex-direction: column; gap: 5px; }
+.grp-head { min-height: 16px; padding-bottom: 3px; font: 12px var(--sans); color: var(--dbg-dim); text-align: center; border-bottom: 1px solid var(--dbg-line); }
+.grp-cells { display: flex; gap: 4px; }
+.grp-foot { padding-top: 3px; font: 600 14px var(--mono); color: var(--dbg-text); text-align: center; border-top: 1px solid var(--dbg-line); }
+.col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.col small { font: 11px var(--mono); color: var(--dbg-dim); white-space: nowrap; }
+.col.gap { margin-right: 6px; }
+.bitrow .bit { width: 32px; height: 36px; font-size: 15px; }
+.bitrow.dense { gap: 10px; }
+.bitrow.dense .grp-cells { gap: 3px; }
+.bitrow.dense .bit { width: 26px; height: 32px; font-size: 13px; }
+.bit { background: transparent; }
+.bit.on { color: #10151b; background: #e6edf3; border-color: #e6edf3; }
+.bitrow.editable .bit:hover { border-color: #8b98a5; background: rgba(255, 255, 255, 0.06); }
+.bitrow.editable .bit.on:hover { background: #ffffff; border-color: #ffffff; }
+.bit[aria-disabled='true'] { cursor: default; }
+/* The binary point, drawn after the bit it follows. */
+.bit.point { position: relative; margin-right: 10px; }
+.bit.point::after { content: ''; position: absolute; right: -9px; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--dbg-text); }
+.bit.flipped { box-shadow: 0 0 0 2px var(--dbg-changed); }
+/* A variable too wide for one line: its name and value, then its bits on the line below. */
+.head-of-wide th, .head-of-wide td { border-bottom: 0 !important; padding-bottom: 2px !important; }
+.wide-bits { padding-top: 4px !important; }
+
+.prose { max-width: 760px; margin-top: 40px; }
+.prose.quake { margin-top: 56px; }
+.quake-dbg { margin-top: 8px; }
+.quake-dbg + .prose { margin-top: 20px; }
+.prose h2 { margin: 0 0 10px; font: 700 24px/1.2 var(--sans); letter-spacing: -0.015em; }
+.prose p { margin: 0 0 14px; color: var(--muted); }
+.prose code { font: 0.92em var(--mono); color: var(--ink); }
+
+@media (max-width: 900px) {
+  .dbg-body { grid-template-columns: minmax(0, 1fr); }
+  .dbg-code { border-right: 0; border-bottom: 1px solid var(--dbg-line); }
+  .dbg-ops { margin-left: 0; }
+}
+
+.op-table { width: 100%; max-width: 760px; margin-top: 28px; border-collapse: collapse; font-size: 15px; }
+.op-table th, .op-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+.op-table thead th { font: 600 13px var(--sans); color: var(--faint); }
+.op-table tbody th { font-weight: 600; }
+.op-table td { color: var(--muted); }
+.op-table code { font: 600 15px var(--mono); color: var(--ink); }
+.op-table tr.current { background: var(--sel); }
+.op-table tr.current th { color: var(--accent); }
+.code-example { margin-top: 40px; }
+.code-example h2 { margin: 0 0 6px; font: 700 24px/1.2 var(--sans); letter-spacing: -0.015em; }
+.code-example p { margin: 0 0 10px; color: var(--muted); }
+.code { margin: 0; padding: 14px 18px; overflow-x: auto; font: 14px/1.6 var(--mono); color: #d5dde5; background: #151a21; border-radius: 10px; }
 
 /* ---- walkthrough ---- */
 

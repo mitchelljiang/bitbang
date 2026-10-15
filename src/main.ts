@@ -11,6 +11,8 @@ import { mountHome } from './home';
 import { mountNav } from './nav';
 import { mountProgress } from './progress';
 import { mountScopeAids } from './cursor';
+import { topics } from './topics';
+import { RESOURCES } from './resources';
 import { protocols } from './protocols';
 import { mountThemeToggle } from './theme';
 import { MOTION_MS, easeInOut, mountTour } from './tour';
@@ -31,6 +33,9 @@ const guideView = $('#guide');
 const wipView = $('#wip');
 const aboutView = $('#about');
 const homeView = $('#home');
+const topicView = $('#topic');
+/** The topic page currently mounted in the topic view, so returning to it keeps its state. */
+let topicShown = '';
 const glance = $('#glance');
 const strengths = $('#strengths');
 const limits = $('#limits');
@@ -577,16 +582,19 @@ function route() {
   const q = new URLSearchParams(location.search);
   const id = q.get('p') ?? '';
   const p = protocols.find((x) => x.id === id);
-  const wipCat = p ? undefined : [...catalog, ...bitTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const topic = p ? undefined : topics[id];
+  const wipCat = p || topic ? undefined : [...catalog, ...bitTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
-  const page = p ? 'viz' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : 'home';
+  const page = p ? 'viz' : topic ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : 'home';
   vizView.hidden = page !== 'viz';
   wipView.hidden = page !== 'wip';
   guideView.hidden = page !== 'guide';
   aboutView.hidden = page !== 'about';
   homeView.hidden = page !== 'home';
+  topicView.hidden = page !== 'topic';
   // The home page and About belong to no section, so they have no sidebar.
   nav.show(page === 'home' || page === 'about' ? null : id);
+  showResources(page === 'home' || page === 'about' ? null : id);
   $('#shell').classList.toggle('no-side', page === 'home' || page === 'about');
   if (page !== 'viz') {
     stop();
@@ -604,6 +612,12 @@ function route() {
     $('#wip-links').innerHTML = related
       .map((x) => `<a href="?p=${x}" data-nav>${esc(protocols.find((y) => y.id === x)!.name)}</a>`).join('');
     document.title = `${wip.name} · bitbang`;
+  } else if (topic) {
+    if (topicShown !== id) {
+      topic(topicView);
+      topicShown = id;
+    }
+    document.title = `${topicView.querySelector('h1')?.textContent ?? ''} · bitbang`;
   } else if (page === 'guide') {
     document.title = 'How protocols work · bitbang';
   } else if (page === 'about') {
@@ -617,6 +631,19 @@ function route() {
     buildAll();
   }
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+}
+
+/** The "Related resources" list at the bottom of every page in a section, grouped by kind. */
+function showResources(id: string | null) {
+  const box = $('#resources');
+  box.hidden = !id;
+  if (!id) return;
+  const list = RESOURCES[id] ?? [];
+  const kinds = [...new Set(list.map((r) => r.kind))];
+  box.innerHTML = '<h2 id="resources-title">Related resources</h2>' + (list.length
+    ? kinds.map((k) => `<h3>${esc(k)}</h3><ul>${list.filter((r) => r.kind === k).map((r) =>
+        `<li><a href="${esc(r.url)}" rel="noopener" target="_blank">${esc(r.title)}</a>${r.note ? ` <span>${esc(r.note)}</span>` : ''}</li>`).join('')}</ul>`).join('')
+    : '<p class="resources-empty">Specifications, datasheets and other sources for this page will be listed here.</p>');
 }
 
 // In-site links swap views without a page load; the back button still works.
