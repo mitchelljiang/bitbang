@@ -1,4 +1,3 @@
-import './style.css';
 import { GUTTER, esc, groupSteps, readout, render, type Rendered, type Step } from './core/render';
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { formatTime } from './core/util';
@@ -660,3 +659,5 @@ document.addEventListener('click', (e) => {
 window.addEventListener('popstate', route);
 
 route();
+// The first page is built: show the content and footer, now that the footer has its real position.
+document.documentElement.classList.remove('loading');

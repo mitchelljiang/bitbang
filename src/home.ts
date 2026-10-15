@@ -43,11 +43,10 @@ export function mountHome(root: HTMLElement) {
         bits mean when they arrive.</p>
     </section>
     <section class="demo instrument">
-      <div class="readout" aria-hidden="true"></div>
+      <div class="readout"></div>
       <div class="scope" tabindex="0" aria-label="UART waveform of the text Hi. Use the arrow keys to step through the bits."></div>
       <div class="explain" aria-live="polite">${HINT}</div>
     </section>
-    <p class="demo-caption after">“Hi”, sent over UART</p>
     <div class="cards after">${cardsHtml()}</div>`;
 
   const scope = root.querySelector<HTMLElement>('.demo .scope')!;
@@ -82,31 +81,67 @@ export function mountHome(root: HTMLElement) {
   /** Draws to the current width. Called when the home page is shown, since a hidden page has no width to fit. */
   function draw() {
     drawn = render(scope, hi, steps, { zoom: 'fit', onPick: pick, onHover: () => {} });
-    root.querySelector('.demo .readout')!.innerHTML = readout(hi, drawn.divTime, 'UART');
+    const bar = root.querySelector<HTMLElement>('.demo .readout')!;
+    bar.innerHTML = readout(hi, drawn.divTime, 'UART: “Hi”') +
+      '<button type="button" class="rd-replay" title="Play the sweep again">↻ Replay</button>';
     aids.refresh();
     pick(current);
   }
 
-  /** The opening: wait for the trigger, sweep the trace left to right behind a bright beam, then show the page. */
-  function sweep() {
+  let sweeping: Animation[] = [];
+  /**
+   * The opening: wait for the trigger, then sweep the trace left to right behind a bright beam. On the first visit the
+   * rest of the page is hidden until the beam has drawn all of "Hi" (`hideText`); a replay leaves the page as it is.
+   */
+  function sweep(hideText: boolean) {
+    sweeping.forEach((a) => a.cancel());
+    scope.querySelector('.beam')?.remove();
     const svg = scope.querySelector('svg')!;
     const width = svg.getBoundingClientRect().width;
-    const DELAY = 500;
-    const DURATION = 1700;
-    root.classList.add('intro');
+    const DELAY = 350;
+    const DURATION = 1200;
+    if (hideText) root.classList.add('opening');
     say('<p class="hint">Waiting for a falling edge…</p>');
     const beam = Object.assign(document.createElement('div'), { className: 'beam' });
     scope.append(beam);
+    // A steady sweep, as on a scope. The trace and the beam share the timing, so the beam sits at the trace's leading edge.
     const timing = { delay: DELAY, duration: DURATION, easing: 'linear', fill: 'both' } as const;
-    svg.animate([{ clipPath: `inset(0 ${width - GUTTER}px 0 0)` }, { clipPath: 'inset(0 0 0 0)' }], timing);
+    const trace = svg.animate([{ clipPath: `inset(0 ${width - GUTTER}px 0 0)` }, { clipPath: 'inset(0 0 0 0)' }], timing);
     const run = beam.animate([{ transform: `translateX(${GUTTER}px)` }, { transform: `translateX(${width}px)` }], timing);
-    setTimeout(() => say('<p class="hint">Start condition met!</p>'), DELAY);
-    run.finished.then(() => {
+    sweeping = [trace, run];
+    const trigger = setTimeout(() => say('<p class="hint">Start condition met!</p>'), DELAY);
+    // Reveal the page as soon as the beam has drawn all of "Hi" (the end of the last stop bit), rather than when it
+    // reaches the edge. The sweep is linear, so the beam is a fraction p of the way across after p of the duration.
+    const lastBit = Math.max(...hi.bits.map((b) => b.t1));
+    const p = Math.min(1, (lastBit * drawn!.ppu) / (width - GUTTER));
+    const reveal = () => {
+      if (!root.classList.contains('opening')) return;
+      root.classList.replace('opening', 'opened');
+    };
+    const early = setTimeout(reveal, DELAY + p * DURATION);
+    const done = () => {
+      clearTimeout(trigger);
+      clearTimeout(early);
       beam.remove();
       say(HINT);
-      root.classList.replace('intro', 'revealed');
-    });
+      reveal();
+    };
+    run.finished.then(done, () => {});
+    // Any click, key, scroll or touch during the opening finishes it at once: nobody should have to wait for it.
+    if (hideText) {
+      const skip = () => {
+        sweeping.forEach((a) => a.finish());
+        stopListening();
+      };
+      const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+      const stopListening = () => events.forEach((ev) => window.removeEventListener(ev, skip));
+      events.forEach((ev) => window.addEventListener(ev, skip, { once: true, passive: true }));
+      run.finished.then(stopListening, () => {});
+    }
   }
+  root.addEventListener('click', (e) => {
+    if ((e.target as Element).closest('.rd-replay')) sweep(false);
+  });
 
   // Only a fresh visit to the home page gets the opening; arriving from another page shows it all at once.
   let played = new URLSearchParams(location.search).has('p') || matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -115,7 +150,11 @@ export function mountHome(root: HTMLElement) {
       draw();
       if (played) return;
       played = true;
-      sweep();
+      // The opening plays at the top of the page. A reload would otherwise restore an old scroll position partway
+      // through it, which looks like the page jumping.
+      history.scrollRestoration = 'manual';
+      window.scrollTo(0, 0);
+      sweep(true);
     },
   };
 }

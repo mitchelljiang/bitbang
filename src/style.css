@@ -215,6 +215,11 @@ main, .top, footer {
   padding: 0 24px;
 }
 .shell.no-side { grid-template-columns: minmax(0, 1fr); }
+/*
+ * Until the first page has been built, the content and the footer take no visible part, so the footer is never seen
+ * anywhere but its final place below the content. The class is set in index.html and removed after the first route.
+ */
+.loading .shell, .loading footer { visibility: hidden; }
 .shell main { max-width: none; margin: 0; padding: 0; }
 .side {
   position: sticky;
@@ -345,13 +350,16 @@ main, .top, footer {
 .demo .scope { position: relative; }
 /* The beam at the leading edge of the opening sweep. */
 .beam { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--ch1); box-shadow: 0 0 14px 3px rgba(242, 194, 48, 0.5); pointer-events: none; }
-.demo-caption { margin: 14px 0 0; color: var(--muted); font-size: 16px; }
-.demo-caption a { color: var(--accent); font-weight: 600; }
+/* On the home page the explanation box fits its text: one line until a bit is clicked. */
+.demo .explain { min-height: 0; }
+.rd-replay { margin-left: 4px; padding: 0 8px; font: 12px var(--mono); color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.rd-replay:hover { color: var(--ink); border-color: var(--muted); }
+.rd-replay:focus-visible { outline: 2px solid var(--ch2); outline-offset: 1px; }
 /* During the opening only the scope shows; afterwards the rest rises in once, in reading order. */
-.intro .after { opacity: 0; }
-.revealed .after { animation: rise 600ms ease-out both; }
-.revealed .demo-caption.after { animation-delay: 150ms; }
-.revealed .cards.after { animation-delay: 300ms; }
+.opening .after { opacity: 0; }
+.opened .after { animation: rise 450ms ease-out both; }
+.opened .cards.after { animation-delay: 150ms; }
+/* Fades in while rising slightly. Transforms do not affect layout, so nothing else on the page moves. */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 .cards { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
 .card {

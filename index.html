@@ -15,25 +15,28 @@
     <meta name="twitter:description" content="In-depth, bit-level timing diagrams of communication protocols." />
     <script>
       try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+      document.documentElement.classList.add('loading');
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21V4h6v17h6V4h6v17' fill='none' stroke='%236a3fd1' stroke-width='3' stroke-linejoin='miter'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <noscript><style>.loading .shell, .loading footer { visibility: visible; }</style></noscript>
   </head>
   <body>
     <a class="skip" href="#content">Skip to content</a>
     <header class="top">
       <a class="logo" href="./" data-nav>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V4h6v17h6V4h6v17" /></svg>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 21V4h6v17h6V4h6v17" /></svg>
         <span class="name">bitbang<span>.fyi</span></span>
       </a>
       <nav class="tabs" id="tabs" aria-label="Sections"></nav>
       <div class="top-search" id="top-search"></div>
       <div class="top-right">
       <button class="theme" id="theme" type="button" aria-label="Switch to dark theme">
-        <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></svg>
-        <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 0v2.5M8 13.5V16M0 8h2.5M13.5 8H16M2.3 2.3l1.8 1.8M11.9 11.9l1.8 1.8M2.3 13.7l1.8-1.8M11.9 4.1l1.8-1.8"/></svg>
+        <svg class="moon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></svg>
+        <svg class="sun" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 0v2.5M8 13.5V16M0 8h2.5M13.5 8H16M2.3 2.3l1.8 1.8M11.9 11.9l1.8 1.8M2.3 13.7l1.8-1.8M11.9 4.1l1.8-1.8"/></svg>
       </button>
       </div>
     </header>
@@ -42,7 +45,7 @@
     <aside class="side" id="side" hidden></aside>
     <div id="content" tabindex="-1">
     <main id="home" hidden></main>
-    <main id="viz">
+    <main id="viz" hidden>
       <section class="intro">
         <p class="crumbs" id="crumb-cat"></p>
         <h1 id="proto-name"></h1>
@@ -58,9 +61,9 @@
       <section class="instrument">
         <div class="toolbar">
           <div class="group">
-            <button id="prev" aria-label="Previous bit" title="Previous bit (←)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg></button>
-            <button id="play" title="Play (space)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z"/></svg>Play</button>
-            <button id="next" aria-label="Next bit" title="Next bit (→)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
+            <button id="prev" aria-label="Previous bit" title="Previous bit (←)"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg></button>
+            <button id="play" title="Play (space)"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 3l8 5-8 5z"/></svg>Play</button>
+            <button id="next" aria-label="Next bit" title="Next bit (→)"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
             <span id="step-label"></span>
           </div>
           <div class="group">
@@ -73,9 +76,9 @@
         </div>
         <div class="tour" id="tour-bar" hidden>
           <div class="tour-head">
-            <button class="tour-prev"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg>Back</button>
+            <button class="tour-prev"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M11 3L5 8l6 5z"/></svg>Back</button>
             <p class="tour-where"><span class="tour-count"></span> <b class="tour-title"></b></p>
-            <button class="tour-next">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
+            <button class="tour-next">Next<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 3l6 5-6 5z"/></svg></button>
             <button class="tour-exit" aria-label="Exit walkthrough" title="Exit (Esc)">✕</button>
           </div>
           <div class="strip" aria-hidden="true"></div>
