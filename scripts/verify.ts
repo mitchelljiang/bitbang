@@ -26,6 +26,10 @@ import { RESOURCES } from '../src/resources';
 import { CHANGELOG_TEXT } from '../src/changelog';
 import { apply, type Op } from '../src/topics/bitwise';
 import { decodeFloat32, encodeFloat32, fixedValue, qRsqrt, toInt8 } from '../src/topics/numbers';
+import { MASK_OPS, SHIFTS, bytesOf, endianCode, maskOp, rmwRun, shift, shiftCode, sourceBit } from '../src/topics/ops';
+import { TRICKS, trick, trickCode } from '../src/topics/tricks';
+import { FLAG_OPS, arith, flagCode } from '../src/topics/flags';
+import { LISTINGS, METHODS, checksum, crc8, steps as checkSteps } from '../src/topics/crc';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -148,7 +152,7 @@ section('1d. Internal links point to real pages');
     }
   }
   const ids = [...index.map((e) => e.id), 'basics', 'about', 'changelog'];
-  check('page ids are unique across protocols, bit manipulation topics and other pages', new Set(ids).size === ids.length);
+  check('page ids are unique across protocols, Bits and bytes topics and other pages', new Set(ids).size === ids.length);
   const badRes = Object.entries(RESOURCES).flatMap(([id, list]) => [
     ...(pages.has(id) ? [] : [`${id} is not a page`]),
     ...list.filter((r) => !/^https:\/\//.test(r.url) || !r.title.trim()).map((r) => `${id}: ${r.title || '(no title)'} needs a title and an https link`),
@@ -350,7 +354,7 @@ section('3. Protocol-specific checks');
     `short ${(short.height / 2 * 100).toFixed(0)}%, long off ${(longOff.height / 2 * 100).toFixed(0)}% / ${longOff.width.toFixed(2)} UI, long on ${(longOn.height / 2 * 100).toFixed(0)}% / ${longOn.width.toFixed(2)} UI`);
 }
 
-// ---- 3b. Bit manipulation ----
+// ---- 3b. Bits and bytes ----
 section('3b. Bitwise logic panel');
 {
   const cases: [Op, number, number, number][] = [['and', 0xb2, 0x6b, 0x22], ['or', 0xb2, 0x6b, 0xfb], ['xor', 0xb2, 0x6b, 0xd9], ['not', 0xb2, 0x6b, 0x4d], ['not', 0x00, 0, 0xff]];
@@ -430,6 +434,164 @@ int main(int argc, char **argv) {
       return `${hexN(q.i0)} ${hexN(q.i1)} ${hexf(q.y0)} ${hexf(q.y1)}`;
     }).join('\n');
     check('fast inverse square root matches the C code compiled and run', out !== '' && mine === out, out ? `page: ${mine.split('\n')[0]} vs C: ${out.split('\n')[0]}` : 'could not compile with cc');
+  }
+}
+
+section('3d. Shifts, masks, read-modify-write and endianness');
+{
+  const all = Array.from({ length: 256 }, (_, v) => v);
+  const range = (n: number) => Array.from({ length: n }, (_, k) => k);
+  // Shifts: worked examples, then every value and distance against where each result bit is said to come from.
+  const worked: [typeof SHIFTS[number], number][] = [['shl', 0x90], ['shr', 0x16], ['sar', 0xf6], ['rol', 0x95], ['ror', 0x56]];
+  check('shifts and rotates of 0xB2 by 3 match worked examples', worked.every(([op, want]) => shift(op, 0xb2, 3) === want),
+    worked.map(([op]) => `${op} ${shift(op, 0xb2, 3).toString(16)}`).join(', '));
+  const badSrc = SHIFTS.flatMap((op) => all.flatMap((x) => range(8).flatMap((n) => range(8).filter((i) => {
+    const s = sourceBit(op, n, i);
+    const want = s === 'zero' ? 0 : s === 'sign' ? (x >> 7) & 1 : (x >> s) & 1;
+    return ((shift(op, x, n) >> i) & 1) !== want;
+  }).map((i) => `${op} ${x} ${n} bit ${i}`))));
+  check('every result bit of every shift comes from where the page says (all values and distances)', badSrc.length === 0, badSrc.slice(0, 3).join('; '));
+  check('rotating left then right by the same distance returns the value', all.every((x) => range(8).every((n) => shift('ror', shift('rol', x, n), n) === x)));
+  check('arithmetic right shift divides by 2ⁿ rounding toward minus infinity',
+    all.every((x) => range(8).every((n) => toInt8(shift('sar', x, n)) === Math.floor(toInt8(x) / 2 ** n))));
+
+  // The C on the shifts page, compiled and run, for every operation and distance.
+  {
+    const cases = SHIFTS.flatMap((op) => [0xb2, 0x4d, 0x01, 0x80].flatMap((x) => range(8).map((n) => ({ op, x, n }))));
+    const body = cases.map(({ op, x, n }, k) => {
+      const lines = shiftCode(op, x, n).slice(2).map((l) => l.replace(/\/\/.*$/, ''));
+      return `  { ${lines.join(' ')} printf("%d\\n", (int)r); } /* ${k} */`;
+    }).join('\n');
+    const dir = mkdtempSync(join(tmpdir(), 'shift-'));
+    const src = join(dir, 'shift.c');
+    writeFileSync(src, `#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${body}\n}\n`);
+    let out: string[] = [];
+    try {
+      execFileSync('cc', ['-O0', '-w', '-o', join(dir, 's'), src]);
+      out = execFileSync(join(dir, 's')).toString().trim().split('\n');
+    } catch { /* no compiler: reported below */ }
+    const bad = cases.filter(({ op, x, n }, k) => Number(out[k]) !== (op === 'sar' ? toInt8(shift(op, x, n)) : shift(op, x, n)));
+    check(`the shifts page's C, compiled and run, gives the page's results (${cases.length} cases)`, out.length === cases.length && bad.length === 0,
+      out.length ? bad.slice(0, 3).map(({ op, x, n }) => `${op} ${x} ${n}`).join('; ') : 'could not compile with cc');
+  }
+
+  // Masks: bits outside the mask never change; inside it, set, clear and toggle do what they say.
+  const badMask = MASK_OPS.filter((op) => op !== 'test').flatMap((op) => all.flatMap((reg) => [0x01, 0x20, 0x24, 0xf0, 0xff, 0x00].filter((m) => {
+    const r = maskOp(op, reg, m);
+    const want = op === 'set' ? 1 : op === 'clear' ? 0 : null;
+    return range(8).some((i) => {
+      const was = (reg >> i) & 1;
+      const now = (r >> i) & 1;
+      if (!((m >> i) & 1)) return now !== was;
+      return want === null ? now === was : now !== want;
+    });
+  }).map((m) => `${op} ${reg} ${m}`)));
+  check('set, clear and toggle change exactly the masked bits', badMask.length === 0, badMask.slice(0, 3).join('; '));
+  check('test is nonzero exactly when a masked bit is set', all.every((reg) => all.every((m) => (maskOp('test', reg, m) !== 0) === ((reg & m) !== 0))));
+
+  // Read-modify-write: only the interrupted read-modify-write loses the interrupt's bit.
+  const final = (mode: 'rmw' | 'set', irq: boolean) => rmwRun(mode, irq).at(-1)!.odr;
+  check('read-modify-write: the interrupt\'s bit is lost only when it lands between the read and the write',
+    final('rmw', false) === 0x48 && final('rmw', true) === 0x48 && final('set', false) === 0x48 && final('set', true) === 0x49,
+    `${final('rmw', false).toString(16)} ${final('rmw', true).toString(16)} ${final('set', false).toString(16)} ${final('set', true).toString(16)}`);
+
+  // Endianness: byte order against DataView, then the page's C program compiled and run on this machine.
+  const samples = [0x1234, 0x0102, 0xabcd, 0x12345678, 0xdeadbeef, 0x01020304];
+  const badBytes = samples.flatMap((x) => ([16, 32] as const).filter((w) => x < 2 ** w).flatMap((w) => [true, false].filter((little) => {
+    const dv = new DataView(new ArrayBuffer(w / 8));
+    if (w === 16) dv.setUint16(0, x, little); else dv.setUint32(0, x, little);
+    return bytesOf(x, w, little).join() !== [...new Uint8Array(dv.buffer)].join();
+  }).map((little) => `${x.toString(16)} ${w} ${little ? 'le' : 'be'}`)));
+  check('bytes in memory match DataView for both byte orders', badBytes.length === 0, badBytes.join('; '));
+  {
+    const dir = mkdtempSync(join(tmpdir(), 'endian-'));
+    const little = new Uint8Array(new Uint16Array([0x0102]).buffer)[0] === 0x02;
+    const runs = ([[0x1234, 16], [0x12345678, 32]] as const).map(([x, w]) => {
+      const lines = endianCode(x, w, little);
+      const src = join(dir, `e${w}.c`);
+      writeFileSync(src, lines.join('\n') + '\n');
+      try {
+        execFileSync('cc', ['-O0', '-o', join(dir, `e${w}`), src]);
+        const out = execFileSync(join(dir, `e${w}`)).toString().trim().split('\n');
+        const said = [lines[8].replace(/^.*\/\/ prints /, ''), lines[10].endsWith('runs') ? 'little-endian' : 'big-endian'];
+        return out[0] === said[0] && out[1] === said[1] ? '' : `${w}-bit: printed ${out.join(' / ')}, page says ${said.join(' / ')}`;
+      } catch {
+        return `${w}-bit: could not compile with cc`;
+      }
+    }).filter(Boolean);
+    check(`the endianness program, compiled and run here (${little ? 'little' : 'big'}-endian), prints what the page says`, runs.length === 0, runs.join('; '));
+  }
+}
+
+section('3e. Bit tricks, status flags, checksums and CRC');
+{
+  const all = Array.from({ length: 256 }, (_, v) => v);
+  /** Compiles a C program and returns its output lines, or null if there is no compiler. */
+  const runC = (name: string, src: string) => {
+    const dir = mkdtempSync(join(tmpdir(), `${name}-`));
+    writeFileSync(join(dir, `${name}.c`), src);
+    try {
+      execFileSync('cc', ['-O0', '-w', '-o', join(dir, name), join(dir, `${name}.c`)]);
+      return execFileSync(join(dir, name), { maxBuffer: 1 << 24 }).toString().trim().split('\n');
+    } catch {
+      return null;
+    }
+  };
+  const body = (lines: string[]) => lines.filter((l) => !l.startsWith('#') && l.trim()).map((l) => l.replace(/\/\/.*$/, '')).join(' ');
+
+  // Bit tricks, against plain definitions, then the page's C for every value of x.
+  const ones = (x: number) => [...x.toString(2)].filter((c) => c === '1').length;
+  const low = (x: number) => (x ? 2 ** [...Array(8).keys()].find((i) => (x >> i) & 1)! : 0);
+  const want = (t: typeof TRICKS[number], x: number) => t === 'clear' ? x - low(x) : t === 'isolate' ? low(x)
+    : t === 'pow2' ? (ones(x) === 1 ? 1 : 0) : t === 'popcount' ? ones(x) : 8 - x.toString(2).replace(/^0$/, '').length;
+  const badTricks = TRICKS.flatMap((t) => all.filter((x) => trick(t, x) !== want(t, x)).map((x) => `${t} ${x}`));
+  check('every bit trick matches its definition for all 256 values', badTricks.length === 0, badTricks.slice(0, 3).join('; '));
+  {
+    const result = { clear: 'r', isolate: 'r', pow2: 'pow2', popcount: 'count', clz: 'lz' };
+    const cases = TRICKS.flatMap((t) => all.map((x) => ({ t, x })));
+    const out = runC('tricks', `#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${cases.map(({ t, x }) =>
+      `  { ${body(trickCode(t, x))} printf("%d\\n", (int)${result[t]}); }`).join('\n')}\n}\n`);
+    const bad = out ? cases.filter(({ t, x }, k) => Number(out[k]) !== trick(t, x)) : [];
+    check(`the bit tricks page's C, compiled and run, gives the page's results (${cases.length} cases)`, out !== null && bad.length === 0,
+      out ? bad.slice(0, 3).map(({ t, x }) => `${t} ${x}`).join('; ') : 'could not compile with cc');
+  }
+
+  // Status flags, against the definitions: C and V say whether the unsigned and the signed result fit.
+  const badFlags = FLAG_OPS.flatMap((op) => all.flatMap((a) => all.filter((b) => {
+    const f = arith(op, a, b);
+    const u = op === 'add' ? a + b : a - b;
+    const sv = op === 'add' ? toInt8(a) + toInt8(b) : toInt8(a) - toInt8(b);
+    return f.r !== (u & 0xff) || f.n !== f.r >> 7 || f.z !== (f.r === 0 ? 1 : 0)
+      || f.c !== (op === 'add' ? (u > 255 ? 1 : 0) : (u >= 0 ? 1 : 0)) || f.v !== (sv < -128 || sv > 127 ? 1 : 0);
+  }).map((b) => `${op} ${a} ${b}`)));
+  check('N, Z, C and V for every 8-bit add and subtract (131072 cases)', badFlags.length === 0, badFlags.slice(0, 3).join('; '));
+  {
+    const cases = FLAG_OPS.flatMap((op) => [0, 1, 5, 10, 80, 100, 127, 128, 129, 200, 255].flatMap((a) => [0, 1, 10, 80, 100, 127, 128, 200, 255].map((b) => ({ op, a, b }))));
+    const out = runC('flags', `#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${cases.map(({ op, a, b }) =>
+      `  { ${body(flagCode(op, a, b))} printf("%d %d %d %d %d\\n", r, n, z, c, v); }`).join('\n')}\n}\n`);
+    const bad = out ? cases.filter(({ op, a, b }, k) => {
+      const f = arith(op, a, b);
+      return out[k] !== `${f.r} ${f.n} ${f.z} ${f.c} ${f.v}`;
+    }) : [];
+    check(`the flags page's C, compiled and run, sets the page's flags (${cases.length} cases)`, out !== null && bad.length === 0,
+      out ? bad.slice(0, 3).map(({ op, a, b }) => `${op} ${a} ${b}`).join('; ') : 'could not compile with cc');
+  }
+
+  // Checksums and CRC: the published CRC-8/SMBUS check value, the checksum's defining property, the stepper's final
+  // value, and the page's two functions compiled and run.
+  const ascii = [...'123456789'].map((c) => c.charCodeAt(0));
+  check('CRC-8 of "123456789" is 0xF4, the published check value for CRC-8/SMBUS', crc8(ascii) === 0xf4, crc8(ascii).toString(16));
+  const samples = [[0x48, 0x69], [0x00], [0xff, 0xff, 0xff, 0xff], [0x12, 0x34, 0x56], [0x80, 0x01, 0x7f, 0xfe], [0x69, 0x48]];
+  check('data plus its checksum adds up to 0 modulo 256', samples.every((d) => (d.reduce((x, y) => x + y, 0) + checksum(d)) % 256 === 0));
+  check('stepping through to the end gives the same checksum and CRC', samples.every((d) =>
+    METHODS.every((m) => checkSteps(m, d).at(-1)!.acc === (m === 'sum' ? checksum(d) : crc8(d)))));
+  check('swapping bytes leaves the checksum and changes the CRC, as the page shows', checksum([0x48, 0x69]) === checksum([0x69, 0x48]) && crc8([0x48, 0x69]) !== crc8([0x69, 0x48]));
+  {
+    const out = runC('check', `#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n${LISTINGS.sum.join('\n')}\n${LISTINGS.crc8.join('\n')}\nint main(void) {\n${
+      samples.map((d) => `  { const uint8_t d[] = {${d.join(', ')}}; printf("%d %d\\n", checksum(d, ${d.length}), crc8(d, ${d.length})); }`).join('\n')}\n}\n`);
+    const bad = out ? samples.filter((d, k) => out[k] !== `${checksum(d)} ${crc8(d)}`) : [];
+    check('the page\'s checksum and CRC-8 functions, compiled and run, agree with the page', out !== null && bad.length === 0,
+      out ? bad.map((d) => d.join(' ')).join('; ') : 'could not compile with cc');
   }
 }
 

@@ -3,7 +3,10 @@
  * point. Each is a debugger paused on a few lines of C, with the variables shown bit by bit.
  */
 import { esc } from '../core/render';
-import { binN, bit, bits, code, debuggerWindow, hexN, hoverTips, nibbles, page, parseNumber, readHex, showValue, sup, syncUrl } from './dbg';
+import {
+  binN, bit, bits, code, debuggerWindow, flips, hexN, nibbles, page, parseNumber, readHex, row, showValue, status, sup, syncUrl, table,
+  wideRow, wire,
+} from './dbg';
 
 // ---- pure conversions, exported for the accuracy checks ----
 
@@ -83,24 +86,6 @@ function shortest(v: number) {
 
 // ---- shared wiring ----
 
-/** Common page plumbing: render the page, draw it, and explain bits on hover. */
-function wire(root: HTMLElement, html: string, draw: () => void) {
-  root.innerHTML = html;
-  draw();
-  hoverTips(root);
-}
-const status = (root: HTMLElement, html: string) => (root.querySelector('.dbg-status')!.innerHTML = html);
-const row = (name: string, type: string, value: string, bitsHtml: string, changed = false) => `
-  <tr class="${changed ? 'changed' : ''}"><th scope="row"><code>${name}</code> <small>${type}</small></th>
-  <td class="val">${value}</td><td>${bitsHtml}</td></tr>`;
-/** A variable too wide for one line (32 bits): its name and value, then its bits on a full-width line below. */
-const wideRow = (name: string, type: string, value: string, bitsHtml: string, changed = false) => `
-  <tr class="${changed ? 'changed' : ''} head-of-wide"><th scope="row"><code>${name}</code> <small>${type}</small></th>
-  <td class="val" colspan="2">${value}</td></tr>
-  <tr class="${changed ? 'changed' : ''}"><td colspan="3" class="wide-bits">${bitsHtml}</td></tr>`;
-const table = (rows: string) => `<table class="vars"><tbody>${rows}</tbody></table>`;
-/** Marks the bits that differ from the previous value, as a debugger does after a step. */
-const flips = (last: number | null, v: number) => (i: number) => last !== null && bit(last, i) !== bit(v, i);
 
 // ---- Binary and hexadecimal ----
 

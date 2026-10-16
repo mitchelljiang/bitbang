@@ -25,8 +25,8 @@ export const sections: Section[] = [
     lead: [{ id: 'basics', name: 'How protocols work' }], categories: catalog, featured: ['uart', 'spi', 'i2c', 'usb'],
   },
   {
-    id: 'bits', name: 'Bit manipulation', short: 'Bits',
-    blurb: 'How numbers are stored and changed inside a computer: binary, two’s complement, shifts, masks and floating point.',
+    id: 'bits', name: 'Bits and bytes', short: 'Bits',
+    blurb: 'How numbers are stored, changed and checked inside a computer: binary, two’s complement, floating point, masks and CRCs.',
     lead: [], categories: bitTopics, featured: ['twos', 'masks', 'float'],
   },
 ];

@@ -363,9 +363,13 @@ main, .top, footer {
 /* Fades in while rising slightly. Transforms do not affect layout, so nothing else on the page moves. */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 .cards { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+/* Each card spans four rows of a shared grid (title, text, count, links), so those line up from card to card. */
 .card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  align-content: start;
   padding: 24px;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -378,7 +382,7 @@ main, .top, footer {
 .card h2 a:hover { color: var(--accent); }
 .card p { margin: 0 0 12px; color: var(--muted); }
 .card .card-meta { font-size: 14px; color: var(--faint); }
-.card-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto !important; }
+.card-links { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
 .card-links a {
   padding: 6px 12px;
   font: 500 14px var(--sans);
@@ -731,7 +735,7 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 .legend .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
 
 /*
- * The bit manipulation pages are drawn as a debugger paused on a line of C: source on the left, a Variables pane on
+ * The Bits and bytes pages are drawn as a debugger paused on a line of C: source on the left, a Variables pane on
  * the right with every bit visible, and a status line. Values that changed are highlighted, as debuggers do.
  */
 .debugger {
@@ -800,6 +804,8 @@ tr[data-var='r'] .bit { cursor: default; }
 /* Changed since the last edit, the way debuggers mark values that changed after a step. */
 tr.changed .hex { color: var(--dbg-changed); }
 .bit.flipped { box-shadow: 0 0 0 2px var(--dbg-changed); }
+/* A bit that came from outside the value, such as a 0 shifted in. */
+.bit.fill { outline: 1px dashed var(--dbg-dim); outline-offset: 2px; }
 tr.unused { opacity: 0.4; }
 .dbg-status { margin: 0; min-height: 42px; padding: 11px 16px; font: 14px var(--sans); color: var(--dbg-text); background: var(--dbg-panel); border-top: 1px solid var(--dbg-line); }
 
@@ -814,7 +820,15 @@ tr.unused { opacity: 0.4; }
 .dbg-controls > .dbg-btn { border: 1px solid var(--dbg-line); background: var(--dbg-bg); }
 .dbg-set { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--mono); color: var(--dbg-dim); }
 .dbg-set input, .dbg-set select { height: 32px; width: 12ch; padding: 0 8px; font: 14px var(--mono); color: var(--dbg-text); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 6px; }
-.dbg-set select { width: auto; }
+/* The same chevron as the settings menus, with room to breathe, in the debugger's dim text color. */
+.dbg-set select {
+  width: auto;
+  appearance: none;
+  padding: 0 30px 0 10px;
+  cursor: pointer;
+  background: var(--dbg-bg) no-repeat right 10px center / 12px 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%237d8995' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
 .dbg-set input:focus-visible, .dbg-set select:focus-visible, .dbg-btn:focus-visible, .dbg-seg button:focus-visible { outline: 2px solid #5b8cff; outline-offset: 1px; }
 
 table.vars { border-collapse: collapse; font: 14px var(--mono); }
@@ -856,7 +870,13 @@ table.vars .hex { font-weight: 600; }
 .quake-dbg + .prose { margin-top: 20px; }
 .prose h2 { margin: 0 0 10px; font: 700 24px/1.2 var(--sans); letter-spacing: -0.015em; }
 .prose p { margin: 0 0 14px; color: var(--muted); }
-.prose code { font: 0.92em var(--mono); color: var(--ink); }
+/* Inline code never breaks mid-expression; anything too long for a line goes in a .code block instead. */
+.prose code { font: 0.92em var(--mono); color: var(--ink); white-space: nowrap; }
+/* A heading after other content in the same section starts a new topic, so it gets room above it. */
+.prose > * + h2 { margin-top: 36px; }
+.prose .op-table { margin: 4px 0 14px; }
+.prose .code { margin: 0 0 14px; }
+.prose .code code { white-space: pre; color: inherit; font: inherit; }
 
 @media (max-width: 900px) {
   .dbg-body { grid-template-columns: minmax(0, 1fr); }
@@ -1185,7 +1205,8 @@ footer a:hover { color: var(--ink); }
   .bitrow .grp-cells { flex-wrap: wrap; row-gap: 8px; column-gap: 10px; max-width: 240px; }
   .chunk { display: flex; gap: 3px; }
   .chunk .col.gap { margin-right: 0; }
-  table.vars td, .dbg-vars td { white-space: normal; }
+  table.vars td, .dbg-vars td, table.vars th { white-space: normal; }
+  table.vars th small { display: block; }
   table.vars code, .dbg-vars code { white-space: nowrap; }
   footer { margin-top: 56px; padding-top: 16px; padding-bottom: 24px; }
 }

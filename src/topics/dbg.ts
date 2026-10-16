@@ -1,5 +1,5 @@
 /**
- * Shared pieces of the debugger view used by the bit manipulation pages: the window, a code pane paused on a line,
+ * Shared pieces of the debugger view used by the Bits and bytes pages: the window, a code pane paused on a line,
  * rows of bits, and keeping the page's state in the URL.
  */
 import { esc } from '../core/render';
@@ -79,6 +79,8 @@ export interface BitOpts {
   tip?: (i: number) => string;
   /** How to group the bits, most significant group first. Defaults to groups of four, one hex digit each. */
   groups?: BitGroup[];
+  /** Bits that came from outside the value, such as zeros shifted in, drawn with a dashed outline. */
+  fill?: (i: number) => boolean;
 }
 
 export interface BitGroup {
@@ -110,7 +112,7 @@ export function bits(name: string, v: number, width: number, o: BitOpts = {}) {
     const cols: string[] = [];
     for (let i = g.hi; i >= g.lo; i--) {
       const on = bit(v, i) === 1;
-      const cls = ['bit', on ? 'on' : '', o.flipped?.(i) ? 'flipped' : '', o.point === i ? 'point' : ''].filter(Boolean).join(' ');
+      const cls = ['bit', on ? 'on' : '', o.flipped?.(i) ? 'flipped' : '', o.fill?.(i) ? 'fill' : '', o.point === i ? 'point' : ''].filter(Boolean).join(' ');
       const tip = o.tip ? ` data-tip="${esc(o.tip(i))}"` : '';
       const gap = g.split && i > g.lo && (i - g.lo) % g.split === 0 ? ' gap' : '';
       cols.push(`<span class="col${gap}"><button type="button" class="${cls}" data-row="${name}" data-bit="${i}"${tip}${
@@ -153,6 +155,56 @@ export function hoverTips(root: HTMLElement) {
     dbg.addEventListener('click', () => (saved = null));
   });
 }
+
+/** Common page plumbing: render the page, draw it, and explain bits on hover. */
+export function wire(root: HTMLElement, html: string, draw: () => void) {
+  root.innerHTML = html;
+  draw();
+  hoverTips(root);
+}
+
+/** Sets the status line under the window. */
+export const status = (root: HTMLElement, html: string) => (root.querySelector('.dbg-status')!.innerHTML = html);
+
+/** One variable in the Variables pane: name and type, value, then its bits. */
+export const row = (name: string, type: string, value: string, bitsHtml: string, changed = false) => `
+  <tr class="${changed ? 'changed' : ''}"><th scope="row"><code>${name}</code> <small>${type}</small></th>
+  <td class="val">${value}</td><td>${bitsHtml}</td></tr>`;
+
+/** A variable too wide for one line (32 bits): its name and value, then its bits on a full-width line below. */
+export const wideRow = (name: string, type: string, value: string, bitsHtml: string, changed = false) => `
+  <tr class="${changed ? 'changed' : ''} head-of-wide"><th scope="row"><code>${name}</code> <small>${type}</small></th>
+  <td class="val" colspan="2">${value}</td></tr>
+  <tr class="${changed ? 'changed' : ''}"><td colspan="3" class="wide-bits">${bitsHtml}</td></tr>`;
+
+export const table = (rows: string) => `<table class="vars"><tbody>${rows}</tbody></table>`;
+
+/** Marks the bits that differ from the previous value, as a debugger does after a step. */
+export const flips = (last: number | null, v: number) => (i: number) => last !== null && bit(last, i) !== bit(v, i);
+
+/** A segmented control: one radio button per option, each carrying `data-<key>` with its value. */
+export const seg = (key: string, label: string, options: [string, string][]) =>
+  `<div class="dbg-seg" role="radiogroup" aria-label="${esc(label)}">${options.map(([v, text]) =>
+    `<button type="button" role="radio" data-${key}="${v}">${text}</button>`).join('')}</div>`;
+
+/** Marks the segmented control's current option. */
+export function markSeg(root: HTMLElement, key: string, value: string) {
+  root.querySelectorAll<HTMLElement>(`[data-${key}]`).forEach((b) => b.setAttribute('aria-checked', String(b.dataset[key] === value)));
+}
+
+/** Two hex digits, as the URL and the listings write a byte. */
+export const hex2 = (v: number) => v.toString(16).toUpperCase().padStart(2, '0');
+
+/** A setting from the URL, if it is one of `all`; otherwise `d`. */
+export const oneOf = <T extends string>(k: string, all: readonly T[], d: T): T => {
+  const v = new URLSearchParams(location.search).get(k) as T | null;
+  return v !== null && all.includes(v) ? v : d;
+};
+
+export const NUMBER_HELP = 'in decimal, hex (0x…) or binary (0b…)';
+
+/** A line of C with a comment lined up at column `col`, or two spaces after the code if it is longer. */
+export const note = (line: string, comment: string, col = 40) => `${line.length + 2 > col ? `${line}  ` : line.padEnd(col)}// ${comment}`;
 
 /** Superscript digits, for powers of two such as 2⁻³. */
 export const sup = (n: number) => String(n).replace(/-/g, '⁻').replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+d]);
