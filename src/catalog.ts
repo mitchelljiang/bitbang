@@ -16,6 +16,8 @@ export interface Entry {
 export interface Category {
   id: string;
   name: string;
+  /** The sidebar heading, when it differs from the name (which search results and breadcrumbs keep using). */
+  heading?: string;
   blurb: string;
   entries: Entry[];
 }

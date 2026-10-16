@@ -1,5 +1,5 @@
 import type { Bit, Field, Level, Note, Protocol, TourStop } from '../core/types';
-import { TraceBuilder } from '../core/util';
+import { TraceBuilder, parseHex } from '../core/util';
 
 /** Signals change a little after each rising edge (clock-to-output delay) and are sampled on the next one. */
 const CO = 0.15;
@@ -122,14 +122,11 @@ export const pci: Protocol = {
 
   encode(p) {
     const read = p.cmd !== 'write';
-    const addrText = p.addr.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,8}$/i.test(addrText)) throw new Error('The address should be up to 8 hex digits, like 1000.');
-    const addr = parseInt(addrText, 16) >>> 0;
-    const words = p.data.trim().split(/[\s,]+/).filter(Boolean).map((w) => w.replace(/^0x/i, ''));
+    const addr = parseHex(p.addr, 8, 'The address should be up to 8 hex digits, like 1000.');
+    const words = p.data.trim().split(/[\s,]+/).filter(Boolean);
     if (!words.length) throw new Error('Enter at least one 32-bit data word, like CAFEF00D.');
     if (words.length > 4) throw new Error('Keep it to 4 data words or fewer.');
-    for (const w of words) if (!/^[0-9a-f]{1,8}$/i.test(w)) throw new Error(`"${w}" is not a 32-bit hex word.`);
-    const data = words.map((w) => parseInt(w, 16) >>> 0);
+    const data = words.map((w) => parseHex(w, 8, `"${w.replace(/^0x/i, '')}" is not a 32-bit hex word.`));
     const waits = +p.wait;
 
     // Rising edges fall on whole numbers. The address phase is sampled on edge 2.

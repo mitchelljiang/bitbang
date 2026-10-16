@@ -1,5 +1,5 @@
 import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
-import { TraceBuilder, hex, parseBytes, printable } from '../core/util';
+import { TraceBuilder, hex, parseBytes, parseHex, printable } from '../core/util';
 
 const BROADCAST = 0x7e;
 const ENTHDR0 = 0x20;
@@ -190,9 +190,7 @@ export const i3c: Protocol = {
   ],
 
   encode(p) {
-    const addrText = p.addr.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,2}$/i.test(addrText)) throw new Error('The address should be a hex number like 08 or 0x2A.');
-    const addr = parseInt(addrText, 16);
+    const addr = parseHex(p.addr, 2, 'The address should be a hex number like 08 or 0x2A.');
     if (addr > 0x7f) throw new Error(`${hex(addr)} is more than 7 bits. I3C addresses go from 0x00 to 0x7F.`);
     if (addr === BROADCAST) throw new Error('0x7E is the broadcast address, so no single target can have it.');
     const read = p.rw === 'r';

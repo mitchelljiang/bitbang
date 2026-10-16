@@ -1,10 +1,11 @@
-import { GUTTER, esc, groupSteps, readout, render, type Rendered, type Step } from './core/render';
+import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
-import { formatTime } from './core/util';
+import { defaults, formatTime } from './core/util';
 import { bitTopics } from './bits';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountAbout } from './about';
+import { mountChangelog } from './changelog';
 import { mountGuide } from './guide';
 import { mountHome } from './home';
 import { mountNav } from './nav';
@@ -31,6 +32,7 @@ const vizView = $('#viz');
 const guideView = $('#guide');
 const wipView = $('#wip');
 const aboutView = $('#about');
+const changelogView = $('#changelog');
 const homeView = $('#home');
 const topicView = $('#topic');
 /** The topic page currently mounted in the topic view, so returning to it keeps its state. */
@@ -73,18 +75,14 @@ const toolbar = $('.toolbar');
 let proto: Protocol = protocols[0];
 let params: Record<string, string> = {};
 let steps: Step[] = [];
-let laneNames: string[] = [];
 let current = -1;
 let drawn: Rendered | null = null;
 let timer: number | undefined;
 let zoom: number | 'fit' | 'all' = 'fit';
-let unitTime = 1;
 let inputs: Record<string, HTMLInputElement | HTMLSelectElement> = {};
 let wave: Waveform | null = null;
 /** Time range the walkthrough keeps bright, or null for no dimming. */
 let focus: [number, number] | null = null;
-
-const defaults = (p: Protocol) => Object.fromEntries(p.params.map((x) => [x.key, x.default]));
 
 // ---- URL state, so any frame can be shared as a link ----
 
@@ -101,7 +99,7 @@ function writeUrl() {
   const q = new URLSearchParams({ p: proto.id });
   const d = defaults(proto);
   for (const [k, v] of Object.entries(params)) if (v !== d[k]) q.set(k, v);
-  history.replaceState(null, '', `?${q}`);
+  history.replaceState(history.state, '', `?${q}`);
 }
 
 // ---- UI ----
@@ -297,8 +295,6 @@ function update(changed?: string) {
   }
   steps = groupSteps(wave.bits);
   buildLegend(wave);
-  laneNames = wave.traces.map((t) => t.name);
-  unitTime = wave.unitTime;
   hideTip();
   draw();
   go(current < steps.length ? current : -1);
@@ -433,13 +429,13 @@ zoomFit.addEventListener('click', () => setZoom('all'));
 // ---- hover tooltip ----
 
 function showTip(bit: Bit | null, cell: Element | null) {
-  if (!bit || !cell) return hideTip();
-  const lane = laneNames.length > 1 ? `${laneNames[bit.lane]} ` : '';
+  if (!bit || !cell || !wave) return hideTip();
+  const lane = wave.traces.length > 1 ? `${wave.traces[bit.lane].name} ` : '';
   tooltip.innerHTML = '';
   tooltip.append(
     Object.assign(document.createElement('span'), { className: `tag k-${bit.kind}`, textContent: lane + bit.label }),
     ` ${bit.info.split('. ')[0].replace(/\.$/, '')}.`,
-    Object.assign(document.createElement('span'), { className: 'at', textContent: `at ${formatTime(bit.t0 * unitTime)}` }),
+    Object.assign(document.createElement('span'), { className: 'at', textContent: `at ${formatTime(bit.t0 * wave.unitTime)}` }),
   );
   tooltip.hidden = false;
   const box = instrument.getBoundingClientRect();
@@ -459,31 +455,21 @@ const icon = { play: svg('M5 3l8 5-8 5z'), pause: svg('M4 3h3v10H4zM9 3h3v10H9z'
 
 // ---- copy link ----
 
+let copyReset = 0;
 copyBtn.addEventListener('click', async () => {
+  // Hold the button's width, so "Copied" doesn't shift the buttons beside it.
+  copyBtn.style.minWidth = `${copyBtn.offsetWidth}px`;
+  clearTimeout(copyReset);
   try {
     await navigator.clipboard.writeText(location.href);
     copyBtn.textContent = 'Copied';
   } catch {
     copyBtn.textContent = 'Copy failed';
   }
-  setTimeout(() => (copyBtn.textContent = 'Copy link'), 1500);
+  copyReset = setTimeout(() => (copyBtn.textContent = 'Copy link'), 1500);
 });
 
 const HINT = '<p class="hint">Click a bit, or use <kbd>←</kbd> <kbd>→</kbd> to walk through the frame.</p>';
-
-/** The explanation for one step: a paragraph per bit, tagged with its label (and lane, if several lanes move at once). */
-function stepNodes(step: Step) {
-  const lanes = new Set(step.bits.map((b) => b.lane)).size > 1;
-  return step.bits.map((bit) => {
-    const p = document.createElement('p');
-    const tag = Object.assign(document.createElement('span'), {
-      className: `tag k-${bit.kind}`,
-      textContent: lanes ? `${laneNames[bit.lane]} ${bit.label}` : bit.label,
-    });
-    p.append(tag, ' ', bit.info);
-    return p;
-  });
-}
 
 const tourNode = (text: string) => Object.assign(document.createElement('p'), { className: 'tour-text', textContent: text });
 
@@ -499,7 +485,7 @@ function go(i: number) {
     return;
   }
   stepLabel.textContent = `${i + 1} / ${steps.length}`;
-  stepInfo.replaceChildren(...stepNodes(step));
+  stepInfo.replaceChildren(...stepNodes(step, wave!.traces.map((t) => t.name)));
 }
 
 function play() {
@@ -575,6 +561,7 @@ $<HTMLAnchorElement>('#feedback').href = `mailto:${['feedback', 'bitbang.fyi'].j
 
 mountGuide(guideView);
 mountAbout(aboutView);
+mountChangelog(changelogView);
 const home = mountHome(homeView);
 
 function route() {
@@ -584,17 +571,14 @@ function route() {
   const topic = p ? undefined : topics[id];
   const wipCat = p || topic ? undefined : [...catalog, ...bitTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
-  const page = p ? 'viz' : topic ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : 'home';
-  vizView.hidden = page !== 'viz';
-  wipView.hidden = page !== 'wip';
-  guideView.hidden = page !== 'guide';
-  aboutView.hidden = page !== 'about';
-  homeView.hidden = page !== 'home';
-  topicView.hidden = page !== 'topic';
-  // The home page and About belong to no section, so they have no sidebar.
-  nav.show(page === 'home' || page === 'about' ? null : id);
-  showResources(page === 'home' || page === 'about' ? null : id);
-  $('#shell').classList.toggle('no-side', page === 'home' || page === 'about');
+  const page = p ? 'viz' : topic ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
+  const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };
+  for (const [k, v] of Object.entries(views)) v.hidden = k !== page;
+  // The home page, About and the changelog belong to no section, so they have no sidebar.
+  const inSection = page !== 'home' && page !== 'about' && page !== 'changelog';
+  nav.show(inSection ? id : null);
+  showResources(inSection ? id : null);
+  $('#shell').classList.toggle('no-side', !inSection);
   if (page !== 'viz') {
     stop();
     tour.stop();
@@ -621,6 +605,8 @@ function route() {
     document.title = 'How protocols work · bitbang';
   } else if (page === 'about') {
     document.title = 'About · bitbang';
+  } else if (page === 'changelog') {
+    document.title = 'Changelog · bitbang';
   } else if (page === 'home') {
     document.title = 'bitbang';
     home.show();
@@ -645,19 +631,39 @@ function showResources(id: string | null) {
     : '<p class="resources-empty">Specifications, datasheets and other sources for this page will be listed here.</p>');
 }
 
-// In-site links swap views without a page load; the back button still works.
+// In-site links swap views without a page load; the back button still works and returns to where the reader was.
+// Each history entry remembers its scroll position, saved just before leaving it.
+history.scrollRestoration = 'manual';
+const saveScroll = () => history.replaceState({ ...history.state, y: window.scrollY }, '', location.href);
+const restoreScroll = () => window.scrollTo({ top: history.state?.y ?? 0, behavior: 'instant' as ScrollBehavior });
 document.addEventListener('click', (e) => {
   const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[data-nav]') : null;
   if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
   e.preventDefault();
+  clearTimeout(scrollSave);
+  saveScroll();
   history.pushState(null, '', a.href);
   current = -1;
   zoom = 'fit';
   window.scrollTo(0, 0);
   route();
 });
-window.addEventListener('popstate', route);
+window.addEventListener('popstate', () => {
+  clearTimeout(scrollSave);
+  route();
+  restoreScroll();
+});
+// Back and forward switch entries before telling the page, so the position is saved as the reader scrolls (shortly
+// after they stop, since browsers limit how often history can be rewritten). It also covers a reload.
+let scrollSave = 0;
+window.addEventListener('scroll', () => {
+  clearTimeout(scrollSave);
+  scrollSave = setTimeout(saveScroll, 150);
+}, { passive: true });
+window.addEventListener('pagehide', saveScroll);
 
 route();
+// The home page's opening plays from the top, so only other pages restore a saved position on load.
+if (new URLSearchParams(location.search).has('p')) restoreScroll();
 // The first page is built: show the content and footer, now that the footer has its real position.
 document.documentElement.classList.remove('loading');

@@ -2,8 +2,8 @@
  * Walkthroughs for each protocol, built from the finished waveform so they follow whatever settings are chosen.
  * (10BASE-T builds its own inside its encoder.)
  */
-import type { Bit, Field, Level, TourStop, Waveform } from './core/types';
-import { formatTime, hex } from './core/util';
+import type { Bit, Field, TourStop, Waveform } from './core/types';
+import { formatTime, hex, levelAt } from './core/util';
 
 type Range = [number, number];
 type Params = Record<string, string>;
@@ -17,15 +17,7 @@ const overview = (w: Waveform, title: string, text: string): TourStop => ({ titl
 const time = (w: Waveform, units: number) => formatTime(units * w.unitTime);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function levelAt(w: Waveform, lane: number, t: number): Level {
-  let v = w.traces[lane].points[0].v;
-  for (const p of w.traces[lane].points) {
-    if (p.t > t + 1e-9) break;
-    v = p.v;
-  }
-  return v;
-}
-const valueOf = (w: Waveform, b: Bit) => (b.sample === undefined ? '?' : String(levelAt(w, b.lane, b.sample)));
+const valueOf = (w: Waveform, b: Bit) => (b.sample === undefined ? '?' : String(levelAt(w.traces[b.lane], b.sample + 1e-9)));
 
 /** Splits bits into UART-style frames, each starting at a start bit. */
 function frames(bits: Bit[]) {

@@ -41,6 +41,9 @@ export const index: SearchEntry[] = [...catalog, ...bitTopics].flatMap((cat) =>
   }),
 );
 
+/** Built, in progress or soon, by page id: decided once here, so the sidebar, home page and search always agree. */
+export const statusOf = new Map(index.map((e) => [e.id, e.status]));
+
 /**
  * True when every word of the query starts some word of the entry. Matching word starts, rather than anywhere
  * inside, keeps "synchronous" from also finding "asynchronous".

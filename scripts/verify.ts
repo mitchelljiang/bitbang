@@ -14,24 +14,23 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Level, Protocol, Trace, Waveform } from '../src/core/types';
+import type { Level, Trace, Waveform } from '../src/core/types';
 import { protocols } from '../src/protocols';
+import { defaults } from '../src/core/util';
 import { encode8b10b } from '../src/protocols/pcie';
 import { TOURS } from '../src/tours';
 import { fold, simulate } from '../src/eye';
 import { SECTIONS } from '../src/guide';
 import { index } from '../src/search';
 import { RESOURCES } from '../src/resources';
+import { CHANGELOG_TEXT } from '../src/changelog';
 import { apply, type Op } from '../src/topics/bitwise';
 import { decodeFloat32, encodeFloat32, fixedValue, qRsqrt, toInt8 } from '../src/topics/numbers';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
-const enc = (id: string, o: Params = {}): Waveform => {
-  const p: Protocol = P[id];
-  return p.encode({ ...Object.fromEntries(p.params.map((x) => [x.key, x.default])), ...o });
-};
-const params = (id: string, o: Params = {}) => ({ ...Object.fromEntries(P[id].params.map((x) => [x.key, x.default])), ...o });
+const params = (id: string, o: Params = {}) => ({ ...defaults(P[id]), ...o });
+const enc = (id: string, o: Params = {}): Waveform => P[id].encode(params(id, o));
 const at = (tr: Trace, t: number) => {
   let p = tr.points[0];
   for (const q of tr.points) {
@@ -137,8 +136,8 @@ section('1c. Every setting has an explanation');
 // ---- 1d. Links ----
 section('1d. Internal links point to real pages');
 {
-  const pages = new Set(['basics', 'about', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
-  const sources: [string, string][] = [['guide', SECTIONS]];
+  const pages = new Set(['basics', 'about', 'changelog', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
+  const sources: [string, string][] = [['guide', SECTIONS], ['changelog', CHANGELOG_TEXT]];
   for (const p of protocols) for (const d of p.deepDive ?? []) for (const para of d.body) sources.push([`${p.id}: ${d.title}`, para]);
   let count = 0;
   const broken: string[] = [];
@@ -148,14 +147,14 @@ section('1d. Internal links point to real pages');
       if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
     }
   }
-  const ids = [...index.map((e) => e.id), 'basics', 'about'];
+  const ids = [...index.map((e) => e.id), 'basics', 'about', 'changelog'];
   check('page ids are unique across protocols, bit manipulation topics and other pages', new Set(ids).size === ids.length);
   const badRes = Object.entries(RESOURCES).flatMap(([id, list]) => [
     ...(pages.has(id) ? [] : [`${id} is not a page`]),
     ...list.filter((r) => !/^https:\/\//.test(r.url) || !r.title.trim()).map((r) => `${id}: ${r.title || '(no title)'} needs a title and an https link`),
   ]);
   check(`related resources: ${Object.values(RESOURCES).flat().length} entries, all on real pages with https links`, badRes.length === 0, badRes.join('; '));
-  check(`${count} links in Going deeper and the guide lead to existing pages`, broken.length === 0, broken.join('; '));
+  check(`${count} links in Going deeper, the guide and the changelog lead to existing pages`, broken.length === 0, broken.join('; '));
 }
 
 // ---- 2. Walkthroughs ----

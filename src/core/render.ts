@@ -1,5 +1,5 @@
 import type { Bit, Level, Trace, Waveform } from './types';
-import { formatTime } from './util';
+import { formatTime, levelAt } from './util';
 
 export const GUTTER = 64;
 const TOP = 30;
@@ -35,15 +35,6 @@ export function groupSteps(bits: Bit[]): Step[] {
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-function levelAt(trace: Trace, t: number): Level {
-  let v = trace.points[0].v;
-  for (const p of trace.points) {
-    if (p.t > t) break;
-    v = p.v;
-  }
-  return v;
-}
-
 /** Rough width of monospace text at 11px, to decide whether a label fits in its cell. */
 const fits = (label: string, width: number) => label.length * 6.8 + 6 <= width;
 
@@ -56,6 +47,10 @@ function riseTime(trace: Trace, i: number) {
   return next ? Math.min(RISE, (next.t - trace.points[i].t) * 0.8) : RISE;
 }
 
+/** Point `i` is a rise through a pull-up (open drain, or a soft rise), drawn as a curve instead of a sharp edge. */
+const softRise = (trace: Trace, i: number) =>
+  i > 0 && (trace.openDrain || trace.points[i].soft) && rank(trace.points[i].v) > rank(trace.points[i - 1].v);
+
 /**
  * SVG path for a trace. Push-pull lines are drawn as square waves. Open-drain lines fall sharply but rise along
  * an RC charging curve (the "shark fin"), because only a pull-up resistor brings them back high.
@@ -66,7 +61,7 @@ function tracePath(trace: Trace, duration: number, x: (t: number) => number, y: 
   for (let i = 1; i < pts.length; i++) {
     const { t, v } = pts[i];
     d += ` H ${x(t)}`;
-    if ((trace.openDrain || pts[i].soft) && rank(v) > rank(pts[i - 1].v)) {
+    if (softRise(trace, i)) {
       const y0 = y(pts[i - 1].v);
       const y1 = y(v);
       const w = x(t + riseTime(trace, i)) - x(t);
@@ -106,9 +101,7 @@ function busParts(trace: Trace, duration: number, x: (t: number) => number, top:
 /** Where an edge visibly reaches its new level: the end of the curve for an open-drain rise, otherwise the edge itself. */
 function edgeEnd(trace: Trace, t: number) {
   const i = trace.points.findIndex((p) => p.t === t);
-  const p = trace.points[i];
-  if (i > 0 && (trace.openDrain || p.soft) && rank(p.v) > rank(trace.points[i - 1].v)) return t + riseTime(trace, i);
-  return t;
+  return softRise(trace, i) ? t + riseTime(trace, i) : t;
 }
 
 export interface RenderOptions {
@@ -126,7 +119,6 @@ export interface RenderOptions {
 export interface Rendered {
   select(step: Step | null): void;
   ppu: number;
-  fitPpu: number;
   /** The zoom that shows the whole frame. */
   allPpu: number;
   /** Seconds per graticule division, as drawn. */
@@ -290,7 +282,6 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   const sel = svg.querySelector('#sel') as SVGRectElement;
   return {
     ppu,
-    fitPpu,
     allPpu,
     divTime,
     select(step) {
@@ -312,6 +303,20 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
       }
     },
   };
+}
+
+/** The explanation for one step: a paragraph per bit, tagged with its label (and lane, if several lanes move at once). */
+export function stepNodes(step: Step, laneNames: string[]) {
+  const lanes = new Set(step.bits.map((b) => b.lane)).size > 1;
+  return step.bits.map((bit) => {
+    const p = document.createElement('p');
+    const tag = Object.assign(document.createElement('span'), {
+      className: `tag k-${bit.kind}`,
+      textContent: lanes ? `${laneNames[bit.lane]} ${bit.label}` : bit.label,
+    });
+    p.append(tag, ' ', bit.info);
+    return p;
+  });
 }
 
 /** The scope's readout bar: each lane's channel and name, the time per graticule division, and what is decoded. */

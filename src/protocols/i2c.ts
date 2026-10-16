@@ -1,5 +1,5 @@
 import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
-import { TraceBuilder, bin, hex, parseBytes, printable } from '../core/util';
+import { TraceBuilder, bin, hex, parseBytes, parseHex, printable } from '../core/util';
 
 export const i2c: Protocol = {
   id: 'i2c',
@@ -136,9 +136,7 @@ export const i2c: Protocol = {
 
   encode(p) {
     const ten = p.addrMode === '10';
-    const addrText = p.addr.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,3}$/i.test(addrText)) throw new Error('The address should be a hex number like 50 or 0x3C.');
-    const addr = parseInt(addrText, 16);
+    const addr = parseHex(p.addr, 3, 'The address should be a hex number like 50 or 0x3C.');
     if (!ten && addr > 0x7f) {
       throw new Error(`${hex(addr)} is more than 7 bits. 7-bit addresses go from 0x00 to 0x7F. Switch Address size to 10-bit for larger ones.`);
     }
@@ -146,9 +144,7 @@ export const i2c: Protocol = {
     const regMode = p.rw === 'reg';
     const read = p.rw === 'r' || regMode; // direction of the data bytes
     const present = p.present === 'yes';
-    const regText = p.reg.trim().replace(/^0x/i, '');
-    if (regMode && !/^[0-9a-f]{1,2}$/i.test(regText)) throw new Error('The register should be a hex byte, like 0F.');
-    const reg = parseInt(regText || '0', 16);
+    const reg = regMode ? parseHex(p.reg, 2, 'The register should be a hex byte, like 0F.') : 0;
     const bytes = parseBytes(p.data, p.format);
 
     const scl = new TraceBuilder('SCL', 1, true);

@@ -1,5 +1,5 @@
 import type { Bit, Field, Kind, Note, Protocol, TourStop } from '../core/types';
-import { TraceBuilder, hex, parseBytes } from '../core/util';
+import { TraceBuilder, hex, parseBytes, parseHex } from '../core/util';
 
 const MIN_PAYLOAD = 46;
 
@@ -26,10 +26,11 @@ export const ethernet: Protocol = {
   fullName: '10 Mbit/s Ethernet over twisted pair (IEEE 802.3i)',
   tags: ['embedded clock', 'differential', 'half duplex', 'full duplex', 'star', 'addressed', 'cable', 'networking', 'Manchester'],
   summary:
-    'The original twisted-pair Ethernet. Every bit is Manchester encoded: a 1 is a low-to-high transition in the middle ' +
+    'Ethernet at 10 Mbit/s over twisted-pair cable. It was the first twisted-pair Ethernet standard, from 1990, and most ' +
+    'Ethernet ports still support it as their slowest speed. Every bit is Manchester encoded: a 1 is a low-to-high transition in the middle ' +
     'of the bit and a 0 is high-to-low, so the receiver can recover the clock from the data itself. A frame is a ' +
     'preamble, two MAC addresses, a type, at least 46 bytes of payload, and a CRC-32.',
-  usedIn: 'Legacy hubs and networks, low-cost microcontroller Ethernet controllers such as the ENC28J60, and the frame format every faster Ethernet still uses.',
+  usedIn: 'Low-cost microcontroller Ethernet controllers such as the ENC28J60, the 10 Mbit/s mode of most Ethernet ports, and the frame format every faster Ethernet still uses.',
   facts: {
     clock: 'Embedded. Manchester encoding guarantees a transition in every bit, and the 56-bit preamble gives the receiver time to lock onto it.',
     wires: 'Two twisted pairs in an RJ45 cable: one to transmit (pins 1 and 2) and one to receive (pins 3 and 6).',
@@ -106,9 +107,8 @@ export const ethernet: Protocol = {
   encode(p) {
     const dst = mac(p.dst, 'destination');
     const src = mac(p.src, 'source');
-    const typeText = p.type.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,4}$/i.test(typeText)) throw new Error('The EtherType should be up to 4 hex digits, like 0800 or 88B5.');
-    const type = parseInt(typeText, 16);
+    const type = parseHex(p.type, 4, 'The EtherType should be up to 4 hex digits, like 0800 or 88B5.');
+    const typeHex = type.toString(16).toUpperCase().padStart(4, '0');
     const payload = parseBytes(p.data, p.format);
     const pad = Math.max(0, MIN_PAYLOAD - payload.length);
 
@@ -124,7 +124,7 @@ export const ethernet: Protocol = {
       { bytes: dst, label: `To ${macText(dst)}`, kind: 'addr',
         info: `Destination MAC address ${macText(dst)}.${dst.every((b) => b === 0xff) ? ' All ones means broadcast: every device accepts it.' : ''}` },
       { bytes: src, label: `From ${macText(src)}`, kind: 'addr', info: `Source MAC address ${macText(src)}.` },
-      { bytes: [type >> 8, type & 0xff], label: `Type 0x${typeText.toUpperCase().padStart(4, '0')}`, kind: 'cmd',
+      { bytes: [type >> 8, type & 0xff], label: `Type 0x${typeHex}`, kind: 'cmd',
         info: 'EtherType: what kind of payload follows (0x0800 is IPv4, 0x86DD is IPv6, 0x88B5 is reserved for local experiments). It is sent most significant byte first.' },
       { bytes: payload, label: `Payload (${payload.length} byte${payload.length === 1 ? '' : 's'})`, kind: 'data', info: 'Payload.' },
       { bytes: new Array(pad).fill(0), label: `Padding (${pad} bytes)`, kind: 'dummy',
@@ -227,7 +227,7 @@ export const ethernet: Protocol = {
       },
       {
         title: 'EtherType',
-        text: `Two bytes, 0x${typeText.toUpperCase().padStart(4, '0')}, identifying the payload protocol; for example, 0x0800 ` +
+        text: `Two bytes, 0x${typeHex}, identifying the payload protocol; for example, 0x0800 ` +
           'is IPv4, 0x86DD is IPv6 and 0x0806 is ARP. Although bits within each byte are sent least significant first, the ' +
           'two bytes of this field are sent most significant byte first.',
         view: pad1(span.type, 8, 8), focus: span.type,

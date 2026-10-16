@@ -3,7 +3,7 @@
  * point. Each is a debugger paused on a few lines of C, with the variables shown bit by bit.
  */
 import { esc } from '../core/render';
-import { binN, bit, bits, code, hexN, hoverTips, nibbles, page, parseNumber, readHex, sup, syncUrl } from './dbg';
+import { binN, bit, bits, code, debuggerWindow, hexN, hoverTips, nibbles, page, parseNumber, readHex, showValue, sup, syncUrl } from './dbg';
 
 // ---- pure conversions, exported for the accuracy checks ----
 
@@ -83,7 +83,7 @@ function shortest(v: number) {
 
 // ---- shared wiring ----
 
-/** Common page plumbing: render the page, then call `draw` on every change, with `last` holding the previous values. */
+/** Common page plumbing: render the page, draw it, and explain bits on hover. */
 function wire(root: HTMLElement, html: string, draw: () => void) {
   root.innerHTML = html;
   draw();
@@ -99,6 +99,8 @@ const wideRow = (name: string, type: string, value: string, bitsHtml: string, ch
   <td class="val" colspan="2">${value}</td></tr>
   <tr class="${changed ? 'changed' : ''}"><td colspan="3" class="wide-bits">${bitsHtml}</td></tr>`;
 const table = (rows: string) => `<table class="vars"><tbody>${rows}</tbody></table>`;
+/** Marks the bits that differ from the previous value, as a debugger does after a step. */
+const flips = (last: number | null, v: number) => (i: number) => last !== null && bit(last, i) !== bit(v, i);
 
 // ---- Binary and hexadecimal ----
 
@@ -135,13 +137,12 @@ export function mountBinary(root: HTMLElement) {
       row('x', type, `<code class="hex">${hexN(v, width)}</code> <small class="dec">${v}</small>`,
         bits('x', v, width, {
           editable: true, groups: nibbles(v, width, true), under: (i) => String(2 ** i),
-          flipped: (i) => last !== null && bit(last, i) !== bit(v, i),
+          flipped: flips(last, v),
           tip: (i) => `Bit ${i} is worth 2${sup(i)} = ${2 ** i}. Click to ${bit(v, i) ? 'clear' : 'set'} it.`,
         }),
         last !== null && last !== v));
     root.querySelectorAll<HTMLButtonElement>('[data-w]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.w) === width)));
-    const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
-    if (document.activeElement !== input) input.value = hexN(v, width);
+    showValue(root, hexN(v, width));
     status(root, `${v} = ${ones.length ? ones.map((i) => 2 ** i).join(' + ') : '0'}. In hex, each group of four bits is one digit: ${binN(v, width)} is ${hexN(v, width)}.`);
     last = v;
     syncUrl({ x: (v >>> 0).toString(16).toUpperCase(), w: String(width) });
@@ -213,7 +214,7 @@ export function mountTwos(root: HTMLElement) {
       `int8_t  s   = (int8_t)raw;`.padEnd(30) + `// ${s}`,
       `int8_t  n   = -s;`.padEnd(30) + `// ${toInt8(n)}: invert every bit, add 1`,
     ], 4);
-    const flipped = (i: number) => last !== null && bit(last, i) !== bit(raw, i);
+    const flipped = flips(last, raw);
     root.querySelector('.vars-wrap')!.innerHTML = table(
       row('raw', 'uint8_t', `<code class="hex">${hexN(raw, 8)}</code> <small class="dec">${raw}</small>`,
         bits('raw', raw, 8, { editable: true, flipped, under: (i) => String(2 ** i),
@@ -224,8 +225,7 @@ export function mountTwos(root: HTMLElement) {
         last !== null && last !== raw) +
       row('n', 'int8_t', `<code class="hex">${toInt8(n)}</code>`, bits('n', n, 8)),
     );
-    const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
-    if (document.activeElement !== input) input.value = hexN(raw, 8);
+    showValue(root, hexN(raw, 8));
     const terms = [7, 6, 5, 4, 3, 2, 1, 0].filter((i) => bit(raw, i)).map((i) => (i === 7 ? '−128' : String(2 ** i)));
     status(root, `As int8_t: ${terms.length ? terms.join(' + ').replace(/\+ −/g, '− ') : '0'} = ${s}.` +
       (raw === 0x80 ? ' −(−128) is 128, which does not fit in int8_t, so negating −128 gives −128 again on typical compilers.' : ''));
@@ -306,14 +306,13 @@ export function mountFixed(root: HTMLElement) {
     root.querySelector('.vars-wrap')!.innerHTML = table(
       row('raw', 'uint8_t', `<code class="hex">${hexN(raw, 8)}</code> <small class="dec">${raw}</small>`,
         bits('raw', raw, 8, { editable: true, point: frac > 0 && frac < 8 ? frac : undefined,
-          flipped: (i) => last !== null && bit(last, i) !== bit(raw, i), under: (i) => `2${sup(i - frac)}`,
+          flipped: flips(last, raw), under: (i) => `2${sup(i - frac)}`,
           tip: (i) => `Bit ${i} is worth 2${sup(i - frac)} = ${2 ** (i - frac)}. Click to ${bit(raw, i) ? 'clear' : 'set'} it.` }),
         last !== null && last !== raw) +
       row('value', 'float', `<code class="hex">${value}</code>`, ''),
     );
     root.querySelector<HTMLSelectElement>('.dbg-set select')!.value = String(frac);
-    const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
-    if (document.activeElement !== input) input.value = hexN(raw, 8);
+    showValue(root, hexN(raw, 8));
     status(root, `value = raw ÷ 2${sup(frac)} = ${raw} ÷ ${scale} = ${value}. Steps of ${1 / scale}, from 0 to ${255 / scale}.`);
     last = raw;
     syncUrl({ x: raw.toString(16).toUpperCase().padStart(2, '0'), f: String(frac) });
@@ -352,9 +351,11 @@ const FLOAT_GROUPS = [
   { hi: 30, lo: 23, head: 'exponent' },
   { hi: 22, lo: 0, head: 'fraction', split: 4 },
 ];
-const floatTip = (i: number) => (i === 31 ? 'Bit 31 is the sign: 0 is positive, 1 is negative. Click to flip it.'
-  : i >= 23 ? `Bit ${i} is exponent bit ${i - 23}, worth ${2 ** (i - 23)} in the stored exponent. Click to flip it.`
-  : `Bit ${i} is fraction bit ${i}, worth 2${sup(i - 23)} of the significand. Click to flip it.`);
+/** What bit `i` of a float is. */
+const floatBit = (i: number) => (i === 31 ? 'the sign bit: 0 is positive, 1 is negative'
+  : i >= 23 ? `exponent bit ${i - 23}, worth ${2 ** (i - 23)} in the stored exponent`
+  : `fraction bit ${i}, worth 2${sup(i - 23)} of the significand`);
+const floatTip = (i: number) => `Bit ${i} is ${floatBit(i)}. Click to flip it.`;
 
 export function mountFloat(root: HTMLElement) {
   let b = readHex('x', 0x3dcccccd, 0xffffffff);
@@ -391,18 +392,10 @@ export function mountFloat(root: HTMLElement) {
         constant, 0x5F3759DF, chosen to undo the shift and offset. That lands within about 3.5% of the answer, and one
         Newton–Raphson step brings it within about 0.18%.</p>
     </section>
-    <section class="debugger quake-dbg" aria-label="Fast inverse square root, step by step">
-      <header class="dbg-bar">
-        <span class="dbg-file">q_rsqrt.c</span>
-        <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>
-        <div class="dbg-controls"><label class="dbg-set">number = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set number" value="2"></label></div>
-      </header>
-      <div class="dbg-body stacked">
-        <pre class="dbg-code" aria-label="Source"><code></code></pre>
-        <div class="dbg-vars"><h3>Variables</h3><div class="quake-vars"></div></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
-    </section>
+    ${debuggerWindow({
+      file: 'q_rsqrt.c', label: 'Fast inverse square root, step by step', cls: 'quake-dbg', body: '<div class="quake-vars"></div>',
+      controls: '<label class="dbg-set">number = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set number" value="2"></label>',
+    })}
     <section class="prose">
       <p>The comments are the original’s, as released with the Quake III Arena source code in 2005; the values in
         parentheses are this run’s. The original reads the bits with pointer casts, <code>i = *(long *)&amp;y;</code>, which break C’s strict
@@ -425,7 +418,7 @@ export function mountFloat(root: HTMLElement) {
       'uint32_t bits;',
       `memcpy(&bits, &f, sizeof bits);`.padEnd(34) + `// ${hexN(b, 32)}`,
     ], 6);
-    const flipped = (i: number) => last !== null && bit(last, i) !== bit(b, i);
+    const flipped = flips(last, b);
     const significand = d.kind === 'normal' ? 1 + d.fraction / 2 ** 23 : d.fraction / 2 ** 23;
     const power = d.kind === 'normal' ? d.exponent - 127 : -126;
     const meaning: Record<Float32Parts['kind'], string> = {
@@ -444,8 +437,7 @@ export function mountFloat(root: HTMLElement) {
       row('fraction', '', `<code class="hex">${hexN(d.fraction, 24).replace('0x0', '0x')}</code> <small>${d.kind === 'normal' ? `1.fraction = ${significand}` : ''}</small>`, '') +
       row('f', 'float', `<code class="hex">${d.kind === 'nan' ? 'NaN' : d.kind === 'infinity' ? (d.sign ? '−∞' : '∞') : shortest(d.value)}</code>`, ''),
     );
-    const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
-    if (document.activeElement !== input) input.value = d.kind === 'nan' ? 'NaN' : d.kind === 'infinity' ? (d.sign ? '-inf' : 'inf') : shortest(d.value);
+    showValue(root, d.kind === 'nan' ? 'NaN' : d.kind === 'infinity' ? (d.sign ? '-inf' : 'inf') : shortest(d.value));
     status(root, `${esc(meaning[d.kind])}${d.exact ? ` = ${d.exact}` : ''}.`);
     last = b;
     syncUrl({ x: (b >>> 0).toString(16).toUpperCase().padStart(8, '0') });
@@ -500,10 +492,8 @@ export function mountFloat(root: HTMLElement) {
       const i = Number(k.dataset.bit);
       b = (b ^ (1 << i)) >>> 0;
       draw();
-      const what = i === 31 ? 'the sign bit: 0 is positive, 1 is negative'
-        : i >= 23 ? `exponent bit ${i - 23}, worth ${2 ** (i - 23)} in the stored exponent`
-        : `fraction bit ${i}, worth 2${sup(i - 23)} of the significand`;
-      status(root, `Bit ${i} is ${what}. ${esc(decodeFloat32(b).exact ? `f is now exactly ${decodeFloat32(b).exact}.` : '')}`);
+      const { exact } = decodeFloat32(b);
+      status(root, `Bit ${i} is ${floatBit(i)}. ${esc(exact ? `f is now exactly ${exact}.` : '')}`);
       return;
     }
     const p = t.closest<HTMLElement>('[data-bits]');

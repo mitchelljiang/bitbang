@@ -1,10 +1,7 @@
 import { bitTopics } from './bits';
 import { catalog, type Category } from './catalog';
 import { esc } from './core/render';
-import { index } from './search';
-
-/** Built, in progress or soon: decided once, in the search index, so the sidebar and the search always agree. */
-const statusOf = new Map(index.map((e) => [e.id, e.status]));
+import { statusOf } from './search';
 
 interface Section {
   id: string;
@@ -52,7 +49,7 @@ function sidebarHtml(s: Section) {
       if (status === 'wip') return `<li><a class="wip" href="?p=${e.id}" data-nav ${title}>${esc(e.name)}<span class="sr">, in progress</span></a></li>`;
       return `<li class="soon" ${title}>${esc(e.name)}</li>`;
     });
-    return `<div class="side-group"><h3>${esc(cat.name)}</h3><ul>${items.join('')}</ul></div>`;
+    return `<div class="side-group"><h3>${esc(cat.heading ?? cat.name)}</h3><ul>${items.join('')}</ul></div>`;
   }).join('') + (s.categories.some((c) => c.entries.some((e) => statusOf.get(e.id) === 'wip'))
     ? '<p class="side-key" aria-hidden="true"><i></i>In progress</p>' : '');
 }

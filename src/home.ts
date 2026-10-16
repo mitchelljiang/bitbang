@@ -1,14 +1,30 @@
-import { GUTTER, esc, groupSteps, readout, render, type Rendered, type Step } from './core/render';
+import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
+import { defaults } from './core/util';
 import { pagesOf, sections } from './nav';
-import { index } from './search';
-import { uart } from './protocols/uart';
+import { index, statusOf } from './search';
+import { protocols } from './protocols';
 import { mountScopeAids } from './cursor';
 
-/** The UART frame the home page opens on: real output of the UART page's encoder, so it is as accurate as that page. */
-const hi = uart.encode({ ...Object.fromEntries(uart.params.map((x) => [x.key, x.default])), data: 'Hi', format: 'text' });
+/**
+ * The protocols that can say "Hi" on the home page, and what each one's trigger waits for. One is picked at random on
+ * every load. Each frame is the real output of that protocol page's encoder, so it is as accurate as that page.
+ */
+const GREETERS: Record<string, { trigger: string; set?: Record<string, string> }> = {
+  uart: { trigger: 'a falling edge' },
+  rs232: { trigger: 'a falling edge on TX' },
+  rs485: { trigger: 'a falling edge on DI' },
+  spi: { trigger: 'CS to fall', set: { miso: '' } },
+  i2c: { trigger: 'a start condition' },
+  i3c: { trigger: 'a start condition' },
+};
+const ids = Object.keys(GREETERS);
+const id = ids[Math.floor(Math.random() * ids.length)];
+const proto = protocols.find((p) => p.id === id)!;
+const greeter = GREETERS[id];
+const hi = proto.encode({ ...defaults(proto), data: 'Hi', format: 'text', ...greeter.set });
 const steps: Step[] = groupSteps(hi.bits);
+const laneNames = hi.traces.map((t) => t.name);
 const HINT = '<p class="hint">Click any bit, or use <kbd>←</kbd> <kbd>→</kbd> to step through them.</p>';
-const statusOf = new Map(index.map((e) => [e.id, e.status]));
 const nameOf = new Map(index.map((e) => [e.id, e.name]));
 
 /** One card per section, from the same list as the header tabs, so a new section appears here automatically. */
@@ -44,7 +60,7 @@ export function mountHome(root: HTMLElement) {
     </section>
     <section class="demo instrument">
       <div class="readout"></div>
-      <div class="scope" tabindex="0" aria-label="UART waveform of the text Hi. Use the arrow keys to step through the bits."></div>
+      <div class="scope" tabindex="0" aria-label="${esc(proto.name)} waveform of the text Hi. Use the arrow keys to step through the bits."></div>
       <div class="explain" aria-live="polite">${HINT}</div>
     </section>
     <div class="cards after">${cardsHtml()}</div>`;
@@ -59,11 +75,7 @@ export function mountHome(root: HTMLElement) {
     const step = steps[current] ?? null;
     drawn?.select(step);
     if (!step) return say(HINT);
-    explain.replaceChildren(...step.bits.map((bit) => {
-      const p = document.createElement('p');
-      p.append(Object.assign(document.createElement('span'), { className: `tag k-${bit.kind}`, textContent: bit.label }), ' ', bit.info);
-      return p;
-    }));
+    explain.replaceChildren(...stepNodes(step, laneNames));
   };
   scope.addEventListener('keydown', (e) => {
     const move = ({ ArrowRight: 1, ArrowLeft: -1 } as Record<string, number>)[e.key];
@@ -82,8 +94,8 @@ export function mountHome(root: HTMLElement) {
   function draw() {
     drawn = render(scope, hi, steps, { zoom: 'fit', onPick: pick, onHover: () => {} });
     const bar = root.querySelector<HTMLElement>('.demo .readout')!;
-    bar.innerHTML = readout(hi, drawn.divTime, 'UART: “Hi”') +
-      '<button type="button" class="rd-replay" title="Play the sweep again">↻ Replay</button>';
+    bar.innerHTML = readout(hi, drawn.divTime, `${proto.name}: “Hi”`) +
+      '<button type="button" class="rd-replay" title="Play the sweep again" aria-label="Replay">↻<span class="rd-word"> Replay</span></button>';
     aids.refresh();
     pick(current);
   }
@@ -101,7 +113,7 @@ export function mountHome(root: HTMLElement) {
     const DELAY = 350;
     const DURATION = 1200;
     if (hideText) root.classList.add('opening');
-    say('<p class="hint">Waiting for a falling edge…</p>');
+    say(`<p class="hint">Waiting for ${greeter.trigger}…</p>`);
     const beam = Object.assign(document.createElement('div'), { className: 'beam' });
     scope.append(beam);
     // A steady sweep, as on a scope. The trace and the beam share the timing, so the beam sits at the trace's leading edge.
@@ -150,9 +162,7 @@ export function mountHome(root: HTMLElement) {
       draw();
       if (played) return;
       played = true;
-      // The opening plays at the top of the page. A reload would otherwise restore an old scroll position partway
-      // through it, which looks like the page jumping.
-      history.scrollRestoration = 'manual';
+      // The opening plays at the top of the page, never partway through it.
       window.scrollTo(0, 0);
       sweep(true);
     },

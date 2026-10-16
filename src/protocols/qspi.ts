@@ -1,5 +1,5 @@
 import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
-import { TraceBuilder, hex, parseBytes, printable } from '../core/util';
+import { TraceBuilder, hex, parseBytes, parseHex, printable } from '../core/util';
 
 /** Lines used per phase, written the way flash datasheets do: instruction-address-data. */
 const MODES: Record<string, { cmd: number; name: string; lanes: [number, number, number]; mode: number; dummy: number }> = {
@@ -121,9 +121,7 @@ export const qspi: Protocol = {
 
   encode(p) {
     const m = MODES[p.mode] ?? MODES['144'];
-    const addrText = p.addr.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,6}$/i.test(addrText)) throw new Error('The address should be up to 6 hex digits, like 001000.');
-    const addr = parseInt(addrText, 16);
+    const addr = parseHex(p.addr, 6, 'The address should be up to 6 hex digits, like 001000.');
     const bytes = parseBytes(p.data, p.format);
 
     const cs = new TraceBuilder('CS', 1);

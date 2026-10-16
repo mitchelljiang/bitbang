@@ -1,6 +1,6 @@
 import { esc } from '../core/render';
 import { hex } from '../core/util';
-import { highlight } from './dbg';
+import { binN, bit, code, highlight, readHex, syncUrl } from './dbg';
 
 export type Op = 'and' | 'or' | 'xor' | 'not';
 const OPS: Op[] = ['and', 'or', 'xor', 'not'];
@@ -49,13 +49,6 @@ reg &= ~(1u << 3);
 uint8_t inverted = (uint8_t)~value;`,
 };
 
-const bits8 = (v: number) => {
-  const s = v.toString(2).padStart(8, '0');
-  return `${s.slice(0, 4)} ${s.slice(4)}`;
-};
-
-
-const bitOf = (v: number, i: number) => (v >> i) & 1;
 const BITS = [7, 6, 5, 4, 3, 2, 1, 0];
 
 /**
@@ -108,11 +101,7 @@ export function mountBitwise(root: HTMLElement) {
     </section>`;
 
   const q = new URLSearchParams(location.search);
-  const read = (k: string, d: number) => {
-    const v = parseInt(q.get(k) ?? '', 16);
-    return Number.isInteger(v) && v >= 0 && v <= 0xff ? v : d;
-  };
-  const state = { a: read('a', 0xb2), b: read('b', 0x6b), op: (OPS as string[]).includes(q.get('op') ?? '') ? q.get('op') as Op : 'and' as Op };
+  const state = { a: readHex('a', 0xb2, 0xff), b: readHex('b', 0x6b, 0xff), op: (OPS as string[]).includes(q.get('op') ?? '') ? q.get('op') as Op : 'and' as Op };
   const status = root.querySelector<HTMLElement>('.dbg-status')!;
   const say = (html: string) => (status.innerHTML = html);
   const ruleText = () => esc(RULE[state.op]);
@@ -120,9 +109,9 @@ export function mountBitwise(root: HTMLElement) {
 
   /** Why bit `i` of r came out the way it did. */
   function why(i: number) {
-    const a = bitOf(state.a, i);
-    const b = bitOf(state.b, i);
-    const r = bitOf(apply(state.op, state.a, state.b), i);
+    const a = bit(state.a, i);
+    const b = bit(state.b, i);
+    const r = bit(apply(state.op, state.a, state.b), i);
     return state.op === 'not'
       ? `Bit ${i}: a is ${a}, so ~${a} = ${r}.`
       : `Bit ${i}: a is ${a} and b is ${b}, so ${a} ${SYMBOL[state.op]} ${b} = ${r}.`;
@@ -137,14 +126,12 @@ export function mountBitwise(root: HTMLElement) {
       '#include <stdint.h>',
       '',
       'int main(void) {',
-      `    ${pad(`uint8_t a = ${hex(state.a)};`)}// ${bits8(state.a)}`,
-      `    ${pad(`uint8_t b = ${hex(state.b)};`)}// ${notOp ? 'not used by ~' : bits8(state.b)}`,
-      `    ${pad(notOp ? 'uint8_t r = (uint8_t)~a;' : `uint8_t r = a ${SYMBOL[state.op]} b;`)}// ${bits8(r)}`,
+      `    ${pad(`uint8_t a = ${hex(state.a)};`)}// ${binN(state.a, 8)}`,
+      `    ${pad(`uint8_t b = ${hex(state.b)};`)}// ${notOp ? 'not used by ~' : binN(state.b, 8)}`,
+      `    ${pad(notOp ? 'uint8_t r = (uint8_t)~a;' : `uint8_t r = a ${SYMBOL[state.op]} b;`)}// ${binN(r, 8)}`,
       '}',
     ];
-    const PC = 5; // the line the debugger is paused on, after it ran
-    root.querySelector('.dbg-code code')!.innerHTML = source.map((l, n) =>
-      `<span class="ln${n === PC ? ' pc' : ''}"><span class="gutter">${n + 9}</span>${highlight(l) || ' '}</span>`).join('');
+    code(root, source, 5, 9); // paused on line 5, after it ran
 
     for (const v of ['a', 'b', 'r']) {
       const row = root.querySelector<HTMLElement>(`tr[data-var="${v}"]`)!;
@@ -155,8 +142,8 @@ export function mountBitwise(root: HTMLElement) {
       row.querySelector('.dec')!.textContent = String(vals[v]);
       row.querySelectorAll<HTMLButtonElement>('.bit').forEach((k) => {
         const i = Number(k.dataset.bit);
-        const on = bitOf(vals[v], i) === 1;
-        const flipped = last !== null && bitOf(last[v], i) !== bitOf(vals[v], i);
+        const on = bit(vals[v], i) === 1;
+        const flipped = last !== null && bit(last[v], i) !== bit(vals[v], i);
         k.textContent = on ? '1' : '0';
         k.classList.toggle('on', on);
         k.classList.toggle('flipped', flipped);
@@ -173,21 +160,18 @@ export function mountBitwise(root: HTMLElement) {
     root.querySelector('[data-code="uses"] code')!.innerHTML = highlight(IDIOMS[state.op]);
     last = vals;
 
-    const u = new URL(location.href);
-    u.searchParams.set('a', state.a.toString(16).toUpperCase().padStart(2, '0'));
-    u.searchParams.set('b', state.b.toString(16).toUpperCase().padStart(2, '0'));
-    u.searchParams.set('op', state.op);
-    history.replaceState(null, '', u);
+    const hex2 = (v: number) => v.toString(16).toUpperCase().padStart(2, '0');
+    syncUrl({ a: hex2(state.a), b: hex2(state.b), op: state.op });
   }
 
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
-    const bit = t.closest<HTMLButtonElement>('tr[data-var="a"] .bit, tr[data-var="b"] .bit');
-    if (bit) {
-      const v = bit.closest<HTMLElement>('tr')!.dataset.var as 'a' | 'b';
-      state[v] ^= 1 << Number(bit.dataset.bit);
+    const cell = t.closest<HTMLButtonElement>('tr[data-var="a"] .bit, tr[data-var="b"] .bit');
+    if (cell) {
+      const v = cell.closest<HTMLElement>('tr')!.dataset.var as 'a' | 'b';
+      state[v] ^= 1 << Number(cell.dataset.bit);
       draw();
-      say(why(Number(bit.dataset.bit)));
+      say(why(Number(cell.dataset.bit)));
       return;
     }
     const op = t.closest<HTMLButtonElement>('.dbg-ops button');

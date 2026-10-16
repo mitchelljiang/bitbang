@@ -17,15 +17,18 @@ export function highlight(code: string) {
   }).join('\n');
 }
 
-/** The page: crumbs, title and intro, then the debugger window, then anything after it. */
-export function page(o: { crumbs: string; title: string; intro: string; file: string; controls: string; body: string; after?: string }) {
-  return `
-    <section class="intro">
-      <p class="crumbs">${esc(o.crumbs)}</p>
-      <h1>${esc(o.title)}</h1>
-      <p>${o.intro}</p>
-    </section>
-    <section class="debugger" aria-label="Debugger">
+interface DbgWindow {
+  file: string;
+  controls: string;
+  body: string;
+  /** Names the window for screen readers, and an extra class, when a page has more than one. */
+  label?: string;
+  cls?: string;
+}
+
+/** A debugger window: file name and controls, then the code pane above the variables, then the status line. */
+export const debuggerWindow = (o: DbgWindow) => `
+    <section class="debugger${o.cls ? ` ${o.cls}` : ''}" aria-label="${esc(o.label ?? 'Debugger')}">
       <header class="dbg-bar">
         <span class="dbg-file">${esc(o.file)}</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>
@@ -36,8 +39,22 @@ export function page(o: { crumbs: string; title: string; intro: string; file: st
         <div class="dbg-vars"><h3>Variables</h3>${o.body}</div>
       </div>
       <p class="dbg-status" aria-live="polite"></p>
+    </section>`;
+
+/** The page: crumbs, title and intro, then the debugger window, then anything after it. */
+export const page = (o: DbgWindow & { crumbs: string; title: string; intro: string; after?: string }) => `
+    <section class="intro">
+      <p class="crumbs">${esc(o.crumbs)}</p>
+      <h1>${esc(o.title)}</h1>
+      <p>${o.intro}</p>
     </section>
+    ${debuggerWindow(o)}
     ${o.after ?? ''}`;
+
+/** Shows `text` in the window's value box, unless the reader is typing in it. */
+export function showValue(root: HTMLElement, text: string) {
+  const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
+  if (document.activeElement !== input) input.value = text;
 }
 
 /** Fills the code pane with `lines`, numbered from `first`, with the paused line `pc` marked. */
@@ -100,8 +117,16 @@ export function bits(name: string, v: number, width: number, o: BitOpts = {}) {
         o.editable ? '' : ' tabindex="-1" aria-disabled="true"'} aria-label="${name} bit ${i}, ${on ? 1 : 0}${o.editable ? '. Click to flip.' : ''}">${
         on ? 1 : 0}</button>${o.under ? `<small>${o.under(i)}</small>` : ''}</span>`);
     }
+    // Each run between split gaps is one chunk, so on a narrow screen a long field wraps between nibbles, never inside one.
+    const chunks: string[] = [];
+    let run = '';
+    cols.forEach((c) => {
+      run += c;
+      if (c.startsWith('<span class="col gap"')) (chunks.push(run), (run = ''));
+    });
+    if (run) chunks.push(run);
     return `<span class="grp">${g.head !== undefined ? `<span class="grp-head">${esc(g.head)}</span>` : ''}<span class="grp-cells">${
-      cols.join('')}</span>${g.foot !== undefined ? `<span class="grp-foot">${esc(g.foot)}</span>` : ''}</span>`;
+      chunks.map((c) => `<span class="chunk">${c}</span>`).join('')}</span>${g.foot !== undefined ? `<span class="grp-foot">${esc(g.foot)}</span>` : ''}</span>`;
   }).join('')}</div>`;
 }
 
@@ -136,7 +161,7 @@ export const sup = (n: number) => String(n).replace(/-/g, '⁻').replace(/\d/g, 
 export function syncUrl(values: Record<string, string>) {
   const u = new URL(location.href);
   for (const [k, v] of Object.entries(values)) u.searchParams.set(k, v);
-  history.replaceState(null, '', u);
+  history.replaceState(history.state, '', u);
 }
 
 /** Reads an integer from the URL in hex, or returns `d` when missing or out of range. */

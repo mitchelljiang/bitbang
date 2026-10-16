@@ -8,6 +8,7 @@ export const bitTopics: Category[] = [
   {
     id: 'representation',
     name: 'Representing numbers',
+    heading: 'Start here',
     blurb: 'How a pattern of bits stands for a number.',
     entries: [
       { id: 'binary', name: 'Binary and hexadecimal', blurb: 'Place values in base 2, and why each hex digit is four bits.',

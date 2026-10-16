@@ -1,6 +1,26 @@
-import type { Level, Trace } from './types';
+import type { Level, Protocol, Trace } from './types';
 
 export const MAX_BYTES = 16;
+
+/** A protocol's settings at their defaults. */
+export const defaults = (p: Protocol) => Object.fromEntries(p.params.map((x) => [x.key, x.default]));
+
+/** The level of `trace` at time `t` (the new level, at the moment of an edge). */
+export function levelAt(trace: Trace, t: number): Level {
+  let v = trace.points[0].v;
+  for (const p of trace.points) {
+    if (p.t > t) break;
+    v = p.v;
+  }
+  return v;
+}
+
+/** Reads up to `digits` hex digits, with or without a leading 0x, or throws `error`. */
+export function parseHex(text: string, digits: number, error: string) {
+  const s = text.trim().replace(/^0x/i, '');
+  if (!new RegExp(`^[0-9a-f]{1,${digits}}$`, 'i').test(s)) throw new Error(error);
+  return parseInt(s, 16);
+}
 
 /** Builds a Trace, collapsing redundant points. */
 export class TraceBuilder {

@@ -1,5 +1,5 @@
 import type { Bit, Driver, Field, Kind, Note, Protocol } from '../core/types';
-import { TraceBuilder, hex } from '../core/util';
+import { TraceBuilder, hex, parseHex } from '../core/util';
 
 const ACKS: Record<string, { bits: number; name: string; info: string }> = {
   ok: { bits: 0b001, name: 'OK', info: 'OK: the target accepted the request.' },
@@ -108,9 +108,7 @@ export const swd: Protocol = {
     const read = p.op === 'r';
     const ap = p.port === 'ap';
     const reg = +p.reg & 3;
-    const text = p.data.trim().replace(/^0x/i, '');
-    if (!/^[0-9a-f]{1,8}$/i.test(text)) throw new Error('The data should be up to 8 hex digits, like 2BA01477.');
-    const data = parseInt(text, 16) >>> 0;
+    const data = parseHex(p.data, 8, 'The data should be up to 8 hex digits, like 2BA01477.');
     const ack = ACKS[p.ack] ?? ACKS.ok;
     const regName = REGS[ap ? 'ap' : 'dp'][reg];
 
