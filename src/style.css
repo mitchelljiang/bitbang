@@ -1300,6 +1300,9 @@ table.vars .hex { font-weight: 600; }
 /* Memory-mapped I/O: the mode and output registers in the header, a row per LED pin, and the LEDs they drive. */
 .mmio .dbg-regs { font: 12px var(--mono); color: var(--dbg-dim); }
 .mmio .dbg-regs b { color: var(--dbg-text); font-weight: 600; }
+/* A fixed-height code pane, tall enough for the fullest state (all four pins output and high), so adding or removing
+   lines never resizes the window and nothing has to scroll. */
+.mmio .dbg-code { height: 348px; }
 .mmio .dbg-vars { overflow-x: auto; }
 .pintab { width: 100%; border-collapse: collapse; font: 13px var(--mono); }
 .pintab th { padding: 4px 10px; font: 600 11px var(--sans); color: var(--dbg-dim); text-align: left; border-bottom: 1px solid var(--dbg-line); }

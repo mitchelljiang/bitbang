@@ -86,8 +86,8 @@ export function mountMmio(root: HTMLElement) {
     if (outs.length) lines.push('');
     for (const [p] of highs) lines.push(`GPIOD_ODR |= (1u << ${p});`.padEnd(32) + `// drive PD${p} high`);
     if (!highs.length) lines.push('// no pin is both an output and driven high');
-    root.querySelector('.dbg-code code')!.innerHTML = lines.map((l) =>
-      `<span class="ln">${(l.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    root.querySelector('.dbg-code code')!.innerHTML = lines.map((l, n) =>
+      `<span class="ln"><span class="gutter">${n + 1}</span>${(l.replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/(\/\/.*)$/, '<span class="c-comment">$1</span>')
         .replace(/\b(volatile|uint32_t|uint16_t|include)\b/g, '<span class="c-type">$1</span>')
         .replace(/\b(0x[0-9A-F]+|\d+u?)\b/g, '<span class="c-num">$1</span>')) || ' '}</span>`).join('');
