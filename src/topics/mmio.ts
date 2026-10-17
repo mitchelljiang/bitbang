@@ -1,17 +1,23 @@
 /**
- * Memory-mapped I/O: a peripheral register is just an address, and writing to it changes hardware. A GPIO output
- * register drives sixteen pins, four of them LEDs; click the bits or type a value and the pins follow. The volatile
- * setting shows why the keyword is needed.
+ * Memory-mapped I/O: a peripheral register is just an address, and writing to it changes hardware. A pin does nothing
+ * until it is configured, so this page shows two registers, the mode register (MODER) that configures each pin and the
+ * output register (ODR) that drives it. An LED lights only when its pin is both configured as an output and driven high.
  */
-import { bits, code, hexN, hoverTips, parseNumber, seg, markSeg, status, syncUrl } from './dbg';
+import { hexN, status, syncUrl } from './dbg';
 
-/** The four pins wired to the Discovery board’s LEDs: bit → [name, colour]. */
-const LEDS: Record<number, [string, string]> = { 12: ['green', '#4caf50'], 13: ['orange', '#ff9800'], 14: ['red', '#f44336'], 15: ['blue', '#2196f3'] };
+const LEDS: [number, string, string][] = [[12, 'green', '#4caf50'], [13, 'orange', '#ff9800'], [14, 'red', '#f44336'], [15, 'blue', '#2196f3']];
+const MODES = ['Input', 'Output', 'Alternate', 'Analog']; // MODER field: 00, 01, 10, 11
 
 export function mountMmio(root: HTMLElement) {
-  let v = Number(new URLSearchParams(location.search).get('v') ?? NaN);
-  if (!Number.isInteger(v) || v < 0 || v > 0xffff) v = 0x1000;
-  let vol = (new URLSearchParams(location.search).get('vol') ?? '1') !== '0';
+  const q = new URLSearchParams(location.search);
+  const read = (k: string, d: number) => { const n = parseInt(q.get(k) ?? '', 16); return Number.isInteger(n) ? n >>> 0 : d; };
+  const mode: Record<number, number> = {};
+  const out: Record<number, number> = {};
+  for (const [p] of LEDS) { mode[p] = (read('m', 0) >>> (2 * p)) & 3; out[p] = (read('o', 0) >>> p) & 1; }
+
+  const moder = () => LEDS.reduce((v, [p]) => v | (mode[p] << (2 * p)), 0) >>> 0;
+  const odr = () => LEDS.reduce((v, [p]) => v | (out[p] << p), 0) >>> 0;
+  const lit = (p: number) => mode[p] === 1 && out[p] === 1;
 
   root.innerHTML = `
     <section class="intro">
@@ -19,38 +25,40 @@ export function mountMmio(root: HTMLElement) {
       <h1>Memory-mapped I/O</h1>
       <p>A microcontroller’s peripherals, its GPIO pins, timers and serial ports, are controlled through registers that
         live at fixed addresses, in the same address space as memory. Writing to one of those addresses does not store a
-        value in RAM; it changes the hardware. Here the output register of a GPIO port sits at
-        <code>0x40020C14</code>, and each bit drives a pin. Click the bits, or type a value, and watch the pins.</p>
+        value in RAM; it changes the hardware. But a pin does nothing until it is configured. Each GPIO port has a
+        <b>mode register</b> that says what every pin is, and an <b>output register</b> that drives the ones set to
+        output. Set the mode and the output below; an LED lights only when its pin is an output <i>and</i> driven high.</p>
     </section>
     <section class="debugger mmio" aria-label="Memory-mapped I/O">
       <header class="dbg-bar">
         <span class="dbg-file">gpio.c</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>
-        <div class="dbg-controls">
-          ${seg('vol', 'volatile', [['1', 'volatile'], ['0', 'no volatile']])}
-          <label class="dbg-set">ODR = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set the register value"></label>
-        </div>
+        <span class="dbg-regs"></span>
       </header>
       <div class="dbg-body stacked">
         <pre class="dbg-code" aria-label="Source"><code></code></pre>
         <div class="dbg-vars">
-          <h3>GPIOD_ODR <small>at 0x40020C14</small></h3>
-          <div class="reg"></div>
-          <h3>Port D pins</h3>
-          <div class="pins"></div>
+          <h3>Port D, LED pins</h3>
+          <table class="pintab"><thead><tr><th>Pin</th><th>MODER <small>mode</small></th><th>ODR <small>output</small></th><th>LED</th></tr></thead><tbody></tbody></table>
         </div>
       </div>
       <p class="dbg-status" aria-live="polite"></p>
     </section>
     <section class="prose">
+      <h2>Configure, then drive</h2>
+      <p>Setting a bit in the output register only does something if the pin is already an output. The reset state of
+        most pins is input (or analog), so firmware’s first job is to write the configuration registers: set the mode to
+        output, often the output type, speed and pull-up or pull-down too, and only then write the data register. And
+        before any of that, the port’s clock must be enabled in the RCC block, or its registers read back as zero and
+        ignore writes entirely. Forgetting one of these steps is the classic reason a first GPIO program does nothing.</p>
       <h2>Why volatile</h2>
       <p>A peripheral register is not an ordinary variable. Its value can change on its own, when an input pin moves or a
-        byte arrives, and writing to it has effects the compiler cannot see, such as turning on an LED. The
-        <code>volatile</code> keyword tells the compiler that every read and write in the source must actually happen, in
-        order. Without it, the optimiser is free to assume nothing else touches the address: it may keep the register in
-        a CPU register, drop a read whose result looks unused, or merge two writes into one. Toggle the setting above:
-        with <code>volatile</code> off, a loop that pulses a pin high then low can be optimised away entirely, because
-        the compiler sees the final value is unchanged.</p>
+        byte arrives, and writing to it has effects the compiler cannot see. The <code>volatile</code> keyword on the
+        register’s address tells the compiler that every read and write in the source must actually happen, in order.
+        Without it, the optimiser is free to assume nothing else touches the address: it may keep the register in a CPU
+        register, drop a read whose result looks unused, or merge two writes into one, so a routine that briefly pulses a
+        pin could vanish entirely. Every peripheral access must go through a <code>volatile</code> pointer, which is why
+        vendor headers declare the register structs <code>volatile</code>.</p>
       <h2>Set and clear without read-modify-write</h2>
       <p>Changing one pin with <code>ODR |= (1u &lt;&lt; 12)</code> is a <a href="?p=rmw" data-nav>read-modify-write</a>:
         read the whole register, change one bit, write it back. If an interrupt changes another pin in between, that
@@ -59,60 +67,58 @@ export function mountMmio(root: HTMLElement) {
       <h2>How the address reaches the pin</h2>
       <p>The processor puts the address on the bus like any other access. The bus matrix sees that
         <code>0x4000_0000</code> and above belongs to the peripherals, not to RAM or flash, and routes the write to the
-        GPIO block, which latches the bits onto its output pins. The peripheral’s registers are laid out at fixed offsets
-        from its base address; vendor headers wrap them in a struct, so <code>GPIOD-&gt;ODR</code> compiles to exactly
-        this address.</p>
+        GPIO block, which latches the bits onto its output pins. The peripheral’s registers sit at fixed offsets from its
+        base address; vendor headers wrap them in a struct, so <code>GPIOD-&gt;MODER</code> and <code>GPIOD-&gt;ODR</code>
+        compile to exactly these addresses.</p>
     </section>`;
 
   function draw() {
-    const onLeds = Object.keys(LEDS).map(Number).filter((b) => (v >> b) & 1);
-    const type = 'uint16_t';
+    const outs = LEDS.filter(([p]) => mode[p] === 1);
+    const highs = LEDS.filter(([p]) => lit(p));
     const lines = [
       '#include <stdint.h>',
-      `#define GPIOD_ODR (*(${vol ? 'volatile ' : ''}${type} *)0x40020C14)`,
+      '#define GPIOD_MODER (*(volatile uint32_t *)0x40020C00)',
+      '#define GPIOD_ODR   (*(volatile uint16_t *)0x40020C14)',
       '',
-      `GPIOD_ODR = ${hexN(v, 16)};`.padEnd(30) + `// ${onLeds.length ? 'on: ' + onLeds.map((b) => LEDS[b][0]).join(', ') : 'all LEDs off'}`,
     ];
-    if (!vol) lines.push('', '// without volatile, the compiler may drop writes', '// it thinks no one can observe.');
-    code(root, lines, 3);
+    for (const [p, name] of outs) lines.push(`GPIOD_MODER |= (1u << ${2 * p});`.padEnd(32) + `// PD${p} (${name}) = output`);
+    if (outs.length) lines.push('');
+    for (const [p] of highs) lines.push(`GPIOD_ODR |= (1u << ${p});`.padEnd(32) + `// drive PD${p} high`);
+    if (!highs.length) lines.push('// no pin is both an output and driven high');
+    root.querySelector('.dbg-code code')!.innerHTML = lines.map((l) =>
+      `<span class="ln">${(l.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/(\/\/.*)$/, '<span class="c-comment">$1</span>')
+        .replace(/\b(volatile|uint32_t|uint16_t|include)\b/g, '<span class="c-type">$1</span>')
+        .replace(/\b(0x[0-9A-F]+|\d+u?)\b/g, '<span class="c-num">$1</span>')) || ' '}</span>`).join('');
 
-    root.querySelector('.reg')!.innerHTML = bits('odr', v, 16, {
-      editable: true,
-      under: (i) => (LEDS[i] ? LEDS[i][0][0].toUpperCase() : `${i}`),
-      tip: (i) => `Bit ${i} drives pin PD${i}${LEDS[i] ? `, the ${LEDS[i][0]} LED` : ''}. Click to ${((v >> i) & 1) ? 'clear' : 'set'} it.`,
-    });
+    root.querySelector('.dbg-regs')!.innerHTML = `MODER <b>${hexN(moder(), 32)}</b> · ODR <b>${hexN(odr(), 16)}</b>`;
+    root.querySelector('.pintab tbody')!.innerHTML = LEDS.map(([p, name, color]) => `
+      <tr${lit(p) ? ' class="on"' : ''}>
+        <td class="pn">PD${p} <small>${name}</small></td>
+        <td><div class="mseg" role="radiogroup" aria-label="PD${p} mode">${MODES.map((m, k) =>
+          `<button type="button" role="radio" data-pin="${p}" data-mode="${k}" aria-checked="${mode[p] === k}" title="MODER field = ${k.toString(2).padStart(2, '0')}">${m}</button>`).join('')}</div></td>
+        <td><button type="button" class="obit${out[p] ? ' hi' : ''}" data-odr="${p}" aria-pressed="${!!out[p]}">${out[p]}</button></td>
+        <td><span class="led${lit(p) ? ' on' : ''}" style="--led:${color}" aria-label="${name} LED ${lit(p) ? 'on' : 'off'}"></span></td>
+      </tr>`).join('');
 
-    root.querySelector('.pins')!.innerHTML = Array.from({ length: 16 }, (_, k) => 15 - k).map((i) => {
-      const on = (v >> i) & 1;
-      const led = LEDS[i];
-      return `<span class="pin${on ? ' hi' : ''}${led ? ' led' : ''}"${led && on ? ` style="--led:${led[1]}"` : ''}>` +
-        `<i></i><b>PD${i}</b><small>${on ? '1' : '0'}</small></span>`;
-    }).join('');
-
-    markSeg(root, 'vol', vol ? '1' : '0');
-    const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
-    if (document.activeElement !== input) input.value = hexN(v, 16);
-    status(root, onLeds.length
-      ? `Writing ${hexN(v, 16)} to 0x40020C14 drives ${onLeds.map((b) => `PD${b} high (the ${LEDS[b][0]} LED)`).join(', ')}. The write went to the GPIO hardware, not to memory.`
-      : `${hexN(v, 16)} written to 0x40020C14: every pin of port D is low. This address is a peripheral register, so the write changed the pins, not a variable in RAM.`);
-    syncUrl({ v: v.toString(), vol: vol ? '1' : '0' });
+    const explain = () => {
+      if (highs.length) return `${highs.map(([p, n]) => `PD${p} is an output and driven high, so the ${n} LED is on`).join('; ')}. The writes went to the GPIO hardware at 0x40020C00 and 0x40020C14, not to memory.`;
+      const stuck = LEDS.filter(([p]) => out[p] && mode[p] !== 1);
+      if (stuck.length) return `${stuck.map(([p]) => `PD${p}`).join(', ')} ${stuck.length === 1 ? 'is' : 'are'} set high in ODR but not configured as ${stuck.length === 1 ? 'an output' : 'outputs'}, so the write to ODR has no effect. Set the mode to Output.`;
+      return 'No LED is lit. A pin lights only when its mode is Output and its ODR bit is 1.';
+    };
+    status(root, explain());
+    syncUrl({ m: moder().toString(16).toUpperCase(), o: odr().toString(16).toUpperCase() });
   }
 
   draw();
-  hoverTips(root);
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
-    const b = t.closest<HTMLElement>('.bitrow.editable .bit');
-    const o = t.closest<HTMLElement>('[data-vol]');
-    if (b) v ^= 1 << Number(b.dataset.bit);
-    else if (o) vol = o.dataset.vol === '1';
+    const m = t.closest<HTMLElement>('[data-mode]');
+    const od = t.closest<HTMLElement>('[data-odr]');
+    if (m) mode[Number(m.dataset.pin)] = Number(m.dataset.mode);
+    else if (od) out[Number(od.dataset.odr)] ^= 1;
     else return;
-    draw();
-  });
-  root.querySelector('.dbg-set input')!.addEventListener('change', (e) => {
-    const n = parseNumber((e.target as HTMLInputElement).value);
-    if (n === null || n < 0 || n > 0xffff) return status(root, 'Type a 16-bit value, 0 to 0xFFFF, in decimal, hex (0x…) or binary (0b…).');
-    v = n;
     draw();
   });
 }
