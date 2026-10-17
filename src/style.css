@@ -1300,6 +1300,7 @@ table.vars .hex { font-weight: 600; }
 /* Memory-mapped I/O: the mode and output registers in the header, a row per LED pin, and the LEDs they drive. */
 .mmio .dbg-regs { font: 12px var(--mono); color: var(--dbg-dim); }
 .mmio .dbg-regs b { color: var(--dbg-text); font-weight: 600; }
+.mmio .dbg-vars { overflow-x: auto; }
 .pintab { width: 100%; border-collapse: collapse; font: 13px var(--mono); }
 .pintab th { padding: 4px 10px; font: 600 11px var(--sans); color: var(--dbg-dim); text-align: left; border-bottom: 1px solid var(--dbg-line); }
 .pintab th small { font-weight: 400; }
@@ -1310,12 +1311,13 @@ table.vars .hex { font-weight: 600; }
 .mseg { display: inline-flex; gap: 2px; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
 .mseg button { height: 26px; padding: 0 10px; font: 600 12px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
 .mseg button:hover { color: var(--dbg-text); }
+.mseg button .sm { display: none; }
 .mseg button[aria-checked='true'] { color: #10151b; background: var(--dbg-text); }
 .obit { width: 30px; height: 30px; font: 600 14px var(--mono); color: var(--dbg-dim); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 6px; cursor: pointer; }
 .obit.hi { color: #10151b; background: var(--dbg-text); border-color: var(--dbg-text); }
 .led { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #2a323d; box-shadow: inset 0 0 0 1px #3a434f; transition: background 120ms ease-out, box-shadow 120ms ease-out; }
 .led.on { background: var(--led); box-shadow: 0 0 10px var(--led); }
-@media (max-width: 600px) { .mseg button { padding: 0 7px; } .pintab td, .pintab th { padding: 6px 5px; } }
+@media (max-width: 600px) { .mseg button { padding: 0 8px; } .mseg button .lg { display: none; } .mseg button .sm { display: inline; } .pintab td, .pintab th { padding: 6px 5px; } }
 
 /* Alignment: a grid of 32-bit words, the value highlighted, split across words when misaligned. */
 .align .grid { display: flex; flex-direction: column; gap: 8px; }

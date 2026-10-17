@@ -7,6 +7,7 @@ import { hexN, status, syncUrl } from './dbg';
 
 const LEDS: [number, string, string][] = [[12, 'green', '#4caf50'], [13, 'orange', '#ff9800'], [14, 'red', '#f44336'], [15, 'blue', '#2196f3']];
 const MODES = ['Input', 'Output', 'Alternate', 'Analog']; // MODER field: 00, 01, 10, 11
+const SHORT = ['In', 'Out', 'Alt', 'An']; // narrow-screen labels
 
 export function mountMmio(root: HTMLElement) {
   const q = new URLSearchParams(location.search);
@@ -96,7 +97,7 @@ export function mountMmio(root: HTMLElement) {
       <tr${lit(p) ? ' class="on"' : ''}>
         <td class="pn">PD${p} <small>${name}</small></td>
         <td><div class="mseg" role="radiogroup" aria-label="PD${p} mode">${MODES.map((m, k) =>
-          `<button type="button" role="radio" data-pin="${p}" data-mode="${k}" aria-checked="${mode[p] === k}" title="MODER field = ${k.toString(2).padStart(2, '0')}">${m}</button>`).join('')}</div></td>
+          `<button type="button" role="radio" data-pin="${p}" data-mode="${k}" aria-checked="${mode[p] === k}" title="MODER field = ${k.toString(2).padStart(2, '0')}"><span class="lg">${m}</span><span class="sm">${SHORT[k]}</span></button>`).join('')}</div></td>
         <td><button type="button" class="obit${out[p] ? ' hi' : ''}" data-odr="${p}" aria-pressed="${!!out[p]}">${out[p]}</button></td>
         <td><span class="led${lit(p) ? ' on' : ''}" style="--led:${color}" aria-label="${name} LED ${lit(p) ? 'on' : 'off'}"></span></td>
       </tr>`).join('');
