@@ -34,6 +34,10 @@ import { TRICKS, trick, trickCode } from '../src/topics/tricks';
 import { FLAG_OPS, arith, flagCode } from '../src/topics/flags';
 import { LISTINGS, METHODS, checksum, crc8, steps as checkSteps } from '../src/topics/crc';
 import { PROGRAM, SOURCE, START } from '../src/topics/calls';
+import { WIN_ADDR, outcome } from '../src/topics/bufover';
+import { END as IRQ_END, PRIO, trace } from '../src/topics/interrupts';
+import { accesses, aligned } from '../src/topics/alignment';
+import { firstFit } from '../src/topics/heap';
 import { LR, PC, SP, run } from '../src/topics/inspector';
 
 type Params = Record<string, string>;
@@ -738,6 +742,87 @@ section('3f. Memory: function calls');
   } catch (e) {
     check('the page\'s machine code assembles and compiles with Clang for Arm', false, (e as Error).message.split('\n')[0]);
   }
+}
+
+section('3g. Memory: buffer overflow');
+{
+  const r = (v: string, f = 'text', c = false) => outcome(v, f, c).result;
+  check('a name that fits in buf[8] returns normally', r('Mia') === 'returns' && r('1234567') === 'returns');
+  check('spilling past buf but not the return address still returns', outcome('12345678', 'text', false).result === 'returns');
+  // 12 chars + null = 13 bytes reaches the 4-byte return address at offset 12.
+  check('overwriting the return address with text crashes', r('AAAAAAAAAAAAAAAA') === 'crash');
+  // The exact "aim at win()" payload: 12 filler bytes, then win() little-endian with the Thumb bit set.
+  const le = (v: number) => [0, 8, 16, 24].map((sh) => (v >>> sh) & 0xff);
+  const payload = [...new Array(12).fill(0x41), ...le(WIN_ADDR | 1)].map((b) => b.toString(16)).join(' ');
+  const aimed = outcome(payload, 'hex', false);
+  check('the win() payload sets the return address to win()', aimed.result === 'redirected' && (aimed.retVal | 1) === (WIN_ADDR | 1), aimed.retVal.toString(16));
+  // With the stack protector, any overflow past buf is caught before the function can return.
+  check('the stack protector catches an overflow that reaches the return address', outcome('AAAAAAAAAAAAAAAA', 'text', true).result === 'caught');
+  check('the stack protector catches even a one-byte overflow of buf', outcome('123456789', 'text', true).result === 'caught');
+  check('the stack protector still returns normally when nothing overflows', outcome('Mia', 'text', true).result === 'returns');
+}
+
+section('3h. Concurrency: interrupt trace');
+{
+  const segs = trace();
+  // One CPU: the segments are contiguous and in order, covering 0 to END with no overlap or gap.
+  const contiguous = segs[0].t0 === 0 && segs.at(-1)!.t1 === IRQ_END && segs.every((s, i) => s.t1 > s.t0 && (i === 0 || s.t0 === segs[i - 1].t1));
+  check('the trace is one unbroken timeline from 0 to the end (a single CPU)', contiguous, `${segs[0].t0}..${segs.at(-1)!.t1}`);
+  // Stacking pushes, unstacking pops, in last-in first-out order; preemption only by a stricly higher priority.
+  const stack: string[] = ['main'];
+  let lifo = true, prio = true, depthOk = true;
+  for (const s of segs) {
+    if (s.kind === 'stack') {
+      if (PRIO[s.lane] >= PRIO[stack[stack.length - 1] as keyof typeof PRIO]) prio = false;
+      stack.push(s.lane);
+    } else if (s.kind === 'unstack') {
+      if (stack.pop() !== s.lane) lifo = false;
+    }
+    if (s.depth !== stack.length - 1) depthOk = false;
+  }
+  check('a handler is only preempted by a strictly higher-priority interrupt', prio);
+  check('handlers return in last-in, first-out order', lifo && stack.length === 1 && stack[0] === 'main');
+  check('the reported stack depth matches the number of saved frames throughout', depthOk);
+  // The scenario: the UART byte preempts SysTick, so the stack reaches two frames, then unwinds to main.
+  check('the UART interrupt preempts SysTick, nesting two frames deep', Math.max(...segs.map((s) => s.depth)) === 2);
+  check('every handler eventually returns: the trace ends in main()', segs.at(-1)!.lane === 'main' && segs.at(-1)!.depth === 0);
+}
+
+section('3i. Memory: alignment and the heap');
+{
+  // Alignment: a value takes one bus access exactly when it is naturally aligned and fits in one 32-bit word.
+  const sizes = [1, 2, 4];
+  let bad = '';
+  for (const size of sizes) for (let off = 0; off + size <= 16; off++) {
+    const want = Math.floor((off + size - 1) / 4) - Math.floor(off / 4) + 1;
+    if (accesses(size, off) !== want) bad = `accesses(${size},${off})`;
+    if (aligned(size, off) !== (off % size === 0)) bad = `aligned(${size},${off})`;
+    // Natural alignment implies a single access for these sizes.
+    if (aligned(size, off) && accesses(size, off) !== 1) bad = `aligned but split: ${size},${off}`;
+  }
+  check('bus-access count and alignment match their definitions for every size and offset', bad === '', bad);
+  check('a uint32_t at offset 2 takes two bus accesses; at offset 4, one', accesses(4, 2) === 2 && accesses(4, 4) === 1);
+
+  // Heap first-fit: returns the lowest run of free cells, or -1, and never overlaps a used cell.
+  const F = null;
+  check('first-fit finds the lowest gap that is big enough', firstFit([F, 'a', F, F, F, 'b'], 3) === 2 && firstFit(['a', F, F, 'b'], 1) === 1);
+  check('first-fit fails when no single gap is big enough even if total free is', firstFit(['a', F, 'b', F, 'c', F], 2) === -1);
+  check('first-fit returns -1 for a full heap and 0 for an empty one', firstFit(['a', 'a'], 1) === -1 && firstFit([F, F, F], 2) === 0);
+  // A random sequence of allocations never overlaps.
+  let overlap = false;
+  const cells: (string | null)[] = new Array(16).fill(F);
+  let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let step = 0; step < 200; step++) {
+    if (rnd() < 0.6) {
+      const sz = 1 + Math.floor(rnd() * 5);
+      const at = firstFit(cells, sz);
+      if (at >= 0) { if (cells.slice(at, at + sz).some((c) => c !== null)) overlap = true; for (let k = 0; k < sz; k++) cells[at + k] = String(step); }
+    } else {
+      const used = cells.filter((c) => c !== null);
+      if (used.length) { const id = used[Math.floor(rnd() * used.length)]; for (let i = 0; i < cells.length; i++) if (cells[i] === id) cells[i] = F; }
+    }
+  }
+  check('first-fit allocations never overlap, over 200 random alloc/free operations', !overlap);
 }
 
 // ---- 3u. USB high speed ----

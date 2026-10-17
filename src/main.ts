@@ -2,6 +2,8 @@ import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, typ
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { defaults, formatTime } from './core/util';
 import { bitTopics } from './bits';
+import { concurrencyTopics } from './concurrency';
+import { memoryTopics } from './memory';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountAbout } from './about';
@@ -570,7 +572,7 @@ function route() {
   const id = q.get('p') ?? '';
   const p = protocols.find((x) => x.id === id);
   const topic = p ? undefined : topics[id];
-  const wipCat = p || topic ? undefined : [...catalog, ...bitTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const wipCat = p || topic ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
   const page = p ? 'viz' : topic ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
   const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };
@@ -585,14 +587,14 @@ function route() {
     tour.stop();
   }
   if (wip) {
-    const isBits = bitTopics.includes(wipCat!);
+    const isProtocol = catalog.includes(wipCat!);
     $('#wip-cat').textContent = wipCat!.name;
     $('#wip-name').textContent = wip.name;
     $('#wip-text').textContent = wip.wip!;
-    $('#wip-note').textContent = isBits
-      ? 'An interactive visualization for this topic is in progress.'
-      : 'An interactive diagram for this protocol is in progress. In the meantime, the related pages below cover the parts it shares with other protocols.';
-    const related = isBits ? [] : ['usb', 'pcie'].filter((x) => protocols.some((y) => y.id === x));
+    $('#wip-note').textContent = isProtocol
+      ? 'An interactive diagram for this protocol is in progress. In the meantime, the related pages below cover the parts it shares with other protocols.'
+      : 'An interactive page for this topic is in progress.';
+    const related = isProtocol ? ['usb', 'pcie'].filter((x) => protocols.some((y) => y.id === x)) : [];
     $('#wip-links').innerHTML = related
       .map((x) => `<a href="?p=${x}" data-nav>${esc(protocols.find((y) => y.id === x)!.name)}</a>`).join('');
     document.title = `${wip.name} · bitbang`;

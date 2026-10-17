@@ -1,4 +1,5 @@
 import { bitTopics } from './bits';
+import { concurrencyTopics } from './concurrency';
 import { memoryTopics } from './memory';
 import { catalog, type Category } from './catalog';
 import { esc } from './core/render';
@@ -35,6 +36,11 @@ export const sections: Section[] = [
     blurb: 'Where code and data live and how they get there: the memory map, the stack, the heap, memory hardware and virtual memory.',
     lead: [], categories: memoryTopics, featured: [],
   },
+  {
+    id: 'concurrency', name: 'Concurrency', short: 'Concurrency',
+    blurb: 'How one processor does more than one thing at once: interrupts, tasks and the bugs that come from sharing data.',
+    lead: [], categories: concurrencyTopics, featured: [],
+  },
 ];
 
 export const sectionOf = (id: string) =>
@@ -66,7 +72,7 @@ function sidebarHtml(s: Section) {
  */
 export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElement) {
   tabs.innerHTML = sections.map((s) =>
-    `<a href="?p=${pagesOf(s)[0].id}" data-nav data-section="${s.id}"><span class="long">${esc(s.name)}</span><span class="short">${esc(s.short)}</span></a>`).join('');
+    `<a href="?p=${pagesOf(s)[0]?.id ?? ''}" data-nav data-section="${s.id}"><span class="long">${esc(s.name)}</span><span class="short">${esc(s.short)}</span></a>`).join('');
   side.innerHTML = `
     <button class="side-toggle" type="button" aria-expanded="false" aria-controls="side-nav"></button>
     <nav class="side-nav" id="side-nav"></nav>`;

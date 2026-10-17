@@ -12,6 +12,9 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     date: '2026-10-17',
     items: [
       ['new', 'A Memory section, starting with [function calls](?p=calls) on a Cortex-M4.'],
+      ['new', 'A [buffer overflow](?p=bufover) page: how an unchecked copy overwrites the return address, and what stops it.'],
+      ['new', 'More Memory pages: [memory-mapped I/O](?p=mmio), [alignment](?p=alignment), [the stack](?p=stack) and [the heap](?p=heap), with garbage collection.'],
+      ['new', 'A Concurrency section, drawn as a trace timeline, starting with [interrupts](?p=interrupts).'],
       ['new', 'Ethernet: [the frame](?p=ethframe), [100BASE-TX](?p=100base), [1000BASE-T](?p=1000baset), [1000BASE-X](?p=1000basex) and [MII and RMII](?p=rmii).'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],

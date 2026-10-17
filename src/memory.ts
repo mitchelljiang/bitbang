@@ -15,12 +15,13 @@ export const memoryTopics: Category[] = [
   },
   {
     id: 'stack-group',
-    name: 'The stack',
+    name: 'The call stack',
     blurb: 'How a program keeps track of the functions it is in the middle of.',
     entries: [
       { id: 'stack', name: 'The stack', blurb: 'The stack pointer, push and pop, why it grows down, and what lives on it.' },
       { id: 'frames', name: 'Stack frames', blurb: 'The activation record of each call: saved registers, locals and the frame pointer.' },
       { id: 'calls', name: 'Function calls', blurb: 'The calling convention: arguments, return values, LR and saved registers.' },
+      { id: 'bufover', name: 'Buffer overflow', blurb: 'How writing past a stack array overwrites the return address, and what stops it.' },
       { id: 'overflow', name: 'Stack overflow', blurb: 'What a runaway stack overwrites, and how firmware detects it.' },
     ],
   },
