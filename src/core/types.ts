@@ -1,5 +1,8 @@
-/** A logic level on a wire. 'z' means released / high-impedance / don't care. */
-export type Level = 0 | 1 | 'z';
+/**
+ * A logic level on a wire. 'z' means released / high-impedance / don't care. On a multi-level trace (see
+ * `Trace.span`), any whole number in the span, such as −2 to +2 for PAM-5.
+ */
+export type Level = 0 | 1 | 'z' | number;
 
 /** One wire, described as the times at which its level changes. Time is in protocol units (e.g. bit periods). */
 export interface Trace {
@@ -11,6 +14,11 @@ export interface Trace {
   openDrain?: boolean;
   /** Labels for the low and high levels when they aren't plain logic levels, e.g. ['−12 V', '+12 V']. */
   levels?: [string, string];
+  /**
+   * A multi-level signal, such as three-level MLT-3 or five-level PAM-5: points are whole numbers from span[0] to
+   * span[1], drawn at evenly spaced heights, with a faint guide line at each level.
+   */
+  span?: [number, number];
   /**
    * Draw as a multi-bit bus: a band with each value written inside, crossing over at every change.
    * Points with v = 'z' are drawn as a single center line (not driven); any other v is a driven value.

@@ -57,6 +57,14 @@ export const catalog: Category[] = [
     ],
   },
   {
+    id: 'memory-bus',
+    name: 'Memory interfaces',
+    blurb: 'The links between a processor and its external memory.',
+    entries: [
+      { id: 'ddr', name: 'DDR SDRAM', blurb: 'Double data rate memory: data on both clock edges, with a strobe for each byte lane.', wires: 'CK± · CA · DQ · DQS±' },
+    ],
+  },
+  {
     id: 'usb',
     name: 'USB',
     blurb: 'Plug-in devices, connected through a host.',
@@ -78,11 +86,16 @@ export const catalog: Category[] = [
     ],
   },
   {
-    id: 'networking',
-    name: 'Networking',
-    blurb: 'Computer to computer, with packets, addresses and a CRC.',
+    id: 'ethernet-group',
+    name: 'Ethernet',
+    blurb: 'One frame format for every speed and medium, and a different physical layer for each.',
     entries: [
-      { id: 'ethernet', name: '10BASE-T', full: 'Ethernet', blurb: 'Manchester-encoded frames with a preamble, MAC addresses and a CRC.', wires: 'TX± · RX±' },
+      { id: 'ethframe', name: 'Ethernet frame', blurb: 'The fields every variant shares: preamble, MAC addresses, EtherType, payload and CRC-32.' },
+      { id: 'ethernet', name: '10BASE-T', full: 'Ethernet', blurb: 'The frame at 10 Mbit/s, Manchester-encoded on one twisted pair in each direction.', wires: 'TX± · RX±' },
+      { id: '100base', name: '100BASE-TX', full: 'Fast Ethernet', blurb: 'The frame at 100 Mbit/s: 4B5B coding, then three-level MLT-3 on the cable.', wires: 'TX± · RX±' },
+      { id: '1000baset', name: '1000BASE-T', full: 'Gigabit Ethernet', blurb: 'The frame at 1 Gbit/s: five-level PAM-5 on all four pairs, in both directions at once.', wires: 'BI_DA± · BI_DB± · BI_DC± · BI_DD±' },
+      { id: '1000basex', name: '1000BASE-X', full: 'Gigabit over fiber', blurb: 'The frame at 1 Gbit/s over fiber, in the same 8b/10b code as PCIe.', wires: 'TX · RX (fiber)' },
+      { id: 'rmii', name: 'MII and RMII', blurb: 'How a microcontroller’s Ethernet controller talks to the PHY chip that drives the cable.', wires: 'TXD · RXD · REF_CLK · MDIO' },
     ],
   },
   {

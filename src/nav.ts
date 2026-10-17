@@ -1,4 +1,5 @@
 import { bitTopics } from './bits';
+import { memoryTopics } from './memory';
 import { catalog, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
@@ -28,6 +29,11 @@ export const sections: Section[] = [
     id: 'bits', name: 'Bits and bytes', short: 'Bits',
     blurb: 'How numbers are stored, changed and checked inside a computer: binary, two’s complement, floating point, masks and CRCs.',
     lead: [], categories: bitTopics, featured: ['twos', 'masks', 'float'],
+  },
+  {
+    id: 'memory', name: 'Memory', short: 'Memory',
+    blurb: 'Where code and data live and how they get there: the memory map, the stack, the heap, memory hardware and virtual memory.',
+    lead: [], categories: memoryTopics, featured: [],
   },
 ];
 

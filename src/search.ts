@@ -1,4 +1,5 @@
 import { bitTopics } from './bits';
+import { memoryTopics } from './memory';
 import { catalog } from './catalog';
 import { esc } from './core/render';
 import { protocols } from './protocols';
@@ -23,7 +24,7 @@ const tokens = (text: string) =>
   text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
 
 /** Every page and planned page on the site, with the words a search can match: names, description, group and tags. */
-export const index: SearchEntry[] = [...catalog, ...bitTopics].flatMap((cat) =>
+export const index: SearchEntry[] = [...catalog, ...bitTopics, ...memoryTopics].flatMap((cat) =>
   cat.entries.map((e) => {
     const p = byId.get(e.id);
     const tags = p?.tags ?? [];

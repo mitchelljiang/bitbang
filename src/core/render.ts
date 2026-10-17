@@ -4,6 +4,8 @@ import { formatTime, levelAt } from './util';
 export const GUTTER = 64;
 const TOP = 30;
 const LANE_H = 44;
+/** A multi-level lane is taller, so its levels stay clearly apart: 16px between PAM-5's five levels. */
+const laneH = (t: Trace) => (t.span ? Math.max(LANE_H, 12 + 16 * (t.span[1] - t.span[0])) : LANE_H);
 const ROW_H = 24;
 const GAP = 18;
 const NOTE_H = 22;
@@ -146,7 +148,7 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   w.traces.forEach((_, i) => {
     if (notes.some((n) => n.lane === i)) { layout[i].noteY = y; y += NOTE_H; }
     layout[i].y = y;
-    y += LANE_H;
+    y += laneH(w.traces[i]);
     if (w.bits.some((b) => b.lane === i)) { layout[i].bitY = y; y += ROW_H; }
     if (w.fields.some((f) => f.lane === i)) { layout[i].fieldY = y; y += ROW_H; }
     y += GAP;
@@ -154,6 +156,9 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
   const height = y - GAP + 8;
   const yOf = (lane: number, v: Level) => {
     const ly = layout[lane].y;
+    const span = w.traces[lane].span;
+    const h = laneH(w.traces[lane]);
+    if (span && v !== 'z') return ly + h - 6 - ((v - span[0]) / (span[1] - span[0])) * (h - 12);
     return v === 'z' ? ly + LANE_H / 2 : v ? ly + 6 : ly + LANE_H - 6;
   };
 
@@ -178,7 +183,14 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     const ly = layout[i].y;
     // Each lane is a numbered channel, as on a scope, and takes that channel's color (six colors, then round again).
     parts.push(`<g class="ch ch${(i % 6) + 1}">`);
-    parts.push(`<text class="lane-name" x="8" y="${ly + LANE_H / 2 + 4}">${esc(trace.name)}</text>`);
+    parts.push(`<text class="lane-name" x="8" y="${ly + laneH(trace) / 2 + 4}">${esc(trace.name)}</text>`);
+    if (trace.span) {
+      // A faint guide at each level, so the steps of a multi-level signal can be counted.
+      for (let v = trace.span[0]; v <= trace.span[1]; v++) {
+        const gy = yOf(i, v);
+        parts.push(`<line class="level-guide" x1="${GUTTER}" x2="${width}" y1="${gy}" y2="${gy}"/>`);
+      }
+    }
     if (trace.levels) {
       const [lo, hi] = trace.levels;
       parts.push(
@@ -221,6 +233,8 @@ export function render(host: HTMLElement, w: Waveform, steps: Step[], opts: Rend
     if (bit.sample === undefined) continue;
     const ly = layout[bit.lane].y;
     const sx = x(bit.sample);
+    // A multi-level lane is sampled on every symbol, so marking each one would only add clutter; so would a bus.
+    if (w.traces[bit.lane].span) continue;
     if (ppu >= 14) parts.push(`<line class="sample" x1="${sx}" x2="${sx}" y1="${ly}" y2="${ly + LANE_H}"/>`);
     if (w.traces[bit.lane].bus) continue; // a bus has no single level to put a dot on
     parts.push(`<circle class="sample-dot" cx="${sx}" cy="${yOf(bit.lane, levelAt(w.traces[bit.lane], bit.sample))}" r="${ppu >= 14 ? 3 : 2}"/>`);

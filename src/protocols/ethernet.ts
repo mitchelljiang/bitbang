@@ -1,24 +1,6 @@
-import type { Bit, Field, Kind, Note, Protocol, TourStop } from '../core/types';
-import { TraceBuilder, hex, parseBytes, parseHex } from '../core/util';
-
-const MIN_PAYLOAD = 46;
-
-/** CRC-32 as used by Ethernet (reflected, polynomial 0x04C11DB7, start and finish with all ones). */
-export function crc32(bytes: number[]) {
-  let crc = 0xffffffff;
-  for (const b of bytes) {
-    crc ^= b;
-    for (let i = 0; i < 8; i++) crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-const mac = (text: string, name: string) => {
-  const bytes = parseBytes(text.replace(/[:-]/g, ' '), 'hex');
-  if (bytes.length !== 6) throw new Error(`The ${name} MAC address needs exactly 6 bytes, like 02:00:00:00:00:01.`);
-  return bytes;
-};
-const macText = (b: number[]) => b.map((x) => x.toString(16).padStart(2, '0')).join(':');
+import type { Bit, Field, Note, Protocol, TourStop } from '../core/types';
+import { TraceBuilder, hex } from '../core/util';
+import { FRAME_PARAMS, buildFrame } from './ethcommon';
 
 export const ethernet: Protocol = {
   id: 'ethernet',
@@ -28,8 +10,8 @@ export const ethernet: Protocol = {
   summary:
     'Ethernet at 10 Mbit/s over twisted-pair cable. It was the first twisted-pair Ethernet standard, from 1990, and most ' +
     'Ethernet ports still support it as their slowest speed. Every bit is Manchester encoded: a 1 is a low-to-high transition in the middle ' +
-    'of the bit and a 0 is high-to-low, so the receiver can recover the clock from the data itself. A frame is a ' +
-    'preamble, two MAC addresses, a type, at least 46 bytes of payload, and a CRC-32.',
+    'of the bit and a 0 is high-to-low, so the receiver can recover the clock from the data itself. It carries the same ' +
+    '[Ethernet frame](?p=ethframe) as every faster Ethernet.',
   usedIn: 'Low-cost microcontroller Ethernet controllers such as the ENC28J60, the 10 Mbit/s mode of most Ethernet ports, and the frame format every faster Ethernet still uses.',
   facts: {
     clock: 'Embedded. Manchester encoding guarantees a transition in every bit, and the 56-bit preamble gives the receiver time to lock onto it.',
@@ -83,7 +65,7 @@ export const ethernet: Protocol = {
     {
       title: 'Faster Ethernet, same frame',
       body: [
-        '100BASE-TX replaced Manchester with 4B5B coding and three-level MLT-3 signaling at 125 Mbaud. 1000BASE-T uses all four pairs in both directions at once, with five-level PAM-5 signaling and echo cancellation. The frame format shown here, from preamble to FCS, is unchanged at every speed.',
+        '[100BASE-TX](?p=100base) replaced Manchester with 4B5B coding and three-level MLT-3 signaling at 125 Mbaud. [1000BASE-T](?p=1000baset) uses all four pairs in both directions at once, with five-level PAM-5 signaling and echo cancellation, and [1000BASE-X](?p=1000basex) sends 8b/10b code over fiber. The frame shown here, from preamble to FCS, is unchanged at every speed.',
       ],
     },
     {
@@ -93,46 +75,10 @@ export const ethernet: Protocol = {
       ],
     },
   ],
-  params: [
-    { key: 'dst', label: 'Destination', help: 'The destination MAC address, as six hexadecimal bytes. ff:ff:ff:ff:ff:ff is the broadcast address, which every device accepts.', type: 'text', default: 'ff:ff:ff:ff:ff:ff', placeholder: 'ff:ff:ff:ff:ff:ff' },
-    { key: 'src', label: 'Source', help: 'The MAC address of the sender, as six hexadecimal bytes.', type: 'text', default: '02:00:00:00:00:01', placeholder: '02:00:00:00:00:01' },
-    { key: 'type', label: 'EtherType', help: 'The EtherType, a 2-byte code that identifies the payload protocol, such as 0800 for IPv4. 88B5 is reserved for local experiments.', type: 'text', default: '88B5', placeholder: '88B5 (hex)' },
-    { key: 'data', label: 'Payload', help: 'The frame payload. Payloads shorter than 46 bytes are padded with zeros to reach the minimum frame size.', type: 'text', default: 'Hi', placeholder: 'Hi' },
-    {
-      key: 'format', label: 'As', help: 'Whether the payload is read as text characters or as hexadecimal bytes.', type: 'select', default: 'text',
-      options: [{ value: 'text', label: 'Text' }, { value: 'hex', label: 'Hex' }],
-    },
-  ],
+  params: FRAME_PARAMS,
 
   encode(p) {
-    const dst = mac(p.dst, 'destination');
-    const src = mac(p.src, 'source');
-    const type = parseHex(p.type, 4, 'The EtherType should be up to 4 hex digits, like 0800 or 88B5.');
-    const typeHex = type.toString(16).toUpperCase().padStart(4, '0');
-    const payload = parseBytes(p.data, p.format);
-    const pad = Math.max(0, MIN_PAYLOAD - payload.length);
-
-    const frame = [...dst, ...src, type >> 8, type & 0xff, ...payload, ...new Array(pad).fill(0)];
-    const fcs = crc32(frame);
-    const fcsBytes = [0, 8, 16, 24].map((s) => (fcs >>> s) & 0xff); // least significant byte first
-
-    const sections: { bytes: number[]; label: string; kind: Kind; info: string }[] = [
-      { bytes: new Array(7).fill(0x55), label: 'Preamble (7 × 0x55)', kind: 'start',
-        info: 'Preamble: seven 0x55 bytes, an alternating 1010… pattern. It carries no data; it gives the receiver 56 bits to lock its clock onto the transitions.' },
-      { bytes: [0xd5], label: 'SFD 0xD5', kind: 'start',
-        info: 'Start frame delimiter 0xD5. It looks like the preamble except it ends in 11, which tells the receiver the frame starts with the next bit.' },
-      { bytes: dst, label: `To ${macText(dst)}`, kind: 'addr',
-        info: `Destination MAC address ${macText(dst)}.${dst.every((b) => b === 0xff) ? ' All ones means broadcast: every device accepts it.' : ''}` },
-      { bytes: src, label: `From ${macText(src)}`, kind: 'addr', info: `Source MAC address ${macText(src)}.` },
-      { bytes: [type >> 8, type & 0xff], label: `Type 0x${typeHex}`, kind: 'cmd',
-        info: 'EtherType: what kind of payload follows (0x0800 is IPv4, 0x86DD is IPv6, 0x88B5 is reserved for local experiments). It is sent most significant byte first.' },
-      { bytes: payload, label: `Payload (${payload.length} byte${payload.length === 1 ? '' : 's'})`, kind: 'data', info: 'Payload.' },
-      { bytes: new Array(pad).fill(0), label: `Padding (${pad} bytes)`, kind: 'dummy',
-        info: `Padding: the payload must be at least 46 bytes so the whole frame is at least 64 bytes. On a shared hub, that minimum length is what guarantees a sender is still transmitting when news of a collision reaches it.` },
-      { bytes: fcsBytes, label: `FCS 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}`, kind: 'parity',
-        info: 'Frame check sequence: a CRC-32 over everything from the destination address to the end of the padding. The receiver recomputes it and discards the frame if the values differ.' },
-    ];
-
+    const f = buildFrame(p);
     const data = new TraceBuilder('Data', 'z');
     const tx = new TraceBuilder('TX±', 'z');
     tx.trace.levels = ['−2.5 V', '+2.5 V'];
@@ -140,17 +86,16 @@ export const ethernet: Protocol = {
     const fields: Field[] = [];
     const notes: Note[] = [];
     const noteFor: Partial<Record<string, string>> = {
-      'Preamble (7 × 0x55)': 'preamble: 1010… so the receiver can lock on',
-      'SFD 0xD5': 'SFD ends in 11',
-      [`Padding (${pad} bytes)`]: 'padding up to the 64-byte minimum',
+      preamble: 'preamble: 1010… so the receiver can lock on',
+      sfd: 'SFD ends in 11',
+      padding: 'padding up to the 64-byte minimum',
     };
 
     let t = 1;
     const span: Record<string, [number, number]> = {};
-    for (const sec of sections) {
-      if (!sec.bytes.length) continue;
+    for (const sec of f.sections) {
       const start = t;
-      if (noteFor[sec.label]) notes.push({ lane: 1, t, text: noteFor[sec.label]! });
+      if (noteFor[sec.id]) notes.push({ lane: 1, t, text: noteFor[sec.id]! });
       sec.bytes.forEach((byte, n) => {
         for (let i = 0; i < 8; i++) {
           const v = ((byte >> i) & 1) as 0 | 1;
@@ -167,7 +112,7 @@ export const ethernet: Protocol = {
         }
       });
       fields.push({ lane: 1, t0: start, t1: t, label: sec.label, kind: sec.kind });
-      span[sec.kind === 'addr' ? (span.dst ? 'src' : 'dst') : sec.label.split(' ')[0].toLowerCase()] = [start, t];
+      span[sec.id] = [start, t];
     }
 
     // End of frame: hold high briefly (TP_IDL), then go quiet at 0 V.
@@ -183,14 +128,12 @@ export const ethernet: Protocol = {
 
     const duration = t + 3;
     const end = t;
-    const pad1 = (r: [number, number], before = 4, after = 4): [number, number] => [Math.max(0, r[0] - before), Math.min(duration, r[1] + after)];
-    const us = (bitsCount: number) => `${(bitsCount * 0.1).toFixed(1)} µs`;
-    const totalBytes = 8 + frame.length + 4;
+    const total = f.bytes.length;
     const tour: TourStop[] = [
       {
         title: 'Overview',
-        text: `One Ethernet frame: ${totalBytes} bytes (${totalBytes * 8} bits), transmitted in ${us(totalBytes * 8)}. The ` +
-          'upper trace shows the data bits; the lower trace shows the Manchester-encoded signal on the cable.',
+        text: `One Ethernet frame: ${total} bytes (${total * 8} bits), sent in ${(total * 0.8).toFixed(1)} µs at 10 Mbit/s. ` +
+          'The upper trace shows the data bits; the lower trace shows the Manchester-encoded signal on the cable.',
         view: [0, duration], focus: null,
       },
       {
@@ -202,60 +145,27 @@ export const ethernet: Protocol = {
       },
       {
         title: 'Preamble',
-        text: 'Seven bytes of 0x55, producing an alternating 1010… pattern. The preamble carries no data; it provides 56 bits ' +
-          'of regular transitions for the receiver to synchronize its clock before the frame begins.',
-        view: pad1(span.preamble), focus: span.preamble,
+        text: 'Seven bytes of 0x55: 56 bits of perfectly regular transitions, which a 10BASE-T receiver needs to lock its ' +
+          'clock recovery onto the signal before any data arrives. Faster Ethernets lock on during idle instead, but keep ' +
+          'the preamble so the frame stays the same.',
+        view: [Math.max(0, span.preamble[0] - 2), span.preamble[0] + 24], focus: span.preamble,
       },
       {
         title: 'Start frame delimiter',
         text: 'A single byte, 0xD5. It continues the preamble pattern except for its final two bits, which are 11 rather than ' +
-          '10. This deviation signals that the frame begins with the next bit.',
-        view: pad1(span.sfd, 16, 8), focus: span.sfd,
+          '10. Those two 1s in a row are the only break in the rhythm, and they mark where the frame begins.',
+        view: [span.sfd[0] - 16, span.sfd[1] + 8], focus: span.sfd,
       },
       {
-        title: 'Destination address',
-        text: `Six bytes identifying the intended recipient: ${macText(dst)}. ${dst.every((b) => b === 0xff)
-          ? 'An address of all ones is the broadcast address, which every device on the network accepts.'
-          : 'A network interface discards frames whose destination is neither its own address nor the broadcast address.'}`,
-        view: pad1(span.dst), focus: span.dst,
-      },
-      {
-        title: 'Source address',
-        text: `Six bytes identifying the sender: ${macText(src)}. Switches record the port on which each source address ` +
-          'appears, which allows them to forward return traffic to the correct port.',
-        view: pad1(span.src), focus: span.src,
-      },
-      {
-        title: 'EtherType',
-        text: `Two bytes, 0x${typeHex}, identifying the payload protocol; for example, 0x0800 ` +
-          'is IPv4, 0x86DD is IPv6 and 0x0806 is ARP. Although bits within each byte are sent least significant first, the ' +
-          'two bytes of this field are sent most significant byte first.',
-        view: pad1(span.type, 8, 8), focus: span.type,
-      },
-      {
-        title: 'Payload',
-        text: `The frame's data: ${payload.length} byte${payload.length === 1 ? '' : 's'}. On a typical network, the payload ` +
-          'is an IP packet with its own headers.',
-        view: pad1(span.payload), focus: span.payload,
-      },
-      ...(span.padding ? [{
-        title: 'Padding',
-        text: `${pad} bytes of zeros, added because the payload must be at least 46 bytes. This enforces a minimum frame ` +
-          'length of 64 bytes, which on shared-medium networks ensured that a sender was still transmitting when a ' +
-          'collision was detected.',
-        view: pad1(span.padding), focus: span.padding,
-      }] : []),
-      {
-        title: 'Frame check sequence',
-        text: `A CRC-32 computed over the destination address through the end of the padding: 0x${fcs.toString(16).toUpperCase().padStart(8, '0')}. ` +
-          'The receiver recomputes the CRC and discards the frame if the values differ. CRC-32 detects all burst errors ' +
-          'up to 32 bits long.',
-        view: pad1(span.fcs), focus: span.fcs,
+        title: 'The frame',
+        text: `Addresses, EtherType, payload, padding and the CRC-32, ${total - 8} bytes in all, each Manchester encoded ` +
+          'like the preamble. These fields are the same on every Ethernet; the Ethernet frame page explains each one.',
+        view: [span.dst[0] - 4, Math.min(duration, span.fcs[1] + 2)], focus: [span.dst[0], span.fcs[1]],
       },
       {
         title: 'End of frame',
         text: 'The transmitter holds the line high for approximately two bit periods, then stops driving it, and the line ' +
-          'returns to 0 V. After the interframe gap, the next frame may begin with its own preamble.',
+          'returns to 0 V. After the interframe gap of 96 bit times, the next frame may begin with its own preamble.',
         view: [end - 8, duration], focus: [end, end + 2],
       },
     ];

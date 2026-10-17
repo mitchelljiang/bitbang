@@ -237,7 +237,6 @@ function buildSpecs() {
   }
   extraFor = fig ? proto.id : '';
 
-  linked.clear();
   deep.hidden = !proto.deepDive?.length;
   deepBody.replaceChildren(...(proto.deepDive ?? []).map(({ title, body }) => {
     const topic = document.createElement('section');
@@ -252,7 +251,9 @@ function buildAll() {
   fullName.textContent = proto.fullName ?? '';
   fullName.hidden = !proto.fullName;
   crumbCat.textContent = categoryOf(proto.id)?.name ?? '';
-  summary.textContent = proto.summary;
+  // The summary can link to other pages, written [text](?p=id), like the deep dives.
+  linked.clear();
+  summary.replaceChildren(...paragraph(proto.summary).childNodes);
   usedIn.textContent = proto.usedIn;
   // Each tag searches the site for every protocol that shares it.
   tagList.replaceChildren(...proto.tags.map((tag) => {

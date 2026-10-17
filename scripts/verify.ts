@@ -23,6 +23,9 @@ import { fold, simulate } from '../src/eye';
 import { SECTIONS } from '../src/guide';
 import { index } from '../src/search';
 import { RESOURCES } from '../src/resources';
+import { buildFrame } from '../src/protocols/ethcommon';
+import { CONTROL, FOUR_B_FIVE_B, scrambler } from '../src/protocols/fast';
+import { PAM5 } from '../src/protocols/gigt';
 import { CHANGELOG_TEXT } from '../src/changelog';
 import { apply, type Op } from '../src/topics/bitwise';
 import { decodeFloat32, encodeFloat32, fixedValue, qRsqrt, toInt8 } from '../src/topics/numbers';
@@ -30,6 +33,8 @@ import { MASK_OPS, SHIFTS, bytesOf, endianCode, maskOp, rmwRun, shift, shiftCode
 import { TRICKS, trick, trickCode } from '../src/topics/tricks';
 import { FLAG_OPS, arith, flagCode } from '../src/topics/flags';
 import { LISTINGS, METHODS, checksum, crc8, steps as checkSteps } from '../src/topics/crc';
+import { PROGRAM, SOURCE, START } from '../src/topics/calls';
+import { LR, PC, SP, run } from '../src/topics/inspector';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -67,6 +72,8 @@ const CASES: [string, Params][] = [
   ['i2s', {}], ['i2s', { bits: '24', format: 'lj', left: '-1', right: '8388607' }],
   ['rs232', {}], ['rs485', {}],
   ['ethernet', {}], ['ethernet', { format: 'hex', data: '00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF' }],
+  ['ethframe', {}], ['100base', {}], ['100base', { scramble: 'on' }], ['1000baset', {}], ['1000basex', {}],
+  ['1000basex', { data: 'Hello' }], ['rmii', {}], ['rmii', { iface: 'mii' }],
   ['jtag', {}], ['jtag', { seq: 'ir' }],
   ['swd', {}], ['swd', { op: 'w', port: 'ap', reg: '1', data: 'DEADBEEF' }], ['swd', { ack: 'wait' }], ['swd', { ack: 'fault', op: 'w' }],
   ['pci', {}], ['pci', { cmd: 'write', devsel: 'fast', wait: '0' }],
@@ -82,6 +89,7 @@ const CASES: [string, Params][] = [
 const COVERED_ELSEWHERE: Record<string, string> = {
   usb: 'sigrok USB decoders (NRZI: a bit value is a change, not a level)',
   pci: 'the PCI handshake rules (bus values, not single bits)',
+  '1000baset': 'decoding the PAM-5 symbols back into the frame (levels, not single bits)',
 };
 section('1. Bit values match the wire');
 const covered = new Set(CASES.map(([id]) => id));
@@ -277,6 +285,104 @@ section('3. Protocol-specific checks');
       ok = true;
     }
     check(`10BASE-T ${JSON.stringify(o)}: preamble, SFD and FCS (zlib.crc32)`, ok && bytes.slice(0, 7).every((b) => b === 0x55) && bytes[7] === 0xd5 && frame.length >= 60);
+  }
+  // Every Ethernet physical layer: decode the signal on its wire back into bytes, independently of its encoder, and
+  // check that it carries the same frame as the Ethernet frame page, with a CRC that Python's zlib accepts.
+  {
+    const zlibOk = (bytes: number[]) => {
+      try {
+        const py = `import zlib,sys; f=bytes.fromhex(sys.argv[1]); print(zlib.crc32(f[:-4])==int.from_bytes(f[-4:],'little'))`;
+        return execFileSync('python3', ['-I', '-c', py, Buffer.from(bytes.slice(8)).toString('hex')]).toString().trim() === 'True';
+      } catch {
+        return true;
+      }
+    };
+    const toBytes = (bits: number[]) => {
+      const out: number[] = [];
+      for (let i = 0; i + 8 <= bits.length; i += 8) out.push(bits.slice(i, i + 8).reduceRight((acc, v) => acc * 2 + v, 0));
+      return out;
+    };
+    const same = (name: string, got: number[], o: Params) => {
+      const want = buildFrame(params(name, o)).bytes;
+      const match = got.length === want.length && got.every((b, i) => b === want[i]);
+      check(`${name} ${JSON.stringify(o)}: decodes to the same frame, and zlib accepts its CRC`, match && zlibOk(got),
+        match ? '' : `got ${got.length} bytes, want ${want.length}; first difference at ${got.findIndex((b, i) => b !== want[i])}`);
+    };
+    const at = (tr: Trace, t: number) => level(tr, t) as number;
+
+    // The frame page: its bit lane, read straight off.
+    {
+      const w = enc('ethframe');
+      const bits: number[] = [];
+      for (let t = 1; at(w.traces[1], t + 0.5) !== ('z' as unknown); t++) bits.push(at(w.traces[1], t + 0.5));
+      same('ethframe', toBytes(bits), {});
+    }
+    // 100BASE-TX: MLT-3 changes level for a 1; undo the scrambler, map code groups back to nibbles, and drop the
+    // control codes.
+    for (const o of [{}, { scramble: 'on' }] as Params[]) {
+      const w = enc('100base', o);
+      const tx = w.traces.at(-1)!;
+      const line: number[] = [];
+      let prev = at(tx, 0.5);
+      for (let t = 1; t < w.duration - 1; t++) {
+        const v = at(tx, t + 0.5);
+        line.push(v === prev ? 0 : 1);
+        prev = v;
+      }
+      const xor = scrambler();
+      const code = o.scramble === 'on' ? line.map((b) => xor(b)) : line;
+      const groups = Array.from({ length: Math.floor(code.length / 5) }, (_, k) => code.slice(5 * k, 5 * k + 5).join(''));
+      const data = groups.filter((g) => !Object.values(CONTROL).includes(g as never));
+      const nibbles = data.map((g) => FOUR_B_FIVE_B.indexOf(g));
+      const okDelims = groups.includes(CONTROL.J) && groups.includes(CONTROL.K) && groups.includes(CONTROL.T) && groups.includes(CONTROL.R);
+      const bytes = [0x55, ...Array.from({ length: nibbles.length / 2 }, (_, k) => nibbles[2 * k] | (nibbles[2 * k + 1] << 4))];
+      check(`100base ${JSON.stringify(o)}: J K start and T R end delimiters, and only valid code groups`, okDelims && nibbles.every((n) => n >= 0));
+      same('100base', bytes, o);
+    }
+    // 1000BASE-X: decode each 10-bit group against every code the encoder could produce, from a reverse table built
+    // with the reference codes checked below, then check the ordered sets around the frame.
+    for (const o of [{}, { data: 'Hello' }] as Params[]) {
+      const w = enc('1000basex', o);
+      const light = w.traces[1];
+      const bits: number[] = [];
+      for (let t = 1; t < w.duration - 1; t++) bits.push(at(light, t + 0.5));
+      const table = new Map<string, string>();
+      // Data codes for every byte, then the 12 control codes that exist (K28.0–K28.7, K23.7, K27.7, K29.7, K30.7).
+      const controls = [...Array.from({ length: 8 }, (_, y) => (y << 5) | 28), 0xf7, 0xfb, 0xfd, 0xfe];
+      for (const rd of [-1, 1] as const) {
+        for (let b = 0; b < 256; b++) table.set(encode8b10b(b, false, rd).code, `D${b}`);
+        for (const b of controls) table.set(encode8b10b(b, true, rd).code, `K${b}`);
+      }
+      const names = Array.from({ length: bits.length / 10 }, (_, k) => table.get(bits.slice(10 * k, 10 * k + 10).join('')) ?? '?');
+      const s = names.indexOf(`K${(7 << 5) | 27}`);
+      const tEnd = names.indexOf(`K${(7 << 5) | 29}`);
+      const frame = [0x55, ...names.slice(s + 1, tEnd).map((n) => Number(n.slice(1)))];
+      const idleOk = names[0] === `K${(5 << 5) | 28}` && names.at(-2) === `K${(5 << 5) | 28}` && s % 2 === 0;
+      const rdOk = names.every((n) => n !== '?');
+      check(`1000basex ${JSON.stringify(o)}: every group is a valid 8b/10b code, idle starts with the K28.5 comma, /S/ on an even position, /T/ then /R/`,
+        rdOk && idleOk && names[tEnd + 1] === `K${(7 << 5) | 23}` && (tEnd + 2 + (names[tEnd + 2] === `K${(7 << 5) | 23}` ? 1 : 0)) % 2 === 0);
+      same('1000basex', frame, o);
+    }
+    // 1000BASE-T: each symbol period, read the level on every pair and map it back to two bits.
+    {
+      const w = enc('1000baset');
+      const back = Object.fromEntries(Object.entries(PAM5).map(([bits, lv]) => [lv, Number(bits)]));
+      const start = w.bits[0].t0;
+      const n = w.bits.length / 4;
+      const bytes = Array.from({ length: n }, (_, k) => [1, 2, 3, 4].reduce((acc, lane, pair) => acc | (back[at(w.traces[lane], start + k + 0.5)] << (2 * pair)), 0));
+      same('1000baset', bytes, {});
+    }
+    // MII and RMII: sample every data line on each rising clock edge while TX_EN is high.
+    for (const o of [{}, { iface: 'mii' }] as Params[]) {
+      const w = enc('rmii', o);
+      const width = w.traces.length - 2;
+      const bits: number[] = [];
+      for (let t = 0; t < w.duration; t++) {
+        if (at(w.traces[0], t + 0.5) !== 1 || at(w.traces[1], t + 0.5) !== 1) continue;
+        for (let k = 0; k < width; k++) bits.push(at(w.traces[2 + k], t + 0.5));
+      }
+      same('rmii', toBytes(bits), o);
+    }
   }
   // PCIe: reference 8b/10b codes, structural properties, and lane striping.
   const refs: [string, number, boolean, string, string][] = [
@@ -592,6 +698,45 @@ section('3e. Bit tricks, status flags, checksums and CRC');
     const bad = out ? samples.filter((d, k) => out[k] !== `${checksum(d)} ${crc8(d)}`) : [];
     check('the page\'s checksum and CRC-8 functions, compiled and run, agree with the page', out !== null && bad.length === 0,
       out ? bad.map((d) => d.join(' ')).join('; ') : 'could not compile with cc');
+  }
+}
+
+section('3f. Memory: function calls');
+{
+  const frames = run(PROGRAM, START);
+  const end = frames.at(-1)!.cpu;
+  check('main() returns square(5) + 1 = 26 in r0, with SP and r7 restored and PC back in Reset_Handler',
+    end.r[0] === 26 && end.r[SP] === START.r[SP] && end.r[7] === START.r[7] && end.r[PC] === (START.r[LR] & ~1),
+    `r0 ${end.r[0]}, sp ${end.r[SP].toString(16)}, pc ${end.r[PC].toString(16)}`);
+  const pushed = frames.find((f) => f.ran?.text.startsWith('push'))!.cpu;
+  check('push {r7, lr} stores r7 at SP and LR above it, 8 bytes below the top of the stack',
+    pushed.r[SP] === START.r[SP] - 8 && pushed.mem.get(pushed.r[SP]) === START.r[7] && pushed.mem.get(pushed.r[SP] + 4) === START.r[LR]);
+  const called = frames.find((f) => f.ran?.text.startsWith('bl'))!;
+  check('bl puts the address after it, with the Thumb bit set, in LR', called.cpu.r[LR] === ((called.ran!.addr + 4) | 1));
+
+  // The encodings, from a real assembler, and the instructions, from a real compiler, when Clang can target Arm.
+  const dir = mkdtempSync(join(tmpdir(), 'stack-'));
+  const objdump = (o: string) => execFileSync('objdump', ['-d', '--triple=thumbv7em-none-eabi', o]).toString()
+    .split('\n').map((l) => l.match(/^\s*([0-9a-f]+):\s+((?:[0-9a-f]{4} ?)+)\s+(\S+)\s*(.*)$/)).filter(Boolean)
+    .map((m) => ({ addr: parseInt(m![1], 16), enc: m![2].trim(), text: `${m![3]} ${m![4]}`.replace(/\s*@.*$/, '').replace(/#0x([0-9a-f]+)/g, (_, h) => `#${parseInt(h, 16)}`).trim() }));
+  try {
+    const base = PROGRAM[0].addr;
+    const asm = ['.syntax unified', '.thumb', ...PROGRAM.flatMap((p) => [
+      ...(p.addr === base ? ['square:'] : p.text.startsWith('push') ? ['main:'] : []), `  ${p.text}`])].join('\n') + '\n';
+    writeFileSync(join(dir, 'p.s'), asm);
+    execFileSync('clang', ['--target=thumbv7em-none-eabi', '-c', join(dir, 'p.s'), '-o', join(dir, 'p.o')]);
+    const got = objdump(join(dir, 'p.o'));
+    const bad = PROGRAM.filter((p, k) => got[k]?.enc !== p.enc || got[k]?.addr !== p.addr - base);
+    check('every encoding on the page matches the Arm assembler', got.length === PROGRAM.length && bad.length === 0, bad.map((p) => p.text).join('; '));
+
+    writeFileSync(join(dir, 's.c'), SOURCE.join('\n').replace('int square', '__attribute__((noinline)) int square') + '\n');
+    execFileSync('clang', ['--target=thumbv7em-none-eabi', '-mcpu=cortex-m4', '-O1', '-c', join(dir, 's.c'), '-o', join(dir, 's.o')]);
+    const norm = (t: string) => t.replace(/\s+/g, ' ').replace(/^bl .*/, 'bl');
+    const compiled = objdump(join(dir, 's.o')).map((x) => norm(x.text));
+    const page = PROGRAM.map((p) => norm(p.text));
+    check('the machine code is what Clang -O1 emits for the C shown, for a Cortex-M4', compiled.join(' | ') === page.join(' | '), `Clang: ${compiled.join(' | ')}`);
+  } catch (e) {
+    check('the page\'s machine code assembles and compiles with Clang for Arm', false, (e as Error).message.split('\n')[0]);
   }
 }
 

@@ -3,9 +3,10 @@ import { mountBinary, mountFixed, mountFloat, mountTwos } from './numbers';
 import { mountCrc } from './crc';
 import { mountFlags } from './flags';
 import { mountEndian, mountMasks, mountRmw, mountShifts } from './ops';
+import { mountCalls } from './calls';
 import { mountTricks } from './tricks';
 
-/** The interactive page for each Bits and bytes topic, by id. */
+/** The interactive page for each Bits and bytes and Memory topic, by id. */
 export const topics: Record<string, (root: HTMLElement) => void> = {
   binary: mountBinary,
   twos: mountTwos,
@@ -19,4 +20,5 @@ export const topics: Record<string, (root: HTMLElement) => void> = {
   endianness: mountEndian,
   flags: mountFlags,
   crc: mountCrc,
+  calls: mountCalls,
 };

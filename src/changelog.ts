@@ -9,6 +9,14 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-10-17',
+    items: [
+      ['new', 'A Memory section, starting with [function calls](?p=calls) on a Cortex-M4.'],
+      ['new', 'Ethernet: [the frame](?p=ethframe), [100BASE-TX](?p=100base), [1000BASE-T](?p=1000baset), [1000BASE-X](?p=1000basex) and [MII and RMII](?p=rmii).'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-10-16',
     items: [
       ['new', '[Shifts and rotates](?p=shifts), [masks](?p=masks), [bit tricks](?p=tricks), [read-modify-write](?p=rmw), [endianness](?p=endianness), [overflow and status flags](?p=flags) and [checksums and CRC](?p=crc).'],
@@ -16,7 +24,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['improved', 'Bit manipulation is now Bits and bytes.'],
       ['improved', 'The home page says “Hi” in a random protocol.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
-      ['fixed', '10BASE-T no longer described as obsolete.'],
     ],
   },
   {

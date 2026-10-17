@@ -1,5 +1,10 @@
 import type { Protocol } from '../core/types';
 import { ethernet } from './ethernet';
+import { ethframe } from './ethframe';
+import { fastEthernet } from './fast';
+import { gigabitT } from './gigt';
+import { gigabitX } from './gigx';
+import { mii } from './mii';
 import { i2c } from './i2c';
 import { i2s } from './i2s';
 import { i3c } from './i3c';
@@ -17,4 +22,4 @@ import { usb } from './usb';
 import { ws2812 } from './ws2812';
 
 /** To add a protocol, write an encoder and list it here. It shows up in the menu wherever src/catalog.ts puts it. */
-export const protocols: Protocol[] = [uart, spi, i2c, i3c, qspi, onewire, i2s, rs232, rs485, ethernet, jtag, swd, pci, pcie, usb, ws2812];
+export const protocols: Protocol[] = [uart, spi, i2c, i3c, qspi, onewire, i2s, rs232, rs485, ethframe, ethernet, fastEthernet, gigabitT, gigabitX, mii, jtag, swd, pci, pcie, usb, ws2812];

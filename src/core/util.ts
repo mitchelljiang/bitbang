@@ -42,8 +42,8 @@ export class TraceBuilder {
   }
 }
 
-/** Parses "A5 3C", "0xA5,0x3C" or "a53c" (hex) or plain text into bytes. */
-export function parseBytes(input: string, format: string): number[] {
+/** Parses "A5 3C", "0xA5,0x3C" or "a53c" (hex) or plain text into bytes, at most `max` of them. */
+export function parseBytes(input: string, format: string, max = MAX_BYTES): number[] {
   let bytes: number[];
   if (format === 'text') {
     bytes = [...new TextEncoder().encode(input)];
@@ -57,7 +57,7 @@ export function parseBytes(input: string, format: string): number[] {
     }
   }
   if (bytes.length === 0) throw new Error('Enter at least one byte to send.');
-  if (bytes.length > MAX_BYTES) throw new Error(`${bytes.length} bytes entered; the maximum is ${MAX_BYTES}.`);
+  if (bytes.length > max) throw new Error(`${bytes.length} bytes entered; the maximum is ${max}.`);
   return bytes;
 }
 
