@@ -23,7 +23,7 @@ const TOPIC_FILE = {
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = (s) => s.toLowerCase().replace(/²/g, '2').replace(/³/g, '3').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 async function connect() {
   const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -134,7 +134,9 @@ function toMarkdown(d, meta) {
     sections.push({ section: tab.name, groups });
   }
 
-  const index = [`# bitbang text\n`, `The text of every page, exported from the site for editing. Edit here, then ask to pull the changes back into \`src\`. The \`source:\` field in each file names the TypeScript it came from.\n`];
+  const index = [`# bitbang text\n`,
+    `The text of every page, exported from the site for editing. The \`source:\` field in each note names the TypeScript it came from.\n`,
+    `> **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the \`source:\` files. Re-running \`npm run export-text\` regenerates these notes from \`src\` and overwrites them, so pull your edits in first.\n`];
   const srcOf = (id, kind) => kind === 'protocol' ? `src/protocols/${PROTO_FILE[id] ?? id}.ts` : TOPIC_FILE[id] ? `src/topics/${TOPIC_FILE[id]}.ts` : id === 'basics' ? 'src/guide.ts' : id === 'about' ? 'src/about.ts' : `src/topics/${id}.ts`;
 
   for (const { section, groups } of sections) {

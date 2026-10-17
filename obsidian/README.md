@@ -1,8 +1,8 @@
-> **Workflow.** Each note mirrors one page's text. Edit the prose here, then ask Claude to "pull text from obsidian" and it will apply your changes to the files named in each note's `source:` field. Re-running `npm run export-text` regenerates these notes from `src` and overwrites them, so pull your edits in before regenerating.
-
 # bitbang text
 
-The text of every page, exported from the site for editing. Edit here, then ask to pull the changes back into `src`. The `source:` field in each file names the TypeScript it came from.
+The text of every page, exported from the site for editing. The `source:` field in each note names the TypeScript it came from.
+
+> **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the `source:` files. Re-running `npm run export-text` regenerates these notes from `src` and overwrites them, so pull your edits in first.
 
 ## Protocols
 - [[uart|UART]] — Asynchronous serial
@@ -12,7 +12,7 @@ The text of every page, exported from the site for editing. Edit here, then ask 
 - [[ws2812|WS2812]] — Asynchronous serial
 - [[spi|SPI]] — Synchronous buses
 - [[quad-spi|Quad SPI]] — Synchronous buses
-- [[i-c|I²C]] — Synchronous buses
+- [[i2c|I²C]] — Synchronous buses
 - [[i3c|I3C]] — Synchronous buses
 - [[pci|PCI]] — Expansion buses
 - [[pcie|PCIe]] — Expansion buses
@@ -23,7 +23,7 @@ The text of every page, exported from the site for editing. Edit here, then ask 
 - [[1000base-t|1000BASE-T]] — Ethernet
 - [[1000base-x|1000BASE-X]] — Ethernet
 - [[mii-and-rmii|MII and RMII]] — Ethernet
-- [[i-s|I²S]] — Audio
+- [[i2s|I²S]] — Audio
 - [[jtag|JTAG]] — Debug & programming
 - [[swd|SWD]] — Debug & programming
 
