@@ -162,13 +162,13 @@ export function diagramHtml(o: { chip: string; core: string; label: string; cont
           ${block('periph', 'Peripherals', '0x4000_0000', '<p class="idle">GPIO, UART, SPI, timers: their control registers live here.</p>')}
           ${block('system', 'System', '0xE000_0000', '<p class="idle">NVIC, SysTick and debug, inside the Cortex-M core.</p>')}
         </div>
+        <p class="bus-log" aria-live="polite"></p>
       </div>
-      <p class="bus-log" aria-live="polite"></p>
-    </section>
-    <div class="dg-under">
-      <div class="dg-src"><h3>C source</h3><pre><code></code></pre></div>
-      <p class="dg-status" aria-live="polite"></p>
-    </div>`;
+      <div class="dg-under">
+        <div class="dg-src"><h3>C source</h3><pre><code></code></pre></div>
+        <p class="dg-status" aria-live="polite"></p>
+      </div>
+    </section>`;
 }
 
 /** Which block an address belongs to. */

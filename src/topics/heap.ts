@@ -47,7 +47,7 @@ export function mountHeap(root: HTMLElement) {
         comes back in scattered pieces, so a later request can fail even when the total free space is plenty. Allocate
         and free below.</p>
     </section>
-    <section class="debugger heap" aria-label="The heap">
+    <section class="debugger mem heap" aria-label="The heap">
       <header class="dbg-bar">
         <span class="dbg-file">heap.c</span>
         <span class="dbg-state"><i aria-hidden="true"></i>${UNITS * UNIT} bytes</span>
@@ -82,7 +82,7 @@ export function mountHeap(root: HTMLElement) {
         roots, the variables the program can reach directly, follow every reference, and mark everything found; then
         sweep the heap and free whatever was not marked, because nothing can reach it any more. Below, advancing the list
         head leaves the earlier nodes with nothing pointing at them, and a collection frees them.</p>
-      <section class="debugger gc" aria-label="Garbage collection">
+      <section class="debugger mem gc" aria-label="Garbage collection">
         <header class="dbg-bar">
           <span class="dbg-file">mark &amp; sweep</span>
           <span class="dbg-state"><i aria-hidden="true"></i>reachable from root</span>

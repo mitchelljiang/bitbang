@@ -96,6 +96,17 @@ export const usb: Protocol = {
       ],
     },
     {
+      title: 'Frames and the SOF packet',
+      body: [
+        'The host divides time into frames of 1 ms at full speed, or microframes of 125 µs at high speed, and starts each ' +
+        'one by broadcasting a Start-of-Frame token: the SOF PID, an 11-bit frame number that counts up and wraps at 2047, ' +
+        'and a CRC5. It is a lone token — no device answers it, and there is no data packet or handshake.',
+        'The frame number is a clock every device shares. Isochronous endpoints use it to pace audio and video, a device ' +
+        'can lock its own timing to the 1 ms cadence, and the steady SOF traffic keeps a bus that is otherwise idle from ' +
+        'letting devices suspend. Choose SOF above to see the token on its own.',
+      ],
+    },
+    {
       title: 'Enumeration',
       body: [
         'When a device connects, the host resets it, reads its device descriptor at address 0 (the SETUP packet shown by ' +
@@ -124,15 +135,17 @@ export const usb: Protocol = {
   legend: { start: 'SYNC / EOP', cmd: 'PID', addr: 'address / endpoint', parity: 'CRC', dummy: 'stuffed bit', ack: 'handshake' },
   params: [
     {
-      key: 'xfer', label: 'Transaction', help: 'The transaction type. SETUP and OUT carry data from the host to the device; IN asks the device to send data to the host.', type: 'select', default: 'setup',
+      key: 'xfer', label: 'Transaction', help: 'The transaction type. SETUP and OUT carry data from the host to the device; IN asks the device to send data to the host. SOF is a lone timing token the host broadcasts at the start of every frame.', type: 'select', default: 'setup',
       options: [
         { value: 'setup', label: 'SETUP (host sends a request)' },
         { value: 'out', label: 'OUT (host sends data)' },
         { value: 'in', label: 'IN (device sends data)' },
+        { value: 'sof', label: 'SOF (start of frame)' },
       ],
     },
     { key: 'addr', label: 'Address', help: 'The device address, from 0 to 127. A newly connected device uses address 0 until the host assigns it one.', type: 'text', default: '0', placeholder: '0 (decimal, 0-127)' },
     { key: 'ep', label: 'Endpoint', help: 'The endpoint number, from 0 to 15. Endpoint 0 is the control endpoint that every device provides.', type: 'text', default: '0', placeholder: '0 (0-15)' },
+    { key: 'frame', label: 'Frame number', help: 'The 11-bit frame number carried by a SOF packet, from 0 to 2047. The host increments it each frame and wraps around, giving every device a shared frame counter. Ignored by the other transactions.', type: 'text', default: '247', placeholder: '0 (0-2047)' },
     { key: 'data', label: 'Data', help: 'The data packet payload, in hexadecimal. A SETUP packet is always exactly 8 bytes; the default is the standard GET_DESCRIPTOR request. Other data packets carry at most 8 bytes at low speed, 1023 at full speed and 1024 at high speed.', type: 'text', default: '80 06 00 01 00 00 12 00', placeholder: '80 06 00 01 00 00 12 00' },
     {
       key: 'toggle', label: 'Data PID', help: 'DATA0 and DATA1 alternate on successful transactions, which lets the receiver recognize a retransmitted packet.', type: 'select', default: 'DATA0',
@@ -149,18 +162,26 @@ export const usb: Protocol = {
   ],
 
   encode(p) {
-    const addr = Number(p.addr.trim());
-    const ep = Number(p.ep.trim());
-    if (!Number.isInteger(addr) || addr < 0 || addr > 127) throw new Error('The address should be a whole number from 0 to 127.');
-    if (!Number.isInteger(ep) || ep < 0 || ep > 15) throw new Error('The endpoint should be a whole number from 0 to 15.');
-    const bytes = p.data.trim() ? parseBytes(p.data, 'hex') : [];
+    const isSof = p.xfer === 'sof';
     const low = p.speed === 'low';
     const high = p.speed === 'high';
-    if (low && bytes.length > 8) throw new Error('Low-speed data packets carry at most 8 bytes.');
-    if (!low && bytes.length > (high ? 1024 : 1023)) throw new Error(`${high ? 'High' : 'Full'}-speed data packets carry at most ${high ? 1024 : 1023} bytes.`);
-    if (p.xfer === 'setup' && bytes.length !== 8) throw new Error('A SETUP packet\'s data is always exactly 8 bytes (the request).');
-    if (p.xfer === 'setup' && p.hs !== 'ACK') throw new Error('A device must accept every SETUP packet, so the handshake after SETUP is always ACK.');
-    if (p.hs === 'NYET' && !(high && p.xfer === 'out')) throw new Error('NYET is a high-speed handshake that a device sends only after OUT data.');
+    const addr = Number(p.addr.trim());
+    const ep = Number(p.ep.trim());
+    const frame = Number(p.frame.trim());
+    if (isSof) {
+      if (!Number.isInteger(frame) || frame < 0 || frame > 2047) throw new Error('The frame number should be a whole number from 0 to 2047.');
+    } else {
+      if (!Number.isInteger(addr) || addr < 0 || addr > 127) throw new Error('The address should be a whole number from 0 to 127.');
+      if (!Number.isInteger(ep) || ep < 0 || ep > 15) throw new Error('The endpoint should be a whole number from 0 to 15.');
+    }
+    const bytes = isSof ? [] : (p.data.trim() ? parseBytes(p.data, 'hex') : []);
+    if (!isSof) {
+      if (low && bytes.length > 8) throw new Error('Low-speed data packets carry at most 8 bytes.');
+      if (!low && bytes.length > (high ? 1024 : 1023)) throw new Error(`${high ? 'High' : 'Full'}-speed data packets carry at most ${high ? 1024 : 1023} bytes.`);
+      if (p.xfer === 'setup' && bytes.length !== 8) throw new Error('A SETUP packet\'s data is always exactly 8 bytes (the request).');
+      if (p.xfer === 'setup' && p.hs !== 'ACK') throw new Error('A device must accept every SETUP packet, so the handshake after SETUP is always ACK.');
+      if (p.hs === 'NYET' && !(high && p.xfer === 'out')) throw new Error('NYET is a high-speed handshake that a device sends only after OUT data.');
+    }
     const tokenName = p.xfer.toUpperCase();
     const dataFromHost = p.xfer !== 'in';
     // A device with nothing to send answers an IN token with NAK or STALL in place of the data packet.
@@ -175,7 +196,16 @@ export const usb: Protocol = {
       info: `PID ${name} (${hex(PID[name])}): a 4-bit packet type followed by its complement, which lets the receiver detect a corrupted PID.` });
 
     const tokenBits = [...lsbFirst(addr, 7), ...lsbFirst(ep, 4)];
-    const packets: Packet[] = [
+    const frameBits = lsbFirst(frame, 11);
+    const packets: Packet[] = isSof ? [
+      {
+        name: 'SOF token', by: 'controller', segs: [
+          sync(), pid('SOF'),
+          { bits: frameBits, label: `FRAME ${frame}`, kind: 'addr', info: `Frame number ${frame}, 11 bits, least significant first. The host increments it every frame and wraps at 2047, so every device shares one running frame counter.` },
+          { bits: crc5(frameBits), label: 'CRC5', kind: 'parity', info: 'CRC5 over the 11-bit frame number, sent inverted and most significant bit first.' },
+        ],
+      },
+    ] : [
       {
         name: `${tokenName} token`, by: 'controller', segs: [
           sync(), pid(tokenName),
@@ -268,15 +298,19 @@ export const usb: Protocol = {
     const ui = 1 / (low ? 1.5e6 : high ? 480e6 : 12e6);
     const view = (r: [number, number], pad = 3): [number, number] => [Math.max(0, r[0] - pad), r[1] + pad];
     const tok = spans[packets[0].name];
-    const dat = refused ? null : spans[packets[1].name];
-    const hsk = spans[packets[packets.length - 1].name];
-    const overview = refused
-      ? `One IN transaction: a token from the host, answered by ${p.hs} from the device, which has no data to send.`
-      : `One ${tokenName} transaction: a token from the host, a data packet from the ${dataFromHost ? 'host' : 'device'}, and a handshake from the ${dataFromHost ? 'device' : 'host'}.`;
+    const dat = (isSof || refused) ? null : spans[packets[1].name];
+    const hsk = isSof ? null : spans[packets[packets.length - 1].name];
+    const overview = isSof
+      ? `A start-of-frame token: the host broadcasts it ${high ? 'every 125 µs, once per microframe,' : 'every 1 ms'} so every device shares a common frame clock. It carries only an 11-bit frame number — no address, data or handshake.`
+      : refused
+        ? `One IN transaction: a token from the host, answered by ${p.hs} from the device, which has no data to send.`
+        : `One ${tokenName} transaction: a token from the host, a data packet from the ${dataFromHost ? 'host' : 'device'}, and a handshake from the ${dataFromHost ? 'device' : 'host'}.`;
     const tour: TourStop[] = [
       { title: 'Overview', text: `${overview} Between packets the bus idles in ${high ? 'SE0, with neither line driven' : 'the J state'}.`, view: [0, t], focus: null },
       { title: 'SYNC', text: `Every packet begins with SYNC: ${high ? 'thirty-one' : 'seven'} 0s and a 1. Because NRZI encodes a 0 as a transition, the line alternates between K and J, giving the receiver regular edges to lock its clock onto.${high ? ' High speed uses a longer SYNC than full speed, because each hub along the way may lose a few of its bits while locking on.' : ''}`, view: view([tok[0], tok[0] + syncLen], 2), focus: [tok[0], tok[0] + syncLen] },
-      { title: 'Token packet', text: `PID ${tokenName}, then the 7-bit address ${addr} and 4-bit endpoint ${ep}, protected by a 5-bit CRC. Every device sees the token; only the addressed one responds.`, view: view(tok), focus: tok },
+      isSof
+        ? { title: 'SOF token', text: `PID SOF, then the 11-bit frame number ${frame}, protected by a 5-bit CRC. The host sends it to every device at once, and none of them replies.`, view: view(tok), focus: tok }
+        : { title: 'Token packet', text: `PID ${tokenName}, then the 7-bit address ${addr} and 4-bit endpoint ${ep}, protected by a 5-bit CRC. Every device sees the token; only the addressed one responds.`, view: view(tok), focus: tok },
       high
         ? { title: 'End of packet', text: 'High speed does not use SE0 to end a packet. Instead the transmitter sends eight bit times with no transition: seven 1s in a row, which bit stuffing never allows inside a packet. Then it stops driving, and the bus returns to idle.', view: view([firstEop.t0, firstEop.t1 + 2], 4), focus: [firstEop.t0, firstEop.t1] }
         : { title: 'End of packet', text: 'Both D+ and D− are held low for two bit times (SE0), a state that cannot occur within a packet, and then the line returns to idle.', view: view([firstEop.t0, firstEop.t1 + 1], 4), focus: [firstEop.t0, firstEop.t1 + 1] },
@@ -289,7 +323,7 @@ export const usb: Protocol = {
       STALL: `STALL: the endpoint cannot complete the request, for example because it is not supported${refused ? ', so the device sends STALL instead of data' : ''}.`,
       NYET: 'NYET: the device accepted this data but has no room for another packet yet. Before sending more, the host sends PING tokens until the device answers ACK.',
     };
-    tour.push({ title: 'Handshake', text: HANDSHAKE[p.hs], view: view(hsk), focus: hsk });
+    if (hsk) tour.push({ title: 'Handshake', text: HANDSHAKE[p.hs], view: view(hsk), focus: hsk });
 
     return { traces: [dp.trace, dm.trace], bits, fields, notes, duration: t, unitTime: ui, tour };
   },

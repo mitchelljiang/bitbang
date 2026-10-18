@@ -38,6 +38,15 @@ import { WIN_ADDR, outcome } from '../src/topics/bufover';
 import { END as IRQ_END, PRIO, trace } from '../src/topics/interrupts';
 import { accesses, aligned } from '../src/topics/alignment';
 import { firstFit } from '../src/topics/heap';
+import { REGIONS as MMAP, regionOf } from '../src/topics/memmap';
+import { MASTERS, arbitrate } from '../src/topics/interconnect';
+import { SLOTS as FRAME_SLOTS, presentAt, spAt } from '../src/topics/frames';
+import { overflowed, spForDepth } from '../src/topics/overflow';
+import { SYMS, sramValue } from '../src/topics/sections';
+import { access as cacheAccess, fields as cacheFields, type Line } from '../src/topics/caches';
+import { PROCS, translate } from '../src/topics/vaddr';
+import { L2 as PG_L2, tlbLookup, walk as pgWalk } from '../src/topics/paging';
+import { REGIONS as MPU, checkAccess } from '../src/topics/mpu';
 import { LR, PC, SP, run } from '../src/topics/inspector';
 
 type Params = Record<string, string>;
@@ -86,6 +95,7 @@ const CASES: [string, Params][] = [
   ['ws2812', {}], ['ws2812', { colors: '123456 ABCDEF 000000', reset: '50' }],
   ['usb', { xfer: 'out', data: '', hs: 'NAK' }], ['usb', { xfer: 'in', hs: 'NAK', data: '' }], ['usb', { speed: 'high' }],
   ['usb', { speed: 'high', xfer: 'out', data: 'FF FF 00 7E', hs: 'NYET' }], ['usb', { speed: 'high', xfer: 'in', hs: 'STALL', data: '' }],
+  ['usb', { xfer: 'sof', frame: '247' }], ['usb', { xfer: 'sof', frame: '2047', speed: 'high' }],
 ];
 
 // ---- 1. Bit check ----
@@ -823,6 +833,75 @@ section('3i. Memory: alignment and the heap');
     }
   }
   check('first-fit allocations never overlap, over 200 random alloc/free operations', !overlap);
+}
+
+// ---- 3j. Memory: map, bus matrix, frames, overflow, startup ----
+section('3j. Memory: map, bus matrix, frames, overflow, startup');
+{
+  // Memory map: known landmarks land in the right region, and the regions tile 0..4 GB with no gaps or overlaps.
+  check('landmarks resolve to the right region', regionOf(0x08000000)?.id === 'code' && regionOf(0x20000010)?.id === 'sram'
+    && regionOf(0x40020c14)?.id === 'periph' && regionOf(0xe000e010)?.id === 'ppb');
+  const byLo = [...MMAP].sort((a, b) => a.lo - b.lo);
+  const tiled = byLo[0].lo === 0 && byLo.at(-1)!.hi === 0xffffffff && byLo.every((r, i) => i === 0 || r.lo === byLo[i - 1].hi + 1);
+  check('the regions tile the whole 4 GB space with no gap or overlap', tiled);
+
+  // Bus matrix: masters on different slaves all proceed; on a shared slave the highest-priority one wins.
+  const parallel = arbitrate({ cpu: 'flash', dma2: 'sram2', dma1: 'sram1' });
+  check('masters on different slaves all proceed', MASTERS.every((m) => parallel[m.id] === 'go'));
+  const clash = arbitrate({ cpu: 'sram1', dma2: 'sram1', dma1: 'periph' });
+  check('on contention the priority master goes and the other waits', clash.cpu === 'go' && clash.dma2 === 'wait' && clash.dma1 === 'go');
+
+  // Stack frames: empty on entry and after return, 28 bytes at full depth, symmetric SP.
+  check('the frame is empty on entry and after return', presentAt(0).length === 0 && presentAt(5).length === 0 && spAt(0) === spAt(5));
+  check('the full frame is 28 bytes with every slot present', spAt(0) - spAt(2) === 28 && presentAt(3).length === FRAME_SLOTS.length);
+
+  // Stack overflow: SP crosses the limit between depth 8 and 9, and keeps falling with depth.
+  check('the stack fits at depth 8 and overflows at depth 9', !overflowed(8) && overflowed(9));
+  check('SP falls monotonically as recursion deepens', spForDepth(9) < spForDepth(8) && spForDepth(1) < spForDepth(0));
+
+  // Startup: .data is '??' until copied, .bss is '??' until zeroed.
+  const count = SYMS.find((s) => s.name === 'int count')!;
+  const total = SYMS.find((s) => s.name === 'int total')!;
+  check('.data reads ?? before the copy and its value after', sramValue(count, 0) === '??' && sramValue(count, 1) === '42');
+  check('.bss reads ?? until zeroed, then 0', sramValue(total, 1) === '??' && sramValue(total, 2) === '0');
+}
+
+// ---- 3k. Memory: cache, virtual memory, paging, MPU ----
+section('3k. Memory: cache, virtual memory, paging, MPU');
+{
+  // Direct-mapped cache: cold miss, then a hit on the same line, then a conflict eviction, then a thrash miss.
+  const lines: Line[] = Array.from({ length: 4 }, () => ({ valid: false, tag: 0 }));
+  const r1 = cacheAccess(lines, 0x100); // cold miss
+  const r2 = cacheAccess(lines, 0x104); // same line, hit
+  const r3 = cacheAccess(lines, 0x140); // same index, different tag: evict
+  const r4 = cacheAccess(lines, 0x100); // evicted, miss again
+  check('cache: cold miss, same-line hit, conflict eviction, thrash miss',
+    !r1.hit && r2.hit && r3.evicted && !r4.hit);
+  check('cache: a[0] and a[1] share a line; b conflicts with it',
+    cacheFields(0x100).index === cacheFields(0x104).index
+    && cacheFields(0x140).index === cacheFields(0x100).index && cacheFields(0x140).tag !== cacheFields(0x100).tag);
+
+  // Virtual memory: the same virtual address maps to different frames per process; an unmapped page faults.
+  const a = PROCS[0], b = PROCS[1];
+  check('the same virtual address maps to different frames in A and B',
+    translate(a, 0x0024).frame === 2 && translate(b, 0x0024).frame === 4);
+  check('an unmapped page faults; a mapped one carries the offset through',
+    translate(a, 0x2000).fault && translate(a, 0x3024).paddr === ((1 << 12) | 0x024));
+
+  // Page walk: a good address resolves, a missing level-2 entry and a missing level-1 table both fault.
+  const good = pgWalk(0x024);
+  check('the page walk resolves L1 then L2 to a frame', good.fault === 'none' && good.frame === PG_L2[0][0] && good.paddr === ((good.frame << 8) | 0x24));
+  check('a missing level-2 entry and a missing level-1 table fault', pgWalk(0x224).fault === 'l2' && pgWalk(0x824).fault === 'l1');
+  check('the TLB misses when empty and hits once filled', !tlbLookup([], 0) && !!tlbLookup([{ vpage: 0, frame: 3 }], 0));
+
+  // MPU: read-only Flash, privileged-only peripherals, execute-never RAM, a no-access guard, and an unmapped address.
+  check('MPU: Flash is read-only and executable', !checkAccess(MPU, 0x08001000, 'write', 'priv').allowed
+    && checkAccess(MPU, 0x08001000, 'read', 'unpriv').allowed && checkAccess(MPU, 0x08001000, 'exec', 'unpriv').allowed);
+  check('MPU: peripherals are privileged-only', !checkAccess(MPU, 0x40020c14, 'write', 'unpriv').allowed
+    && checkAccess(MPU, 0x40020c14, 'write', 'priv').allowed);
+  check('MPU: RAM is execute-never, the stack guard denies all, an unmapped address faults',
+    !checkAccess(MPU, 0x20000100, 'exec', 'priv').allowed && !checkAccess(MPU, 0x2001f810, 'read', 'priv').allowed
+    && checkAccess(MPU, 0x60000000, 'read', 'priv').region === -1);
 }
 
 // ---- 3u. USB high speed ----

@@ -116,7 +116,7 @@ export function mountBufover(root: HTMLElement) {
         Overwrite the return address and the function returns to the wrong place: a crash, or, if an attacker chose the
         bytes, somewhere of their choosing. Type into <code>name</code> and watch it spill down the frame.</p>
     </section>
-    <section class="debugger bufover" aria-label="Buffer overflow">
+    <section class="debugger mem bufover" aria-label="Buffer overflow">
       <header class="dbg-bar">
         <span class="dbg-file">greet.c</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>

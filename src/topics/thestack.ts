@@ -46,7 +46,7 @@ export function mountTheStack(root: HTMLElement) {
         again, and its local variables, as a frame. Calls push a frame and returns pop one, always in last-in,
         first-out order. On a Cortex-M the stack starts at the top of SRAM and grows downward. Call and return below.</p>
     </section>
-    <section class="debugger stackpage" aria-label="The stack">
+    <section class="debugger mem stackpage" aria-label="The stack">
       <header class="dbg-bar">
         <span class="dbg-file">SRAM · the stack</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Running</span>

@@ -11,6 +11,16 @@ import { mountTheStack } from './thestack';
 import { mountMmio } from './mmio';
 import { mountCalls } from './calls';
 import { mountTricks } from './tricks';
+import { mountMemmap } from './memmap';
+import { mountInterconnect } from './interconnect';
+import { mountFrames } from './frames';
+import { mountOverflow } from './overflow';
+import { mountSections } from './sections';
+import { mountCells } from './cells';
+import { mountCaches } from './caches';
+import { mountVaddr } from './vaddr';
+import { mountPaging } from './paging';
+import { mountMpu } from './mpu';
 
 /** The interactive page for each Bits and bytes and Memory topic, by id. */
 export const topics: Record<string, (root: HTMLElement) => void> = {
@@ -33,4 +43,14 @@ export const topics: Record<string, (root: HTMLElement) => void> = {
   alignment: mountAlignment,
   stack: mountTheStack,
   heap: mountHeap,
+  memmap: mountMemmap,
+  interconnect: mountInterconnect,
+  frames: mountFrames,
+  overflow: mountOverflow,
+  sections: mountSections,
+  cells: mountCells,
+  caches: mountCaches,
+  vaddr: mountVaddr,
+  paging: mountPaging,
+  mpu: mountMpu,
 };

@@ -9,6 +9,15 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-10-18',
+    items: [
+      ['new', 'The Memory section is complete: the [memory map](?p=memmap), the [bus matrix](?p=interconnect), [stack frames](?p=frames), [stack overflow](?p=overflow), [sections and startup](?p=sections), [SRAM, DRAM and Flash](?p=cells), [caches](?p=caches), [virtual memory](?p=vaddr), [page tables and the TLB](?p=paging), and the [MPU and MMU](?p=mpu).'],
+      ['new', 'Start-of-frame (SOF) packets on the [USB 2.0](?p=usb) page.'],
+      ['improved', 'The Memory section’s diagrams are drawn as a bench instrument, the same family as the oscilloscope.'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-10-17',
     items: [
       ['new', 'A Memory section, starting with [function calls](?p=calls) on a Cortex-M4.'],

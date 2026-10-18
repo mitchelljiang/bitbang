@@ -28,7 +28,7 @@ export function mountAlignment(root: HTMLElement) {
         inside one of those words. Put it a byte off and it straddles two words, which takes two bus accesses, or on some
         processors faults. Move the value below and watch it cross a boundary.</p>
     </section>
-    <section class="debugger align" aria-label="Alignment">
+    <section class="debugger mem align" aria-label="Alignment">
       <header class="dbg-bar">
         <span class="dbg-file">align.c</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>

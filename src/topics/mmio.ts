@@ -30,7 +30,7 @@ export function mountMmio(root: HTMLElement) {
         <b>mode register</b> that says what every pin is, and an <b>output register</b> that drives the ones set to
         output. Set the mode and the output below; an LED lights only when its pin is an output <i>and</i> driven high.</p>
     </section>
-    <section class="debugger mmio" aria-label="Memory-mapped I/O">
+    <section class="debugger mem mmio" aria-label="Memory-mapped I/O">
       <header class="dbg-bar">
         <span class="dbg-file">gpio.c</span>
         <span class="dbg-state"><i aria-hidden="true"></i>Paused</span>

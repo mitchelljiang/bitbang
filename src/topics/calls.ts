@@ -124,7 +124,7 @@ export function mountCalls(root: HTMLElement) {
       return (label ? `<div class="asm-label" role="row">${label}</div>` : '') +
         `<div class="asm${p.addr === pc ? ' pc' : ''}" role="row"><span class="a-addr">${addr(p.addr).slice(-4)}</span>` +
         `<span class="a-enc">${p.enc}</span><span class="a-text">${esc(p.text)}</span><span class="a-note">${esc(p.note)}</span></div>`;
-    }).join('') + (current ? '' : `<div class="asm pc" role="row"><span class="a-addr">${addr(pc).slice(-4)}</span><span class="a-enc"></span><span class="a-text">…</span><span class="a-note">back in Reset_Handler</span></div>`);
+    }).join('') + `<div class="asm${current ? ' ghost' : ' pc'}" role="row"><span class="a-addr">${current ? '0000' : addr(pc).slice(-4)}</span><span class="a-enc"></span><span class="a-text">…</span><span class="a-note">back in Reset_Handler</span></div>`;
 
     drawRegs(root, cpu, prev, SHOWN);
     root.querySelector('.exec')!.innerHTML = f.ran ? `Executed <code>${esc(f.ran.text)}</code>` : 'Ready to run main()';
