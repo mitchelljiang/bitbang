@@ -1,7 +1,7 @@
 import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
 import { defaults } from './core/util';
 import { pagesOf, sections } from './nav';
-import { index, statusOf } from './search';
+import { statusOf } from './search';
 import { protocols } from './protocols';
 import { mountScopeAids } from './cursor';
 
@@ -25,22 +25,19 @@ const hi = proto.encode({ ...defaults(proto), data: 'Hi', format: 'text', ...gre
 const steps: Step[] = groupSteps(hi.bits);
 const laneNames = hi.traces.map((t) => t.name);
 const HINT = '<p class="hint">Click any bit, or use <kbd>←</kbd> <kbd>→</kbd> to step through them.</p>';
-const nameOf = new Map(index.map((e) => [e.id, e.name]));
 
 /** One card per section, from the same list as the header tabs, so a new section appears here automatically. */
 function cardsHtml() {
   return sections.map((s) => {
     const pages = pagesOf(s);
     const ready = pages.filter((p) => statusOf.get(p.id) === 'live').length;
-    const picks = s.featured.filter((id) => statusOf.get(id) !== 'soon');
     return `
       <article class="card">
         <h2><a href="?p=${pages[0].id}" data-nav>${esc(s.name)}</a></h2>
         <p>${esc(s.blurb)}</p>
-        <p class="card-meta">${ready ? `${ready} interactive pages` : 'In progress'}</p>
+        <p class="card-meta">${ready ? `${ready} interactive page${ready === 1 ? '' : 's'}` : 'In progress'}</p>
         <p class="card-links">
           <a href="?p=${pages[0].id}" data-nav>Start with ${esc(pages[0].name)}</a>
-          ${picks.map((id) => `<a href="?p=${id}" data-nav>${esc(nameOf.get(id) ?? id)}</a>`).join('')}
         </p>
       </article>`;
   }).join('');

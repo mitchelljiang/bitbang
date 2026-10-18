@@ -15,8 +15,6 @@ interface Section {
   /** Pages listed before the categories, such as the protocol guide. */
   lead: { id: string; name: string }[];
   categories: Category[];
-  /** Pages to suggest on the home page card, besides the first page. */
-  featured: string[];
 }
 
 /** The parts of the site. Each has a header tab, a sidebar listing its pages, and previous/next links. */
@@ -24,22 +22,22 @@ export const sections: Section[] = [
   {
     id: 'protocols', name: 'Protocols', short: 'Protocols',
     blurb: 'How chips and devices talk to each other over wires, from UART and SPI to USB and PCI Express, with the timing of every edge.',
-    lead: [{ id: 'basics', name: 'How protocols work' }], categories: catalog, featured: ['uart', 'spi', 'i2c', 'usb'],
+    lead: [{ id: 'basics', name: 'How protocols work' }], categories: catalog,
   },
   {
     id: 'bits', name: 'Bits and bytes', short: 'Bits',
     blurb: 'How numbers are stored, changed and checked inside a computer: binary, two’s complement, floating point, masks and CRCs.',
-    lead: [], categories: bitTopics, featured: ['twos', 'masks', 'float'],
+    lead: [], categories: bitTopics,
   },
   {
     id: 'memory', name: 'Memory', short: 'Memory',
     blurb: 'Where code and data live and how they get there: the memory map, the stack, the heap, memory hardware and virtual memory.',
-    lead: [], categories: memoryTopics, featured: [],
+    lead: [], categories: memoryTopics,
   },
   {
     id: 'concurrency', name: 'Concurrency', short: 'Concurrency',
     blurb: 'How one processor does more than one thing at once: interrupts, tasks and the bugs that come from sharing data.',
-    lead: [], categories: concurrencyTopics, featured: [],
+    lead: [], categories: concurrencyTopics,
   },
 ];
 
