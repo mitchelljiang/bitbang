@@ -11,8 +11,6 @@ export const LANE_NAME: Record<Lane, string> = { main: 'main()', systick: 'SysTi
 /** Lower number is more urgent, as on a Cortex-M. main() is the background, with the least urgent "priority". */
 export const PRIO: Record<Lane, number> = { main: 256, systick: 2, uart: 1 };
 /** Each handler's address in the vector table, for the side panel. */
-export const VECTOR: Record<Lane, number> = { main: 0x08000120, systick: 0x080003c4, uart: 0x08000418 };
-
 export interface Arrival { lane: Lane; t: number; work: number }
 
 export interface Seg {

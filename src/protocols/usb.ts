@@ -197,6 +197,7 @@ export const usb: Protocol = {
 
     const tokenBits = [...lsbFirst(addr, 7), ...lsbFirst(ep, 4)];
     const frameBits = lsbFirst(frame, 11);
+    const dataCrc = crc16(bytes);
     const packets: Packet[] = isSof ? [
       {
         name: 'SOF token', by: 'controller', segs: [
@@ -218,7 +219,7 @@ export const usb: Protocol = {
         name: `${p.toggle} packet`, by: dataFromHost ? 'controller' : 'target', segs: [
           sync(), pid(p.toggle),
           ...bytes.map((b, i): Seg => ({ bits: lsbFirst(b, 8), label: hex(b), kind: 'data', info: `Data byte ${i + 1}, ${hex(b)}, least significant bit first.` })),
-          { bits: [...lsbFirst(crc16(bytes)[0], 8), ...lsbFirst(crc16(bytes)[1], 8)], label: 'CRC16', kind: 'parity', info: 'CRC16 over the data bytes, sent inverted.' },
+          { bits: [...lsbFirst(dataCrc[0], 8), ...lsbFirst(dataCrc[1], 8)], label: 'CRC16', kind: 'parity', info: 'CRC16 over the data bytes, sent inverted.' },
         ],
       } satisfies Packet]),
       { name: `${p.hs} handshake`, by: dataFromHost || refused ? 'target' : 'controller', segs: [sync(), pid(p.hs)] },
