@@ -27,6 +27,7 @@ export const concurrencyTopics: Category[] = [
     entries: [
       { id: 'races', name: 'Race conditions', blurb: 'Two tasks reading and writing the same variable, and the update that gets lost.' },
       { id: 'atomics', name: 'Atomics and critical sections', blurb: 'Load-exclusive and store-exclusive, disabling interrupts, and why volatile is not enough.' },
+      { id: 'barriers', name: 'Memory ordering and barriers', blurb: 'Why writes land out of order, and when you need DMB, DSB or ISB: interrupts, DMA, locks and the MPU.' },
       { id: 'locks', name: 'Mutexes and semaphores', blurb: 'Taking turns, signalling between tasks, and priority inversion.' },
     ],
   },

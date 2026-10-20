@@ -48,6 +48,13 @@ import { PROCS, translate } from '../src/topics/vaddr';
 import { L2 as PG_L2, tlbLookup, walk as pgWalk } from '../src/topics/paging';
 import { REGIONS as MPU, checkAccess } from '../src/topics/mpu';
 import { LR, PC, SP, run } from '../src/topics/inspector';
+import { END as NVIC_END, IRQS, nvic, type Irq } from '../src/topics/priorities';
+import { CTX, EXC_RETURN, HW_FRAME, TOP as CTX_TOP } from '../src/topics/context';
+import { HORIZON, TASKS, rmBound, schedule, utilization, type Task } from '../src/topics/scheduling';
+import { ALL_ORDERS, runOrder } from '../src/topics/races';
+import { atomicRun } from '../src/topics/atomics';
+import { blockedFor, rtos } from '../src/topics/locks';
+import { CASES as MB_CASES, OPTIONS as MB_OPTIONS, order as mbOrder } from '../src/topics/barriers';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -796,6 +803,119 @@ section('3h. Concurrency: interrupt trace');
   // The scenario: the UART byte preempts SysTick, so the stack reaches two frames, then unwinds to main.
   check('the UART interrupt preempts SysTick, nesting two frames deep', Math.max(...segs.map((s) => s.depth)) === 2);
   check('every handler eventually returns: the trace ends in main()', segs.at(-1)!.lane === 'main' && segs.at(-1)!.depth === 0);
+}
+
+section('3l. Concurrency: priorities, context switch, scheduling, races, atomics, locks');
+{
+  // Priorities: for every one of the 64 priority settings, the NVIC model is one unbroken timeline, preempts only on a
+  // strictly lower number, returns in LIFO order, tail-chains only past a less urgent context, and runs every handler
+  // for exactly its work, starting no earlier than it fired.
+  let bad = '';
+  for (let k = 0; k < 64; k++) {
+    const pr = { tim2: k & 3, usart2: (k >> 2) & 3, adc: k >> 4 } as Record<Irq, number>;
+    const { segs } = nvic(pr);
+    const tag = `${pr.tim2}${pr.usart2}${pr.adc}`;
+    if (segs[0].t0 !== 0 || segs.at(-1)!.t1 !== NVIC_END || segs.some((x, i) => x.t1 <= x.t0 || (i > 0 && x.t0 !== segs[i - 1].t1))) bad ||= `${tag}: not contiguous`;
+    const p = (id: string) => (id === 'main' ? 256 : pr[id as Irq]);
+    const stack = ['main'];
+    for (const x of segs) {
+      if (x.kind === 'stack') { if (p(x.lane) >= p(stack.at(-1)!)) bad ||= `${tag}: preempted without a lower number`; stack.push(x.lane); }
+      if (x.kind === 'unstack' && stack.pop() !== x.lane) bad ||= `${tag}: not LIFO`;
+      if (x.kind === 'chain') { stack.pop(); if (p(x.lane) >= p(stack.at(-1)!)) bad ||= `${tag}: chained past a more urgent context`; stack.push(x.lane); }
+    }
+    for (const q of IRQS) {
+      const ran = segs.filter((x) => x.lane === q.id && x.kind === 'run').reduce((a, x) => a + x.t1 - x.t0, 0);
+      const first = segs.find((x) => x.lane === q.id)!;
+      if (ran !== q.work || first.t0 < q.t) bad ||= `${tag}: ${q.id} ran ${ran} from ${first.t0}`;
+    }
+  }
+  check('NVIC model: all 64 priority settings preempt, chain, return and run correctly', bad === '', bad);
+  const tie = nvic({ tim2: 2, usart2: 2, adc: 2 }).segs.filter((x) => x.kind === 'chain').map((x) => x.lane);
+  check('NVIC model: equal priorities never nest, and a tie goes to the lower exception number (ADC, IRQ 18, before USART2, IRQ 38)', tie.join() === 'adc,usart2');
+  check('NVIC model: three ascending priorities nest three frames deep', Math.max(...nvic({ tim2: 3, usart2: 2, adc: 0 }).segs.map((x) => x.depth)) === 3);
+
+  // Context switch: the frame layout is the architecture's, and the stack pointers move by exactly 32 bytes per half.
+  check('context: the hardware frame is R0, R1, R2, R3, R12, LR, PC, xPSR from the lowest address', HW_FRAME.join() === 'R0,R1,R2,R3,R12,LR,PC,xPSR');
+  check('context: EXC_RETURN 0xFFFFFFFD returns to Thread mode on the process stack', EXC_RETURN === 0xfffffffd);
+  const c = CTX.map((x) => x.s);
+  check('context: stacking moves PSP down 32 bytes; A’s saved SP is 64 bytes below its top; B ends with an empty stack',
+    c[1].psp === CTX_TOP.A - 32 && c[5].tcb.A === CTX_TOP.A - 64 && c.at(-1)!.psp === CTX_TOP.B && c.at(-1)!.words.B === 0);
+  check('context: after the switch every register holds B’s values, in Thread mode', c.at(-1)!.lo === 'B' && c.at(-1)!.hi === 'B' && c.at(-1)!.mode === 'Thread');
+  check('context: the words saved always match the stack pointer kept for a suspended task',
+    c.every((s) => (['A', 'B'] as const).every((k) => s.tcb[k] === null || s.tcb[k] === CTX_TOP[k] - 4 * s.words[k])));
+
+  // Scheduling: under rate-monotonic priorities each task's first job finishes exactly at its response time from the
+  // standard response-time analysis, R = C + sum ceil(R / Tj) Cj over higher-priority tasks, for every work setting.
+  const rta = (ts: Task[]) => ts.map((t, i) => {
+    let r = t.c;
+    for (let n = 0; n < 50; n++) {
+      const next = t.c + ts.slice(0, i).reduce((a, h) => a + Math.ceil(r / h.period) * h.c, 0);
+      if (next === r || next > 1e3) break;
+      r = next;
+    }
+    return r;
+  });
+  bad = '';
+  let checked = 0;
+  for (let a = 1; a < 4; a++) for (let b = 1; b < 10; b++) for (let d = 1; d < 20; d++) {
+    const ts = TASKS.map((t, i) => ({ ...t, c: [a, b, d][i] }));
+    const r = rta(ts);
+    const fits = r.every((x, i) => x <= ts[i].period);
+    const sc = schedule(ts, 'rm');
+    const missed = sc.jobs.some((j) => (j.done ?? Infinity) > j.deadline && j.deadline <= HORIZON);
+    if (fits !== !missed) bad ||= `C=${a},${b},${d}: analysis ${fits} vs sim ${!missed}`;
+    if (fits) ts.forEach((t, i) => { if (sc.jobs.find((j) => j.task === t.id)!.done !== r[i]) bad ||= `C=${a},${b},${d}: ${t.id} done ${sc.jobs.find((j) => j.task === t.id)!.done}, analysis ${r[i]}`; });
+    if (utilization(ts) > 1 && !missed) bad ||= `C=${a},${b},${d}: over 100% yet no miss`;
+    checked++;
+  }
+  check(`scheduling: rate-monotonic matches response-time analysis for all ${checked} work settings`, bad === '', bad);
+  const miss = (p: Parameters<typeof schedule>[1]) => schedule(TASKS, p).jobs.some((j) => (j.done ?? Infinity) > j.deadline);
+  check('scheduling: the default set is 95% utilized, above the 78% bound, and still fits under rate-monotonic',
+    Math.abs(utilization(TASKS) - 0.95) < 1e-9 && Math.abs(rmBound(3) - 0.7798) < 1e-4 && !miss('rm'));
+  check('scheduling: backwards priorities, round-robin and cooperative each miss a deadline', miss('rev') && miss('rr') && miss('coop'));
+
+  // Races: C(6,3) = 20 interleavings; only running one increment entirely before the other gives 2, the rest give 1.
+  const twos = ALL_ORDERS.filter((o) => runOrder(o).mem === 2);
+  check('races: 20 interleavings, and only AAABBB and BBBAAA keep both updates', ALL_ORDERS.length === 20 && twos.sort().join() === 'AAABBB,BBBAAA'
+    && ALL_ORDERS.every((o) => [1, 2].includes(runOrder(o).mem)));
+
+  // Atomics: no protection and volatile lose an update; masking and LDREX/STREX keep both, the latter after one retry.
+  const ar = { none: atomicRun('none'), volatile: atomicRun('volatile'), irq: atomicRun('irq'), excl: atomicRun('excl') };
+  check('atomics: unprotected and volatile increments lose an update', ar.none.mem === 1 && ar.volatile.mem === 1);
+  check('atomics: with interrupts masked the handler waits, pending, then runs after; count = 2', ar.irq.mem === 2 && ar.irq.pending !== null
+    && ar.irq.segs.findIndex((x) => x.lane === 'isr') > ar.irq.segs.findIndex((x) => x.label === 'CPSIE'));
+  check('atomics: STREX fails once after the interrupt clears the monitor, the retry succeeds; count = 2', ar.excl.mem === 2 && ar.excl.strexFails === 1);
+
+  // Locks: High's wait is Low's remaining critical section with inheritance, plus all of Medium's work without it.
+  const plain = rtos('plain'), inh = rtos('inherit');
+  check('locks: without inheritance High waits 12 ms; with it, 4 ms, Low’s remaining critical section', blockedFor(plain, 'H') === 12 && blockedFor(inh, 'H') === 4);
+  check('locks: the extra wait without inheritance is exactly Medium’s 8 ms of work', blockedFor(plain, 'H') - blockedFor(inh, 'H') === plain.ticks.filter((k) => k.run === 'M').length);
+  const lastL = (s: typeof plain) => s.ticks.map((k, t) => (k.run === 'L' && k.hold ? t : -1)).reduce((a, b) => Math.max(a, b));
+  const firstH = (s: typeof plain) => s.ticks.findIndex((k) => k.run === 'H' && k.hold);
+  check('locks: the mutex is exclusive: High’s critical section starts only after Low’s ends', firstH(plain) > lastL(plain) && firstH(inh) > lastL(inh));
+  const sig = rtos('signal');
+  // Barriers: the executor obeys the ARMv7-M definitions. After a DMB no store issues before every earlier access has
+  // landed; after a DSB no instruction runs until then; an ISB refetches before the next instruction. Every case goes
+  // wrong without a barrier and right with its fix, except DSB alone for the MPU, which the architecture does not promise.
+  bad = '';
+  for (const cs of MB_CASES) for (const b of MB_OPTIONS[cs]) {
+    const r = mbOrder(cs, b);
+    const tag = `${cs}/${b}`;
+    r.ins.forEach((i, k) => {
+      const before = r.stores.filter((x) => x.issue <= i.t0);
+      if (i.label === 'DMB') r.stores.filter((x) => x.issue > i.t1).forEach((x) => { if (x.issue - 1 < Math.max(...before.map((y) => y.land))) bad ||= `${tag}: store passed a DMB`; });
+      if (i.label === 'DSB' && r.ins[k + 1] && r.ins[k + 1].t0 < Math.max(...before.map((y) => y.land))) bad ||= `${tag}: ran past a DSB`;
+      if (i.label === 'ISB' && r.ins[k + 1] && r.ins[k + 1].t0 < i.t0 + 2) bad ||= `${tag}: no refetch after ISB`;
+    });
+    const want = b === 'none' ? 'fail' : cs === 'mpu' && b === 'dsb' ? 'warn' : 'ok';
+    if (r.outcome !== want) bad ||= `${tag}: ${r.outcome}, expected ${want}`;
+  }
+  check('barriers: DMB, DSB and ISB follow their definitions, and each case fails without its barrier and works with it', bad === '', bad);
+  const dma = mbOrder('dma', 'none');
+  check('barriers: without a DMB the DMA start (a Device write) overtakes the descriptor (normal RAM)', dma.stores[2].land < dma.stores[1].land);
+
+  check('locks: each interrupt’s semaphore give runs the RX task next, which blocks again when done',
+    sig.ticks.every((k, t) => k.run !== 'I' || sig.ticks[t + 1]?.run === 'R') && sig.ticks.filter((k) => k.run === 'R').length === 6);
 }
 
 section('3i. Memory: alignment and the heap');

@@ -40,9 +40,10 @@ Keyboards, mice, game controllers, microcontroller boards, serial adapters, and 
 - Implementing a device requires a full protocol stack, descriptors and, for products, a vendor ID.
 
 ## Settings
-- **Transaction** — The transaction type. SETUP and OUT carry data from the host to the device; IN asks the device to send data to the host.
+- **Transaction** — The transaction type. SETUP and OUT carry data from the host to the device; IN asks the device to send data to the host. SOF is a lone timing token the host broadcasts at the start of every frame.
 - **Address** — The device address, from 0 to 127. A newly connected device uses address 0 until the host assigns it one.
 - **Endpoint** — The endpoint number, from 0 to 15. Endpoint 0 is the control endpoint that every device provides.
+- **Frame number** — The 11-bit frame number carried by a SOF packet, from 0 to 2047. The host increments it each frame and wraps around, giving every device a shared frame counter. Ignored by the other transactions.
 - **Data** — The data packet payload, in hexadecimal. A SETUP packet is always exactly 8 bytes; the default is the standard GET_DESCRIPTOR request. Other data packets carry at most 8 bytes at low speed, 1023 at full speed and 1024 at high speed.
 - **Data PID** — DATA0 and DATA1 alternate on successful transactions, which lets the receiver recognize a retransmitted packet.
 - **Handshake** — The handshake that ends the transaction: ACK for success, NAK when the device is busy, and STALL when the endpoint cannot complete the request. After an IN token, a busy or stalled device sends NAK or STALL instead of data. NYET, at high speed only, accepts OUT data but warns that the device has no room for the next packet yet. A device always accepts SETUP.
@@ -58,6 +59,9 @@ NRZI produces no transitions for a run of 1s, so after six consecutive 1s the tr
 ### Transactions and transfers
 A transaction is a token, an optional data packet and a handshake. SETUP and OUT carry data from the host; IN asks the device to send. DATA0 and DATA1 alternate on each successful transaction, so if an ACK is lost and the host resends, the device recognizes the duplicate.
 Transactions build four transfer types: control (enumeration and configuration), bulk (storage, printers), interrupt (keyboards, mice) and isochronous (audio and video, with guaranteed bandwidth but no retries).
+### Frames and the SOF packet
+The host divides time into frames of 1 ms at full speed, or microframes of 125 µs at high speed, and starts each one by broadcasting a Start-of-Frame token: the SOF PID, an 11-bit frame number that counts up and wraps at 2047, and a CRC5. It is a lone token — no device answers it, and there is no data packet or handshake.
+The frame number is a clock every device shares. Isochronous endpoints use it to pace audio and video, a device can lock its own timing to the 1 ms cadence, and the steady SOF traffic keeps a bus that is otherwise idle from letting devices suspend. Choose SOF above to see the token on its own.
 ### Enumeration
 When a device connects, the host resets it, reads its device descriptor at address 0 (the SETUP packet shown by default here is that request: GET_DESCRIPTOR for the device descriptor), assigns it an address, and reads the configuration descriptors that list its interfaces and endpoints. The class codes in those descriptors let the operating system load a generic driver for keyboards, storage, audio and serial devices.
 ### High speed

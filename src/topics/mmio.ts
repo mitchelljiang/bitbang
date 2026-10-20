@@ -59,7 +59,10 @@ export function mountMmio(root: HTMLElement) {
         Without it, the optimiser is free to assume nothing else touches the address: it may keep the register in a CPU
         register, drop a read whose result looks unused, or merge two writes into one, so a routine that briefly pulses a
         pin could vanish entirely. Every peripheral access must go through a <code>volatile</code> pointer, which is why
-        vendor headers declare the register structs <code>volatile</code>.</p>
+        vendor headers declare the register structs <code>volatile</code>. That keeps the compiler’s order, not the
+        hardware’s: a write can still be travelling to the peripheral when the next instruction runs. When that matters,
+        such as clearing an interrupt flag just before returning, you need a barrier; see
+        <a href="?p=barriers">memory ordering and barriers</a>.</p>
       <h2>Set and clear without read-modify-write</h2>
       <p>Changing one pin with <code>ODR |= (1u &lt;&lt; 12)</code> is a <a href="?p=rmw" data-nav>read-modify-write</a>:
         read the whole register, change one bit, write it back. If an interrupt changes another pin in between, that

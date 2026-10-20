@@ -21,6 +21,13 @@ import { mountCaches } from './caches';
 import { mountVaddr } from './vaddr';
 import { mountPaging } from './paging';
 import { mountMpu } from './mpu';
+import { mountPriorities } from './priorities';
+import { mountContext } from './context';
+import { mountScheduling } from './scheduling';
+import { mountRaces } from './races';
+import { mountAtomics } from './atomics';
+import { mountLocks } from './locks';
+import { mountBarriers } from './barriers';
 
 /** The interactive page for each Bits and bytes and Memory topic, by id. */
 export const topics: Record<string, (root: HTMLElement) => void> = {
@@ -53,4 +60,11 @@ export const topics: Record<string, (root: HTMLElement) => void> = {
   vaddr: mountVaddr,
   paging: mountPaging,
   mpu: mountMpu,
+  priorities: mountPriorities,
+  context: mountContext,
+  scheduling: mountScheduling,
+  races: mountRaces,
+  atomics: mountAtomics,
+  locks: mountLocks,
+  barriers: mountBarriers,
 };

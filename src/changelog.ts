@@ -9,6 +9,14 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-10-20',
+    items: [
+      ['new', 'The Concurrency section is complete: [priorities and nesting](?p=priorities), [context switching](?p=context), [scheduling](?p=scheduling), [race conditions](?p=races), [atomics and critical sections](?p=atomics), and [mutexes and semaphores](?p=locks).'],
+      ['new', '[Memory ordering and barriers](?p=barriers): why writes land out of order, and when DMB, DSB and ISB fix it, for interrupts, DMA, locks and the MPU.'],
+      ['improved', 'The Concurrency section’s traces are drawn as a logic analyzer on the same bench as the oscilloscope and the memory instrument.'],
+    ],
+  },
+  {
     date: '2026-10-18',
     items: [
       ['new', 'The Memory section is complete: the [memory map](?p=memmap), the [bus matrix](?p=interconnect), [stack frames](?p=frames), [stack overflow](?p=overflow), [sections and startup](?p=sections), [SRAM, DRAM and Flash](?p=cells), [caches](?p=caches), [virtual memory](?p=vaddr), [page tables and the TLB](?p=paging), and the [MPU and MMU](?p=mpu).'],

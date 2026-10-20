@@ -3,7 +3,7 @@
  * handler), time left to right, with the lane that holds the CPU highlighted. A tiny priority-preemption simulator
  * produces the segments, so the nesting and the return order are correct by construction.
  */
-import { esc } from '../core/render';
+import { plural, stepper, traceHtml, type Bar, type BarKind, type Lane as TLane, type Mark, type Step } from './timeline';
 
 export type Lane = 'main' | 'systick' | 'uart';
 export const LANES: Lane[] = ['main', 'systick', 'uart'];
@@ -90,11 +90,11 @@ export function trace(arrivals: Arrival[] = ARRIVALS, end = END): Seg[] {
   return segs;
 }
 
-const PCT = (t: number) => `${(t / END) * 100}%`;
+const COLOR: Record<Lane, string> = { main: 'var(--ln-dim)', systick: 'var(--ch2)', uart: 'var(--ch6)' };
+const BAR: Record<Seg['kind'], BarKind> = { run: 'bg', stack: 'hatch', handler: 'run', unstack: 'hatch' };
 
 export function mountInterrupts(root: HTMLElement) {
   const segs = trace();
-  let at = 0;
 
   root.innerHTML = `
     <section class="intro">
@@ -105,30 +105,7 @@ export function mountInterrupts(root: HTMLElement) {
         left off. Each lane below is one thread of execution; the bright bar is what holds the CPU at that moment. Step
         through a SysTick tick that a UART byte interrupts partway.</p>
     </section>
-    <section class="trace" aria-label="Interrupt trace timeline">
-      <header class="tr-bar">
-        <span class="tr-title">Cortex-M4 · interrupt trace</span>
-        <div class="tr-controls">
-          <button type="button" class="tr-btn" data-act="back">Back</button>
-          <button type="button" class="tr-btn primary" data-act="step">Step</button>
-          <button type="button" class="tr-btn" data-act="play">Play</button>
-          <button type="button" class="tr-btn" data-act="restart">Restart</button>
-        </div>
-      </header>
-      <div class="tr-readout">
-        <span class="tr-now">t = 0 µs</span><span class="tr-cpu">CPU: main()</span><span class="tr-depth">Stack: 0 frames</span>
-      </div>
-      <div class="tr-grid">
-        <div class="tr-ruler" aria-hidden="true"></div>
-        ${LANES.map((l) => `
-          <div class="tr-lane ln-${l}">
-            <span class="tr-label"><b>${esc(LANE_NAME[l])}</b><small>${l === 'main' ? 'background' : `priority ${PRIO[l]}`}</small></span>
-            <div class="tr-track" data-lane="${l}"></div>
-          </div>`).join('')}
-        <div class="tr-head" aria-hidden="true"></div>
-      </div>
-      <p class="tr-status" aria-live="polite"></p>
-    </section>
+    ${traceHtml({ label: 'Interrupt trace timeline', title: 'Cortex-M4 · interrupt trace' })}
     <section class="prose">
       <h2>What the processor does automatically</h2>
       <p>On a Cortex-M, taking an interrupt is hardware, not code. The processor finishes the current instruction, pushes
@@ -151,70 +128,13 @@ export function mountInterrupts(root: HTMLElement) {
         waits behind them.</p>
     </section>`;
 
-  // Draw the fixed parts: the bars and the ruler.
-  for (const l of LANES) {
-    const track = root.querySelector<HTMLElement>(`.tr-track[data-lane="${l}"]`)!;
-    track.innerHTML = segs.map((s, i) => s.lane === l
-      ? `<span class="tr-seg k-${s.kind}" data-i="${i}" style="left:${PCT(s.t0)};width:${PCT(s.t1 - s.t0)}"></span>`
-      : '').join('') +
-      ARRIVALS.filter((a) => a.lane === l).map((a) => `<span class="tr-arrow" style="left:${PCT(a.t)}" title="${LANE_NAME[l]} fires"></span>`).join('');
-  }
-  const ruler = root.querySelector<HTMLElement>('.tr-ruler')!;
-  ruler.innerHTML = Array.from({ length: END / 10 + 1 }, (_, k) =>
-    `<span class="tr-tick" style="left:${PCT(k * 10)}">${k * 10}</span>`).join('');
-
-  // Play pauses on each step long enough to read its note: a base time plus reading time for the text.
-  let timer: number | undefined;
-  const dwell = (i: number) => Math.min(8000, 1600 + segs[i].note.length * 42);
-  const stop = () => { if (timer !== undefined) { clearTimeout(timer); timer = undefined; root.querySelector('[data-act="play"]')!.textContent = 'Play'; } };
-  const tick = () => {
-    if (at >= segs.length - 1) return stop();
-    go(at + 1);
-    timer = window.setTimeout(tick, dwell(at));
-  };
-
-  // The playhead is a child of the grid, but the bars live only in the track column; place it from the track's geometry.
-  const placeHead = (t: number) => {
-    const grid = root.querySelector<HTMLElement>('.tr-grid')!;
-    const track = root.querySelector<HTMLElement>('.tr-track')!;
-    const x = track.offsetLeft + (t / END) * track.offsetWidth;
-    root.querySelector<HTMLElement>('.tr-head')!.style.left = `${x}px`;
-    void grid;
-  };
-  function draw() {
-    const s = segs[at];
-    root.querySelectorAll('.tr-seg.active').forEach((e) => e.classList.remove('active'));
-    root.querySelector(`.tr-seg[data-i="${at}"]`)?.classList.add('active');
-    placeHead(s.t1);
-    root.querySelector('.tr-now')!.textContent = `t = ${s.t1} µs`;
-    root.querySelector('.tr-cpu')!.textContent = `CPU: ${LANE_NAME[s.lane]}${s.kind === 'stack' ? ' (stacking)' : s.kind === 'unstack' ? ' (returning)' : ''}`;
-    root.querySelector('.tr-depth')!.textContent = `Stack: ${s.depth} frame${s.depth === 1 ? '' : 's'}`;
-    root.querySelector('.tr-status')!.textContent = `Step ${at + 1} of ${segs.length}. ${s.note}`;
-    for (const l of LANES) root.querySelector(`.ln-${l}`)!.classList.toggle('on', l === s.lane);
-    root.querySelector<HTMLButtonElement>('[data-act="back"]')!.disabled = at === 0;
-    root.querySelector<HTMLButtonElement>('[data-act="step"]')!.disabled = at === segs.length - 1;
-  }
-
-  const go = (i: number) => { at = Math.max(0, Math.min(segs.length - 1, i)); draw(); };
-  root.addEventListener('click', (e) => {
-    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
-    const seg = (e.target as Element).closest<HTMLElement>('.tr-seg');
-    if (seg) { stop(); go(Number(seg.dataset.i)); return; }
-    if (act === 'step') { stop(); go(at + 1); }
-    else if (act === 'back') { stop(); go(at - 1); }
-    else if (act === 'restart') { stop(); go(0); }
-    else if (act === 'play') {
-      if (timer !== undefined) return stop();
-      if (at === segs.length - 1) go(0);
-      root.querySelector('[data-act="play"]')!.textContent = 'Pause';
-      timer = window.setTimeout(tick, dwell(at));
-    }
-  });
-  root.querySelector('.trace')!.addEventListener('keydown', (e) => {
-    const k = (e as KeyboardEvent).key;
-    if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); stop(); go(at + (k === 'ArrowRight' ? 1 : -1)); }
-  });
-  draw();
-  let rt: number | undefined;
-  window.addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => placeHead(segs[at].t1), 100); });
+  const lanes: TLane[] = LANES.map((l) => ({ id: l, name: LANE_NAME[l], sub: l === 'main' ? 'background' : `priority ${PRIO[l]}`, color: COLOR[l] }));
+  const bars: Bar[] = segs.map((s) => ({ lane: s.lane, t0: s.t0, t1: s.t1, kind: BAR[s.kind] }));
+  const marks: Mark[] = ARRIVALS.map((a) => ({ lane: a.lane, t: a.t, kind: 'fire', title: `${LANE_NAME[a.lane]} fires` }));
+  const steps: Step[] = segs.map((s, i) => ({
+    bar: i, at: s.t1, lane: s.lane, note: s.note,
+    readout: [`t = ${s.t1} µs`, `CPU: <b>${LANE_NAME[s.lane]}${s.kind === 'stack' ? ' (stacking)' : s.kind === 'unstack' ? ' (returning)' : ''}</b>`,
+      `Stack: ${plural(s.depth, 'frame')}`],
+  }));
+  stepper(root).load({ lanes, bars, marks, end: END, every: 10 }, steps);
 }

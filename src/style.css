@@ -1323,69 +1323,121 @@ table.vars .hex { font-weight: 600; }
 @media (max-width: 600px) { .mseg button { padding: 0 8px; } .mseg button .lg { display: none; } .mseg button .sm { display: inline; } .pintab td, .pintab th { padding: 6px 5px; } }
 
 /*
- * Concurrency pages are drawn as a software trace timeline, like an RTOS-aware debugger: a dark panel with one lane
- * per thread of execution, time left to right, and the lane holding the CPU lit. It stays dark in both themes, as the
- * scope and the debugger do.
+ * Concurrency pages are a trace timeline drawn as a logic analyzer, on the same bench as the scope and the memory
+ * instrument and in their exact palette: the controls on the light face, one lane per thread of execution on the dark
+ * glass, time left to right, a gold cursor at the current step, and an explain line under the glass.
  */
 .trace {
-  --tr-bg: #141b1f;
-  --tr-panel: #1a2228;
-  --tr-line: #2b3741;
-  --tr-text: #dbe6ec;
-  --tr-dim: #7f939e;
-  --tr-grid: #243039;
-  --ln-main: #8fa3ae;
-  --ln-systick: #5fd0a4;
-  --ln-uart: #f0b45a;
+  --face: #e3e6ea; --face-edge: #c6ccd3; --bezel: #30363d; --screen: #0e1a21; --graticule: rgba(150, 185, 200, 0.14);
+  --ch1: #f2c230; --ch2: #2bb7e3; --ch3: #ec5a92; --ch4: #5b8cff; --ch5: #7ddc6a; --ch6: #ff9f5a;
+  --good: #5fd0a4; --bad: #ff7b66; --ln-dim: #8fa3ae;
   margin-top: 24px;
-  color: var(--tr-text);
-  background: var(--tr-bg);
+  padding: 14px;
+  background: var(--face);
+  border: 1px solid var(--face-edge);
   border-radius: 14px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 0 var(--face-edge);
 }
-.tr-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 11px 16px; border-bottom: 1px solid var(--tr-line); }
-.tr-title { font: 600 13px var(--mono); color: var(--tr-dim); }
-.tr-controls { display: flex; gap: 8px; margin-left: auto; }
-.tr-btn { height: 32px; padding: 0 14px; font: 600 13px var(--sans); color: var(--tr-text); background: var(--tr-panel); border: 1px solid var(--tr-line); border-radius: 7px; cursor: pointer; }
-.tr-btn:hover:not(:disabled) { border-color: var(--tr-dim); }
-.tr-btn.primary { color: #10181c; background: var(--tr-text); border-color: var(--tr-text); }
-.tr-btn:disabled { opacity: 0.4; cursor: default; }
-.tr-btn:focus-visible { outline: 2px solid var(--ln-systick); outline-offset: 2px; }
-.tr-readout { display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 8px 16px; font: 13px var(--mono); color: var(--tr-dim); border-bottom: 1px solid var(--tr-line); }
-.tr-readout .tr-cpu { color: var(--tr-text); }
+:root[data-theme='dark'] .trace { --face: #262b31; --face-edge: #3a4149; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 0 #12171c; }
 
-/* The grid: a left column of lane labels and a right column of tracks, with the ruler and playhead spanning the tracks. */
-.tr-grid { position: relative; display: grid; grid-template-columns: 120px 1fr; padding: 10px 16px 16px; }
+/* The face: title, settings and the step buttons. Light tokens so the shared .dbg-seg control renders on the face. */
+.tr-bar {
+  --dbg-bg: var(--paper); --dbg-line: var(--line); --dbg-text: var(--ink); --dbg-dim: var(--faint);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 2px 11px;
+}
+.tr-title { font: 600 12px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.tr-bar .dbg-seg button[aria-checked='true'] { color: var(--paper); background: var(--ink); }
+.tr-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+/* Settings get their own row under the title, so the step buttons stay put whatever the settings are. */
+.tr-set { display: flex; flex-wrap: wrap; gap: 8px; flex-basis: 100%; }
+.tr-btn { height: 32px; padding: 0 14px; font: 600 13px var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.tr-btn:hover:not(:disabled) { border-color: var(--faint); }
+.tr-btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.tr-btn:disabled { opacity: 0.4; cursor: default; }
+.tr-btn:focus-visible, .tr-chip:focus-visible { outline: 2px solid var(--ch1); outline-offset: 2px; }
+
+/* The glass: screen tokens, so text and the shared code pane render light-on-dark, inside a bezel. */
+.tr-screen, .tr-status {
+  --tr-line: #2e4350; --tr-text: #dbe6ec; --tr-dim: #8aa0ac; --tr-grid: #243039;
+  --dbg-bg: #0e1a21; --dbg-panel: #13232c; --dbg-line: #2e4350; --dbg-text: #dbe6ec; --dbg-dim: #8aa0ac; --dbg-pc: var(--ch1);
+  color: var(--tr-text);
+  background: var(--screen);
+  border: 10px solid var(--bezel);
+}
+.tr-screen { border-bottom: 0; border-radius: 10px 10px 0 0; }
+.tr-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; min-height: 37px; padding: 8px 16px; font: 13px var(--mono); color: var(--tr-dim); border-bottom: 1px solid var(--tr-line); }
+.tr-readout b { font-weight: 600; color: var(--tr-text); }
+.tr-readout .good { color: var(--good); }
+.tr-readout .bad { color: var(--bad); }
+
+/* The lanes: a column of labels and a column of tracks, with the ruler and the cursor spanning the tracks. */
+.tr-grid { position: relative; display: grid; grid-template-columns: 128px 1fr; padding: 10px 16px 16px; }
 .tr-ruler { position: relative; grid-column: 2; height: 18px; margin-left: 12px; }
 .tr-tick { position: absolute; transform: translateX(-50%); font: 11px var(--mono); color: var(--tr-dim); }
 .tr-tick::after { content: ''; position: absolute; top: 15px; left: 50%; width: 1px; height: 7px; background: var(--tr-line); }
 .tr-lane { display: grid; grid-template-columns: subgrid; grid-column: 1 / 3; align-items: center; height: 40px; }
-.tr-label { display: flex; flex-direction: column; justify-content: center; }
-.tr-label b { font: 600 14px var(--sans); color: var(--tr-dim); transition: color 150ms ease-out; }
-.tr-label small { font: 11px var(--mono); color: var(--tr-dim); opacity: 0.7; }
+.tr-label { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.tr-label b { font: 600 14px var(--sans); color: var(--tr-dim); white-space: nowrap; transition: color 150ms ease-out; }
+.tr-label small { font: 11px var(--mono); color: var(--tr-dim); opacity: 0.8; white-space: nowrap; }
 .tr-lane.on .tr-label b { color: var(--lane); }
-.ln-main { --lane: var(--ln-main); }
-.ln-systick { --lane: var(--ln-systick); }
-.ln-uart { --lane: var(--ln-uart); }
-/* A track per lane, with a baseline the bars sit on. */
-.tr-track { position: relative; height: 40px; margin-left: 12px; background: linear-gradient(var(--tr-grid), var(--tr-grid)) left center / 100% 1px no-repeat; }
-.tr-seg { position: absolute; top: 9px; height: 22px; border-radius: 4px; cursor: pointer; }
-.tr-seg.k-handler, .tr-seg.k-run { background: color-mix(in srgb, var(--lane) 24%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 55%, transparent); }
-.tr-seg.k-run { top: 13px; height: 14px; }
-/* Stacking and unstacking: narrow hatched bars at the entry and exit of a handler. */
-.tr-seg.k-stack, .tr-seg.k-unstack { top: 7px; height: 26px; min-width: 4px; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--lane) 40%, transparent) 0 3px, transparent 3px 6px); border: 1px solid color-mix(in srgb, var(--lane) 40%, transparent); border-radius: 3px; }
+/* A track: the graticule (one line per ruler tick) and a baseline the bars sit on. */
+.tr-track {
+  position: relative; height: 40px; margin-left: 12px;
+  background:
+    linear-gradient(var(--tr-grid), var(--tr-grid)) left center / 100% 1px no-repeat,
+    linear-gradient(to right, var(--graticule) 1px, transparent 1px) 0 0 / var(--gx, 10%) 100% repeat-x;
+}
+.tr-seg { position: absolute; top: 9px; height: 22px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; cursor: pointer; }
+.tr-seg em { padding: 0 2px; font: 600 10px var(--mono); letter-spacing: -0.02em; font-style: normal; color: var(--tr-text); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.tr-seg.k-run, .tr-seg.k-hold { background: color-mix(in srgb, var(--lane) 24%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 55%, transparent); }
+/* Holding a lock: the bar carries a solid band along its top edge. */
+.tr-seg.k-hold { box-shadow: inset 0 3px 0 var(--lane); }
+.tr-seg.k-bg { top: 13px; height: 14px; background: color-mix(in srgb, var(--lane) 24%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 55%, transparent); }
+/* Saving or restoring registers: narrow hatched bars at the edges of a handler. */
+.tr-seg.k-hatch { top: 7px; height: 26px; min-width: 4px; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--lane) 40%, transparent) 0 3px, transparent 3px 6px); border: 1px solid color-mix(in srgb, var(--lane) 40%, transparent); border-radius: 3px; }
+/* Ready but not running: an empty dashed outline. Blocked: the same in coral, on a waiting task. */
+.tr-seg.k-ready, .tr-seg.k-blocked { top: 14px; height: 12px; background: transparent; border: 1px dashed color-mix(in srgb, var(--lane) 55%, transparent); cursor: default; }
+.tr-seg.k-blocked { border-color: color-mix(in srgb, var(--bad) 75%, transparent); background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--bad) 18%, transparent) 0 2px, transparent 2px 6px); }
+/* A variable's value on a bus lane: the analyzer's hexagon-ended bus, with the value written in. */
+.tr-seg.k-value, .tr-seg.k-bad { top: 10px; height: 20px; border-radius: 0; clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 5px 100%, 0 50%); background: color-mix(in srgb, var(--lane) 22%, transparent); cursor: default; }
+.tr-seg.k-bad { background: color-mix(in srgb, var(--bad) 30%, transparent); }
+.tr-seg.k-bad em { color: #ffd0c7; }
+/* An outcome: what happened as a result, right (mint), wrong (coral) or not guaranteed (orange). */
+.tr-seg.k-ok, .tr-seg.k-fail, .tr-seg.k-warn { --lane: var(--out); background: color-mix(in srgb, var(--out) 22%, transparent); border: 1px solid color-mix(in srgb, var(--out) 70%, transparent); }
+.tr-seg.k-ok { --out: var(--good); }
+.tr-seg.k-fail { --out: var(--bad); }
+.tr-seg.k-warn { --out: var(--ch6); }
+.tr-readout .warn, .tr-status .warn { color: var(--ch6); }
+.tr-bar .mb-bar { display: contents; }
 .tr-seg.active { box-shadow: 0 0 0 2px var(--lane); z-index: 2; }
-.tr-seg.k-handler.active, .tr-seg.k-run.active { background: color-mix(in srgb, var(--lane) 42%, transparent); }
-/* An interrupt firing: a small arrow pointing down onto its lane. */
-.tr-arrow { position: absolute; top: -3px; width: 0; height: 0; margin-left: -4px; border: 4px solid transparent; border-top-color: var(--lane); }
-/* The playhead sweeps to the end of the active segment. */
-.tr-head { position: absolute; top: 28px; bottom: 16px; width: 2px; margin-left: -1px; background: var(--tr-text); opacity: 0.8; transition: left 180ms ease-out; pointer-events: none; }
-.tr-status { margin: 0; min-height: 44px; padding: 12px 16px; font: 14px/1.5 var(--sans); color: var(--tr-text); border-top: 1px solid var(--tr-line); }
+.tr-seg.k-hold.active { box-shadow: inset 0 3px 0 var(--lane), 0 0 0 2px var(--lane); }
+.tr-seg.k-run.active, .tr-seg.k-hold.active, .tr-seg.k-bg.active { background: color-mix(in srgb, var(--lane) 42%, transparent); }
+/* Marks: an event arriving (a small arrow onto the lane), a deadline (a tick), a missed deadline (a coral cross). */
+.tr-mark { position: absolute; pointer-events: auto; }
+.tr-mark.m-fire { top: -3px; width: 0; height: 0; margin-left: -4px; border: 4px solid transparent; border-top-color: var(--lane); }
+.tr-mark.m-deadline { top: 6px; width: 1px; height: 28px; margin-left: -0.5px; background: color-mix(in srgb, var(--lane) 60%, transparent); }
+.tr-mark.m-miss { top: 1px; width: 12px; height: 12px; margin-left: -6px; background: linear-gradient(45deg, transparent 45%, var(--bad) 45% 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, var(--bad) 45% 55%, transparent 55%); }
+/* The cursor: the scope's gold beam, sweeping to the current step. */
+.tr-head { position: absolute; top: 28px; bottom: 16px; width: 2px; margin-left: -1px; background: var(--ch1); box-shadow: 0 0 10px 2px rgba(242, 194, 48, 0.4); transition: left 180ms ease-out; pointer-events: none; z-index: 3; }
+/* A control inside a lane label, such as a priority that a click changes. */
+.tr-chip { padding: 0 5px; font: 600 11px var(--mono); color: var(--lane); background: color-mix(in srgb, var(--lane) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 45%, transparent); border-radius: 4px; cursor: pointer; }
+.tr-chip:hover { background: color-mix(in srgb, var(--lane) 26%, transparent); }
+/* Explain line: the glass with the bottom bezel, reserving the longest explanation's height so stepping never resizes it. */
+.tr-status { display: block; margin: 0; min-height: 122px; padding: 14px 18px; font: 14px/1.5 var(--sans); border-top: 0; border-radius: 0 0 10px 10px; }
+.tr-status > b:first-child { color: var(--tr-dim); font-weight: 600; }
+.tr-status .good { color: var(--good); }
+.tr-status .bad { color: var(--bad); }
+/* A side pane on the glass below the lanes, for registers, stacks or code. */
+.tr-side { padding: 14px 16px 16px; border-top: 1px solid var(--tr-line); }
 @media (max-width: 600px) {
-  .tr-grid { grid-template-columns: 76px 1fr; }
+  .tr-grid { grid-template-columns: 84px 1fr; padding: 10px 10px 14px; }
   .tr-label b { font-size: 12px; }
   .tr-ruler, .tr-track { margin-left: 8px; }
+  .tr-seg em { display: none; }
+  .tr-readout { min-height: 76px; }
+  .tr-status { min-height: 224px; }
+  .trace { padding: 10px; }
+  .tr-screen, .tr-status { border-width: 6px; }
 }
 
 /*
@@ -1862,3 +1914,52 @@ footer a:hover { color: var(--ink); }
 .ca-break { min-height: 92px; }
 .ca-log { min-height: 210px; }
 .pg-tlb-rows { min-height: 62px; }
+
+/* Context switching: the CPU's registers and both task stacks on the glass below the lanes. Values are colored by the
+   task they belong to, the lane colors; PSP is the gold cursor, on the edge of the stack it points at. */
+.cs-side { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 14px; align-items: start; }
+.cs-side h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 8px; font: 600 12px var(--sans); color: var(--tr-dim); }
+.cs-side h4 small { font: 11px var(--mono); }
+.cs-cpu dl { display: grid; grid-template-columns: 1fr auto; gap: 7px 10px; margin: 0; font: 12px var(--mono); }
+.cs-cpu dt { color: var(--tr-dim); }
+.cs-cpu dd { margin: 0; text-align: right; }
+.cs-own { padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+.o-A { --own: var(--ch2); }
+.o-B { --own: var(--ch3); }
+.o-handler { --own: var(--ch5); }
+.cs-own { color: var(--own); background: color-mix(in srgb, var(--own) 14%, transparent); }
+.cs-stack { position: relative; }
+.cs-addr { display: block; font: 10px var(--mono); color: var(--tr-dim); text-align: right; }
+.cs-blk { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 58px; padding: 6px 8px; border: 1px dashed var(--tr-line); border-top: 0; color: var(--tr-dim); }
+.cs-stack .cs-addr.top + .cs-blk { border-top: 1px dashed var(--tr-line); }
+.cs-blk .cs-regs { font: 11px var(--mono); line-height: 1.35; }
+.cs-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; }
+.cs-foot small { font: 11px var(--sans); }
+.cs-blk.full { color: var(--tr-text); background: color-mix(in srgb, var(--own) 16%, transparent); border: 1px solid color-mix(in srgb, var(--own) 55%, transparent); }
+.cs-blk.full .cs-regs { color: var(--own); }
+/* PSP: a gold line on the edge it points at, with a tag in the middle, as the scope marks its cursor. */
+.cs-blk.sp-below::after, .cs-blk.sp-above::before {
+  content: 'PSP'; position: absolute; left: -4px; right: -4px; height: 14px; z-index: 1;
+  font: 700 10px/14px var(--mono); text-align: center; color: #0e1a21;
+  background: linear-gradient(var(--ch1), var(--ch1)) center / 36px 14px no-repeat, linear-gradient(var(--ch1), var(--ch1)) center / 100% 2px no-repeat;
+  filter: drop-shadow(0 0 4px rgba(242, 194, 48, 0.45));
+}
+.cs-blk.sp-below::after { bottom: -8px; }
+.cs-blk.sp-above::before { top: -8px; }
+@media (max-width: 680px) { .cs-side { grid-template-columns: 1fr 1fr; } .cs-cpu { grid-column: 1 / -1; } }
+
+/* Race conditions: each task's code under the lanes, with the next instruction marked and finished ones dimmed. */
+.rc-side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rc-code h4 { display: flex; justify-content: space-between; margin: 0 0 6px; font: 600 13px var(--sans); color: var(--lane); }
+.rc-code h4 small { font: 12px var(--mono); color: var(--tr-text); }
+.rc-code .dbg-code { padding: 6px 0; font-size: 13px; line-height: 1.7; border: 1px solid var(--tr-line); border-radius: 8px; overflow: hidden; }
+.rc-code .dbg-code .gutter { width: 30px; padding-right: 10px; }
+.rc-code .ln.did { color: var(--tr-dim); }
+.races .tr-bar .tr-btn.primary:disabled { opacity: 0.3; }
+/* Atomics: main()'s listing is reserved at its longest (eight lines), so switching protection never resizes the panel. */
+.atomics .rc-code[data-t='main'] .dbg-code { min-height: 192px; }
+@media (max-width: 600px) { .rc-side { grid-template-columns: 1fr; } }
+
+/* Barriers: cases have three or four lanes; reserve four so switching case never resizes the panel. */
+.barriers .tr-grid { min-height: 204px; }
+@media (max-width: 600px) { .barriers .tr-grid { min-height: 202px; } }

@@ -61,6 +61,13 @@ The text of every page, exported from the site for editing. The `source:` field 
 
 ## Concurrency
 - [[interrupts|Interrupts]] — Interrupting the program
+- [[priorities-and-nesting|Priorities and nesting]] — Interrupting the program
+- [[context-switching|Context switching]] — Running many tasks
+- [[scheduling|Scheduling]] — Running many tasks
+- [[race-conditions|Race conditions]] — Sharing data safely
+- [[atomics-and-critical-sections|Atomics and critical sections]] — Sharing data safely
+- [[memory-ordering-and-barriers|Memory ordering and barriers]] — Sharing data safely
+- [[mutexes-and-semaphores|Mutexes and semaphores]] — Sharing data safely
 
 ## Other pages
 - [[how-protocols-work|How protocols work]]
