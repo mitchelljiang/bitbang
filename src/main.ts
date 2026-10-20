@@ -36,7 +36,7 @@ const wipView = $('#wip');
 const aboutView = $('#about');
 const changelogView = $('#changelog');
 const homeView = $('#home');
-const topicView = $('#topic');
+let topicView = $('#topic');
 /** The topic page currently mounted in the topic view, so returning to it keeps its state. */
 let topicShown = '';
 const glance = $('#glance');
@@ -600,6 +600,10 @@ function route() {
     document.title = `${wip.name} · bitbang`;
   } else if (topic) {
     if (topicShown !== id) {
+      // Mount each page into a fresh element, so the last page's listeners and timers are dropped with the old one.
+      const fresh = topicView.cloneNode(false) as HTMLElement;
+      topicView.replaceWith(fresh);
+      topicView = fresh;
       topic(topicView);
       topicShown = id;
     }

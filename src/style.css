@@ -1409,11 +1409,13 @@ table.vars .hex { font-weight: 600; }
 .tr-seg.k-warn { --out: var(--ch6); }
 .tr-readout .warn, .tr-status .warn { color: var(--ch6); }
 .tr-bar .mb-bar { display: contents; }
-.tr-seg.active { box-shadow: 0 0 0 2px var(--lane); z-index: 2; }
-.tr-seg.k-hold.active { box-shadow: inset 0 3px 0 var(--lane), 0 0 0 2px var(--lane); }
+/* The active bar's ring is drawn inside it, so the bar never looks longer than its time. */
+.tr-seg.active { box-shadow: inset 0 0 0 2px var(--lane); z-index: 2; }
+.tr-seg.k-hold.active { box-shadow: inset 0 3px 0 var(--lane), inset 0 0 0 2px var(--lane); }
 .tr-seg.k-run.active, .tr-seg.k-hold.active, .tr-seg.k-bg.active { background: color-mix(in srgb, var(--lane) 42%, transparent); }
 /* Marks: an event arriving (a small arrow onto the lane), a deadline (a tick), a missed deadline (a coral cross). */
-.tr-mark { position: absolute; pointer-events: auto; }
+/* Marks sit above the cursor, so an event at the current time stays visible. */
+.tr-mark { position: absolute; pointer-events: auto; z-index: 4; }
 .tr-mark.m-fire { top: -3px; width: 0; height: 0; margin-left: -4px; border: 4px solid transparent; border-top-color: var(--lane); }
 .tr-mark.m-deadline { top: 6px; width: 1px; height: 28px; margin-left: -0.5px; background: color-mix(in srgb, var(--lane) 60%, transparent); }
 .tr-mark.m-miss { top: 1px; width: 12px; height: 12px; margin-left: -6px; background: linear-gradient(45deg, transparent 45%, var(--bad) 45% 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, var(--bad) 45% 55%, transparent 55%); }
@@ -1963,3 +1965,9 @@ footer a:hover { color: var(--ink); }
 /* Barriers: cases have three or four lanes; reserve four so switching case never resizes the panel. */
 .barriers .tr-grid { min-height: 204px; }
 @media (max-width: 600px) { .barriers .tr-grid { min-height: 202px; } }
+
+/* Scheduling: the task set's load, a fact about the tasks, on the face beside the policy. */
+.sc-load { align-self: center; font: 13px var(--sans); color: var(--muted); }
+.sc-load b { color: var(--ink); font-weight: 600; }
+.sc-load b.good { color: var(--k-start); }
+.sc-load b.bad { color: var(--error); }

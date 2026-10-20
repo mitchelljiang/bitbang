@@ -112,7 +112,7 @@ export function mountScheduling(root: HTMLElement) {
         change it, and see whether every deadline is still met.</p>
     </section>
     ${traceHtml({ label: 'Scheduler trace', title: 'RTOS scheduler · 1 ms tick',
-      controls: seg('pol', 'Scheduling policy', [['rm', 'Rate-monotonic'], ['rev', 'Backwards'], ['rr', 'Round-robin'], ['coop', 'Cooperative']]) })}
+      controls: `${seg('pol', 'Scheduling policy', [['rm', 'Rate-monotonic'], ['rev', 'Backwards'], ['rr', 'Round-robin'], ['coop', 'Cooperative']])}<span class="sc-load"></span>` })}
     <section class="prose">
       <h2>Fixed priorities and rate-monotonic order</h2>
       <p>Most RTOS kernels, FreeRTOS and Zephyr among them, use preemptive fixed-priority scheduling: the highest-priority
@@ -121,7 +121,7 @@ export function mountScheduling(root: HTMLElement) {
         independent periodic tasks whose deadline is their next release, it is the best fixed assignment there is: if any
         fixed priority order meets every deadline, this one does.</p>
       <h2>Utilization and the bound</h2>
-      <p>Utilization is the fraction of the CPU the tasks need, the sum of each task’s work divided by its period. Above
+      <p>Utilization is the fraction of the CPU the tasks need, the sum of each task’s work divided by its period. It is a property of the task set, shown next to the policies, not a live reading: it changes only when a task’s work does. Above
         100% no policy can keep up. Liu and Layland proved that rate-monotonic scheduling always meets every deadline if
         utilization is at most n(2<sup>1/n</sup> − 1), about 78% for three tasks. That bound is sufficient, not necessary:
         this task set needs 95% and still fits, which an exact response-time analysis confirms. Raise a task’s work time
@@ -170,11 +170,13 @@ export function mountScheduling(root: HTMLElement) {
         .map((j) => ` <span class="bad">${nameOf(j.task)} misses its ${j.deadline} ms deadline.</span>`).join('');
       const nMiss = misses.filter((j) => j.deadline <= r.t1).length;
       return { bar: i, at: r.t1, lane: r.task, note: why + done + missed,
-        readout: [`t = ${r.t1} ms`, `CPU: <b>${nameOf(r.task)}</b>`, `Utilization <b>${Math.round(u * 100)}%</b>`, `RM bound ${Math.round(rmBound(3) * 100)}%`,
+        readout: [`t = ${r.t1} ms`, `CPU: <b>${nameOf(r.task)}</b>`, 
           `<span class="${nMiss ? 'bad' : 'good'}">${nMiss ? plural(nMiss, 'missed deadline') : 'No misses'}</span>`] };
     });
     steps[0].note = `${POLICY_TEXT[policy]} ${steps[0].note}`;
     st.load({ lanes, bars, marks, end: HORIZON, every: 5, minor: 1 }, steps);
+    // The task set's load, a fixed property of the tasks, beside the settings rather than in the live readout.
+    root.querySelector('.sc-load')!.innerHTML = `Tasks need <b class="${u > 1 ? 'bad' : u > rmBound(3) ? '' : 'good'}">${Math.round(u * 100)}%</b> of the CPU · rate-monotonic is guaranteed up to ${Math.round(rmBound(3) * 100)}%`;
     markSeg(root, 'pol', policy);
     syncUrl({ pol: policy, c: tasks.map((t) => t.c).join('') });
   }

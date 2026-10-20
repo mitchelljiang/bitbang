@@ -125,8 +125,10 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
     timer = undefined;
     btn('play')!.textContent = 'Play';
   };
+  const panel = root.querySelector('.trace')!;
   const tick = () => {
-    if (at >= steps.length - 1) return stop();
+    // The reader may have moved to another page while playing; stop once this panel is gone.
+    if (at >= steps.length - 1 || !panel.isConnected) return stop();
     go(at + 1);
     timer = window.setTimeout(tick, dwell());
   };
@@ -158,7 +160,12 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
     }
   });
   let rt: number | undefined;
-  window.addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => steps.length && cursor(root, steps[at].at, trace.end), 100); });
+  const onResize = () => {
+    if (!panel.isConnected) return window.removeEventListener('resize', onResize);
+    clearTimeout(rt);
+    rt = window.setTimeout(() => steps.length && cursor(root, steps[at].at, trace.end), 100);
+  };
+  window.addEventListener('resize', onResize);
 
   return {
     go: (i) => { stop(); go(i); },
