@@ -3,7 +3,7 @@
  * you what it reaches, Flash, SRAM, a peripheral register or the core's own control block. Type an address, or pick a
  * landmark, and the map highlights the region it falls in. regionOf is exported for the checks.
  */
-import { status, syncUrl } from './dbg';
+import { markSeg, seg, status, syncUrl } from './dbg';
 
 export interface Region {
   id: string;
@@ -62,7 +62,7 @@ export function mountMemmap(root: HTMLElement) {
         <span class="dbg-state"><i aria-hidden="true"></i>4 GB</span>
         <div class="dbg-controls">
           <label class="dbg-set">addr <input type="text" inputmode="text" spellcheck="false" aria-label="Address in hex" value="${hex8(addr)}"></label>
-          <div class="mm-marks">${MARKS.map((m, i) => `<button type="button" class="dbg-btn" data-mark="${i}">${m.label}</button>`).join('')}</div>
+          ${seg('mark', 'Landmarks', MARKS.map((m, i) => [String(i), m.label]))}
         </div>
       </header>
       <div class="mm-body"></div>
@@ -104,6 +104,8 @@ export function mountMemmap(root: HTMLElement) {
 
     const offset = (addr - here.lo) >>> 0;
     status(root, note ?? `${hex8(addr)} is in the <b>${here.name}</b> region, 0x${offset.toString(16).toUpperCase()} bytes above its base ${hex8(here.lo)}. ${here.use}`);
+    // A landmark stays selected while the address is its address, whether picked or typed.
+    markSeg(root, 'mark', String(MARKS.findIndex((m) => m.addr === addr)));
     syncUrl({ a: (addr >>> 0).toString(16).toUpperCase() });
   }
 

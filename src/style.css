@@ -1629,7 +1629,7 @@ footer a:hover { color: var(--ink); }
 /* ===== Memory section pages ===== */
 
 /* Memory map: the address space as a stack of regions, high addresses at the top, the active one highlighted. */
-.memmap .mm-marks { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.memmap .dbg-seg { flex-wrap: wrap; }
 .memmap .dbg-set input { width: 13ch; }
 .mm-body { display: flex; flex-direction: column; gap: 4px; padding: 16px; }
 .mm-region { padding: 10px 12px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; transition: border-color 120ms ease-out, background 120ms ease-out; }

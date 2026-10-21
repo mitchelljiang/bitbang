@@ -9,6 +9,12 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-10-21',
+    items: [
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-10-20',
     items: [
       ['new', 'A Concurrency starting page, [Parts and terms](?p=mcu): TIM2, SysTick, the NVIC, the vector table and the stack, met by following one interrupt through the chip, plus a glossary.'],
