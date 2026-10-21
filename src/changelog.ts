@@ -11,6 +11,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-10-20',
     items: [
+      ['new', 'A Concurrency starting page, [Parts and terms](?p=mcu): TIM2, SysTick, the NVIC, the vector table and the stack, met by following one interrupt through the chip, plus a glossary.'],
       ['new', 'The Concurrency section is complete: [priorities and nesting](?p=priorities), [context switching](?p=context), [scheduling](?p=scheduling), [race conditions](?p=races), [atomics and critical sections](?p=atomics), and [mutexes and semaphores](?p=locks).'],
       ['new', '[Memory ordering and barriers](?p=barriers): why writes land out of order, and when DMB, DSB and ISB fix it, for interrupts, DMA, locks and the MPU.'],
       ['improved', 'The Concurrency section’s traces are drawn as a logic analyzer on the same bench as the oscilloscope and the memory instrument.'],

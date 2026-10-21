@@ -1431,6 +1431,51 @@ table.vars .hex { font-weight: 600; }
 .tr-status .bad { color: var(--bad); }
 /* A side pane on the glass below the lanes, for registers, stacks or code. */
 .tr-side { padding: 14px 16px 16px; border-top: 1px solid var(--tr-line); }
+
+/* Parts and terms: the chip as a block diagram on the glass, the parts a step is about lit in the cursor's gold. */
+.pm-chip {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas: 'core flash' 'core sram' 'periph periph'; gap: 12px;
+  margin: 16px; padding: 30px 14px 14px; border: 1px dashed var(--tr-line); border-radius: 12px; transition: border-color 150ms ease-out;
+}
+.pm-chip.lit { border: 1px solid var(--ch1); box-shadow: 0 0 14px rgba(242, 194, 48, 0.25); }
+.pm-chip-name { position: absolute; top: 8px; left: 14px; font: 600 11px var(--mono); color: var(--tr-dim); }
+.pm-chip.lit .pm-chip-name { color: var(--ch1); }
+.pm-blk { display: grid; gap: 8px; align-content: start; padding: 10px; background: #13232c; border: 1px solid var(--tr-line); border-radius: 9px; }
+.pm-core { grid-area: core; }
+.pm-flash { grid-area: flash; }
+.pm-sram { grid-area: sram; }
+.pm-periph { grid-area: periph; }
+.mcu .tr-screen { display: flow-root; }
+.pm-blk-name { font: 600 11px var(--mono); color: var(--tr-dim); }
+.pm-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pm-part {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
+  color: var(--tr-text); background: var(--screen); border: 1px solid var(--tr-line); border-radius: 6px; cursor: pointer;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+.pm-part:hover { border-color: var(--tr-dim); }
+.pm-part:focus-visible { outline: 2px solid var(--ch1); outline-offset: 2px; }
+.pm-part b { font: 600 14px var(--sans); }
+.pm-part small { overflow: hidden; font: 11px var(--mono); color: var(--tr-dim); text-overflow: ellipsis; white-space: nowrap; }
+.pm-part.lit { border-color: var(--ch1); box-shadow: 0 0 0 1px var(--ch1), 0 0 12px rgba(242, 194, 48, 0.3); }
+.pm-part.lit b { color: var(--ch1); }
+/* An interrupt request line: a tag on the timer and on the NVIC, lit while the request is travelling. */
+.pm-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 6px; }
+.pm-irq { padding: 0 4px; font: 600 10px/16px var(--mono); font-style: normal; color: var(--tr-dim); border: 1px solid var(--tr-line); border-radius: 3px; }
+.pm-irq.on { color: var(--screen); background: var(--ch1); border-color: var(--ch1); }
+.pm-low { color: var(--tr-dim); font-weight: 600; }
+.mcu .tr-status { min-height: 168px; }
+@media (max-width: 760px) { .mcu .tr-status { min-height: 210px; } .mcu .tr-readout { min-height: 55px; } }
+.pm-terms { display: grid; gap: 10px; padding-left: 0; list-style: none; }
+.pm-terms li b { display: block; color: var(--ink); }
+/* The colon is there for the plain-text mirror; on the page the term sits on its own line. */
+.pm-sep { display: none; }
+@media (max-width: 600px) {
+  .pm-chip { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'core' 'flash' 'sram' 'periph'; margin: 10px; padding: 28px 10px 10px; }
+  .pm-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mcu .tr-status { min-height: 300px; }
+}
 @media (max-width: 600px) {
   .tr-grid { grid-template-columns: 84px 1fr; padding: 10px 10px 14px; }
   .tr-label b { font-size: 12px; }

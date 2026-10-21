@@ -60,6 +60,7 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[mpu-and-mmu|MPU and MMU]] — Virtual memory
 
 ## Concurrency
+- [[parts-and-terms|Parts and terms]] — Start here
 - [[interrupts|Interrupts]] — Interrupting the program
 - [[priorities-and-nesting|Priorities and nesting]] — Interrupting the program
 - [[context-switching|Context switching]] — Running many tasks

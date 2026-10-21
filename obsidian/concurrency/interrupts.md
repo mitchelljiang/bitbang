@@ -9,7 +9,7 @@ url: ?p=interrupts
 # Interrupts
 
 ## Intro
-A processor runs one instruction stream at a time, but the world does not wait for it. When a timer expires or a byte arrives, the hardware interrupts whatever is running, jumps to a handler, and returns to exactly where it left off. Each lane below is one thread of execution; the bright bar is what holds the CPU at that moment. Step through a SysTick tick that a UART byte interrupts partway.
+A processor runs one instruction stream at a time, but the world does not wait for it. When a timer expires or a byte arrives, the hardware interrupts whatever is running, jumps to a handler, and returns to exactly where it left off. Each lane below is one thread of execution; the bright bar is what holds the CPU at that moment. Step through a SysTick tick that a UART byte interrupts partway. New to SysTick, the NVIC or the vector table? Start with Parts and terms.
 
 ## What the processor does automatically
 

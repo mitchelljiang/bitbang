@@ -55,6 +55,7 @@ import { ALL_ORDERS, runOrder } from '../src/topics/races';
 import { atomicRun } from '../src/topics/atomics';
 import { blockedFor, rtos } from '../src/topics/locks';
 import { CASES as MB_CASES, OPTIONS as MB_OPTIONS, order as mbOrder } from '../src/topics/barriers';
+import { FRAME_BYTES, SP_MAIN, STEPS as PM_STEPS, SYSTICK_EXC, TERMS, excOf, firstStep, vectorAddr } from '../src/topics/mcu';
 
 type Params = Record<string, string>;
 const P = Object.fromEntries(protocols.map((p) => [p.id, p]));
@@ -916,6 +917,22 @@ section('3l. Concurrency: priorities, context switch, scheduling, races, atomics
 
   check('locks: each interrupt’s semaphore give runs the RX task next, which blocks again when done',
     sig.ticks.every((k, t) => k.run !== 'I' || sig.ticks[t + 1]?.run === 'R') && sig.ticks.filter((k) => k.run === 'R').length === 6);
+}
+
+section('3m. Concurrency: parts and terms');
+{
+  // Against the vector table in RM0090 (STM32F405/407) and the Armv7-M ARM: SysTick is exception 15, interrupts start at 16,
+  // TIM2 is IRQ 28, and the vector table at 0x0800_0000 holds one word per exception.
+  check('TIM2 (IRQ 28) is exception 44, vector at 0x0800_00B0', excOf(28) === 44 && vectorAddr(excOf(28)) === 0x0800_00b0);
+  check('SysTick is exception 15, vector at 0x0800_003C', SYSTICK_EXC === 15 && vectorAddr(15) === 0x0800_003c);
+  check('stacking drops SP by 8 words (32 bytes)', FRAME_BYTES === 32 && (SP_MAIN - FRAME_BYTES) % 8 === 0);
+  const notes = PM_STEPS.map((s) => s.note + s.readout.join(' ')).join(' ');
+  check('the walkthrough names TIM2’s real vector address and stacked SP', notes.includes('0x0800_00B0') && notes.includes('0x2000_1FC0'));
+  const parts = ['cpu', 'nvic', 'systick', 'flash', 'vectors', 'sram', 'stack', 'periph', 'tim2', 'usart2', 'adc', 'gpio'] as const;
+  check('every clickable part is introduced by some step', parts.every((p) => firstStep(p) >= 0));
+  const live = new Set(index.filter((e) => e.status === 'live').map((e) => e.id));
+  const dead = TERMS.flatMap((g) => g.terms).filter((t) => t.page && !live.has(t.page)).map((t) => `${t.term} → ${t.page}`);
+  check(`${TERMS.flatMap((g) => g.terms).length} glossary terms link to live pages`, dead.length === 0, dead.join('; '));
 }
 
 section('3i. Memory: alignment and the heap');

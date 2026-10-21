@@ -28,6 +28,7 @@ import { mountRaces } from './races';
 import { mountAtomics } from './atomics';
 import { mountLocks } from './locks';
 import { mountBarriers } from './barriers';
+import { mountMcu } from './mcu';
 
 /** The interactive page for each Bits and bytes and Memory topic, by id. */
 export const topics: Record<string, (root: HTMLElement) => void> = {
@@ -67,4 +68,5 @@ export const topics: Record<string, (root: HTMLElement) => void> = {
   atomics: mountAtomics,
   locks: mountLocks,
   barriers: mountBarriers,
+  mcu: mountMcu,
 };

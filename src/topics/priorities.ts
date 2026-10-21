@@ -120,8 +120,10 @@ export function mountPriorities(root: HTMLElement) {
       <p class="crumbs">Interrupting the program</p>
       <h1>Priorities and nesting</h1>
       <p>When two interrupts want the CPU, the interrupt controller decides by priority, and on a Cortex-M the lower number
-        is the more urgent. Three peripherals fire at fixed times below. Click a priority on its lane to change it, then
-        step through and watch who preempts whom, who has to wait, and how handlers chain together on the way out.</p>
+        is the more urgent. Three peripherals, a timer (TIM2), a serial port (USART2) and an ADC, fire at fixed times
+        below. Click a priority on its lane to change it, then step through and watch who preempts whom, who has to wait,
+        and how handlers chain together on the way out. The names are introduced in
+        <a href="?p=mcu" data-nav>Parts and terms</a>.</p>
     </section>
     ${traceHtml({ label: 'Interrupt priority trace', title: 'Cortex-M4 NVIC · priority trace',
       controls: '<button type="button" class="tr-btn" data-reset>Reset priorities</button>' })}

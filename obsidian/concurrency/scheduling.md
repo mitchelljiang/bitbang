@@ -17,7 +17,7 @@ Most RTOS kernels, FreeRTOS and Zephyr among them, use preemptive fixed-priority
 
 ## Utilization and the bound
 
-Utilization is the fraction of the CPU the tasks need, the sum of each task’s work divided by its period. Above 100% no policy can keep up. Liu and Layland proved that rate-monotonic scheduling always meets every deadline if utilization is at most n(21/n − 1), about 78% for three tasks. That bound is sufficient, not necessary: this task set needs 95% and still fits, which an exact response-time analysis confirms. Raise a task’s work time and watch where it stops fitting.
+Utilization is the fraction of the CPU the tasks need, the sum of each task’s work divided by its period. It is a property of the task set, shown next to the policies, not a live reading: it changes only when a task’s work does. Above 100% no policy can keep up. Liu and Layland proved that rate-monotonic scheduling always meets every deadline if utilization is at most n(21/n − 1), about 78% for three tasks. That bound is sufficient, not necessary: this task set needs 95% and still fits, which an exact response-time analysis confirms. Raise a task’s work time and watch where it stops fitting.
 
 ## Why not round-robin or cooperative
 

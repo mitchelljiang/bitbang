@@ -3,6 +3,14 @@ import type { Category } from './catalog';
 /** Concurrency topics, grouped for the section sidebar. Pages with an interactive page are registered in src/topics. */
 export const concurrencyTopics: Category[] = [
   {
+    id: 'start',
+    name: 'Start here',
+    blurb: 'The parts of a microcontroller and the words the rest of the section uses.',
+    entries: [
+      { id: 'mcu', name: 'Parts and terms', blurb: 'TIM2, SysTick, the NVIC, the vector table and the stack, met in place by following one interrupt, plus a glossary.' },
+    ],
+  },
+  {
     id: 'interrupting',
     name: 'Interrupting the program',
     blurb: 'How the processor stops what it is doing to handle something, and comes back.',

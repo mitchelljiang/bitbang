@@ -9,7 +9,7 @@ url: ?p=priorities
 # Priorities and nesting
 
 ## Intro
-When two interrupts want the CPU, the interrupt controller decides by priority, and on a Cortex-M the lower number is the more urgent. Three peripherals fire at fixed times below. Click a priority on its lane to change it, then step through and watch who preempts whom, who has to wait, and how handlers chain together on the way out.
+When two interrupts want the CPU, the interrupt controller decides by priority, and on a Cortex-M the lower number is the more urgent. Three peripherals, a timer (TIM2), a serial port (USART2) and an ADC, fire at fixed times below. Click a priority on its lane to change it, then step through and watch who preempts whom, who has to wait, and how handlers chain together on the way out. The names are introduced in Parts and terms.
 
 ## Lower number, more urgent
 
