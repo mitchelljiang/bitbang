@@ -5,7 +5,7 @@
 import { esc } from '../core/render';
 import {
   NUMBER_HELP, binN, bit, bits, code, flips, hex2, hexN, markSeg, nibbles, note, oneOf, page, parseNumber, readHex, row, seg,
-  showValue, status, syncUrl, table, wideRow, wire,
+  showValue, status, stepButtons, syncUrl, table, walkthrough, wideRow, wire,
 } from './dbg';
 import { toInt8 } from './numbers';
 
@@ -362,8 +362,7 @@ export function mountRmw(root: HTMLElement) {
     controls: `
       ${seg('mode', 'Method', [['rmw', 'Read-modify-write'], ['set', 'Set register']])}
       ${seg('irq', 'Interrupt', [['0', 'No interrupt'], ['1', 'Interrupt']])}
-      <button type="button" class="dbg-btn" data-act="step">Step</button>
-      <button type="button" class="dbg-btn" data-act="restart">Restart</button>`,
+      ${stepButtons()}`,
     body: '<div class="vars-wrap"></div>',
     after: `<section class="prose">
       <h2>Why volatile</h2>
@@ -404,22 +403,21 @@ export function mountRmw(root: HTMLElement) {
     );
     markSeg(root, 'mode', mode);
     markSeg(root, 'irq', irq ? '1' : '0');
-    root.querySelector<HTMLButtonElement>('[data-act="step"]')!.disabled = at === states.length - 1;
+    walk.sync();
     status(root, `Step ${at + 1} of ${states.length}. ${esc(s.say)}`);
     syncUrl({ mode, irq: irq ? '1' : '0' });
   }
 
+  const walk = walkthrough(root, { count: () => rmwRun(mode, irq).length, at: () => at, go: (i) => { at = i; draw(); } });
   wire(root, html, draw);
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
     const m = t.closest<HTMLElement>('[data-mode]');
     const i = t.closest<HTMLElement>('[data-irq]');
-    const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;
     if (m) mode = m.dataset.mode as 'rmw' | 'set';
     if (i) irq = i.dataset.irq === '1';
-    if (m || i || act === 'restart') at = 0;
-    else if (act === 'step') at++;
-    else return;
+    if (!m && !i) return;
+    at = 0;
     draw();
   });
 }

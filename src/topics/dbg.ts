@@ -132,27 +132,39 @@ export function bits(name: string, v: number, width: number, o: BitOpts = {}) {
   }).join('')}</div>`;
 }
 
+/** How long the pointer may sit between two hover targets before the text resets, so the gaps don't flash it. */
+export const HOVER_GRACE = 150;
+
 /**
  * While the pointer is over a bit that has a tip, the status line explains it; moving away restores what was there.
+ * Crossing the gap between two bits keeps the tip, so the old text does not flash in between.
  */
 export function hoverTips(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>('.debugger').forEach((dbg) => {
     const status = dbg.querySelector<HTMLElement>('.dbg-status')!;
     let saved: string | null = null;
+    let timer: number | undefined;
+    const restore = () => {
+      timer = undefined;
+      if (saved === null) return;
+      status.innerHTML = saved;
+      saved = null;
+    };
     dbg.addEventListener('pointerover', (e) => {
       const b = (e.target as Element).closest<HTMLElement>('.bit[data-tip]');
       if (!b) return;
+      clearTimeout(timer);
       if (saved === null) saved = status.innerHTML;
       status.textContent = b.dataset.tip!;
     });
     dbg.addEventListener('pointerout', (e) => {
       const to = (e as PointerEvent).relatedTarget as Element | null;
       if (saved === null || to?.closest?.('.bit[data-tip]')) return;
-      status.innerHTML = saved;
-      saved = null;
+      clearTimeout(timer);
+      timer = window.setTimeout(restore, HOVER_GRACE);
     });
     // A click changes the status on purpose; keep that instead of restoring the old text.
-    dbg.addEventListener('click', () => (saved = null));
+    dbg.addEventListener('click', () => { clearTimeout(timer); saved = null; });
   });
 }
 
@@ -233,3 +245,56 @@ export function parseNumber(s: string): number | null {
 
 export const hexN = (v: number, width: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(width / 4, '0');
 export const binN = (v: number, width: number) => ((v >>> 0).toString(2).padStart(width, '0').match(/.{4}/g) ?? []).join(' ');
+
+/** Back / Step / Play / Restart: the controls every stepped walkthrough shares, drawn in the panel's button class. */
+export const stepButtons = (cls = 'dbg-btn') => `
+  <button type="button" class="${cls}" data-act="back">Back</button>
+  <button type="button" class="${cls} primary" data-act="step">Step</button>
+  <button type="button" class="${cls}" data-act="play">Play</button>
+  <button type="button" class="${cls}" data-act="restart">Restart</button>`;
+
+/**
+ * Wires the shared walkthrough controls. `go(i)` shows step i; Play steps on a timer, pausing long enough to read each
+ * explanation, until the last step. Any other click on the page pauses it. Call `sync()` after drawing to disable Back
+ * and Step at the ends.
+ */
+export function walkthrough(root: HTMLElement, o: { count: () => number; at: () => number; go: (i: number) => void }) {
+  let timer: number | undefined;
+  const btn = (a: string) => root.querySelector<HTMLButtonElement>(`[data-act="${a}"]`)!;
+  const last = () => o.at() >= o.count() - 1;
+  const stop = () => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+    btn('play').textContent = 'Play';
+  };
+  const text = () => root.querySelector('.dbg-status, .dg-status')?.textContent ?? '';
+  const dwell = () => Math.min(8000, 1600 + text().length * 42);
+  const tick = () => {
+    // The reader may have moved to another page while playing; stop once this one is gone.
+    if (!root.isConnected || last()) return stop();
+    o.go(o.at() + 1);
+    timer = window.setTimeout(tick, dwell());
+  };
+  root.addEventListener('click', (e) => {
+    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
+    if (act === 'play') {
+      if (timer !== undefined) return stop();
+      if (last()) o.go(0);
+      btn('play').textContent = 'Pause';
+      timer = window.setTimeout(tick, dwell());
+      return;
+    }
+    stop();
+    if (act === 'step') o.go(Math.min(o.at() + 1, o.count() - 1));
+    else if (act === 'back') o.go(Math.max(o.at() - 1, 0));
+    else if (act === 'restart') o.go(0);
+  });
+  return {
+    stop,
+    sync() {
+      btn('back').disabled = o.at() === 0;
+      btn('step').disabled = last();
+    },
+  };
+}

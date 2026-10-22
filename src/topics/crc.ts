@@ -3,7 +3,7 @@
  * the reader types, so flipping a bit or swapping two bytes shows which errors each one catches.
  */
 import { parseBytes } from '../core/util';
-import { bits, code, flips, hex2, hexN, markSeg, oneOf, page, row, seg, status, syncUrl, table, wire } from './dbg';
+import { bits, code, flips, hex2, hexN, markSeg, oneOf, page, row, seg, status, stepButtons, syncUrl, table, walkthrough, wire } from './dbg';
 
 export const METHODS = ['sum', 'crc8'] as const;
 export type Method = (typeof METHODS)[number];
@@ -112,10 +112,8 @@ export function mountCrc(root: HTMLElement) {
     controls: `
       ${seg('m', 'Method', [['sum', 'Checksum'], ['crc8', 'CRC-8']])}
       <label class="dbg-set">data = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set data, as hex bytes"></label>
-      <button type="button" class="dbg-btn" data-act="step">Step</button>
-      <button type="button" class="dbg-btn" data-act="run">Run</button>
-      <button type="button" class="dbg-btn" data-act="restart">Restart</button>
-      <button type="button" class="dbg-btn" data-act="swap">Swap bytes</button>`,
+      <button type="button" class="dbg-btn" data-act="swap">Swap bytes</button>
+      ${stepButtons()}`,
     body: '<div class="vars-wrap"></div>',
     after: `<section class="prose">
       <h2>What each one catches</h2>
@@ -161,8 +159,7 @@ export function mountCrc(root: HTMLElement) {
       (m === 'crc8' ? row('poly', '', '<code class="hex">0x07</code> <small>x⁸ + x² + x + 1</small>', bits('poly', POLY, 8)) : ''),
     );
     markSeg(root, 'm', m);
-    root.querySelector<HTMLButtonElement>('[data-act="step"]')!.disabled = done;
-    root.querySelector<HTMLButtonElement>('[data-act="run"]')!.disabled = done;
+    walk.sync();
     root.querySelector<HTMLButtonElement>('[data-act="swap"]')!.disabled = data.length < 2;
     const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
     if (document.activeElement !== input) input.value = data.map(hex2).join(' ');
@@ -170,6 +167,7 @@ export function mountCrc(root: HTMLElement) {
     syncUrl({ m, d: data.map(hex2).join('') });
   }
 
+  const walk = walkthrough(root, { count: () => steps(m, data).length, at: () => at, go: (i) => { at = i; draw(); } });
   wire(root, html, draw);
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
@@ -191,10 +189,7 @@ export function mountCrc(root: HTMLElement) {
     if (s) {
       m = s.dataset.m as Method;
       at = 0;
-    } else if (act === 'step') at++;
-    else if (act === 'run') at = end();
-    else if (act === 'restart') at = 0;
-    else if (act === 'swap' && data.length > 1) {
+    } else if (act === 'swap' && data.length > 1) {
       const before = (m === 'sum' ? checksum : crc8)(data);
       [data[0], data[1]] = [data[1], data[0]];
       at = end();

@@ -431,8 +431,14 @@ zoomFit.addEventListener('click', () => setZoom('all'));
 
 // ---- hover tooltip ----
 
+// Between two bits the pointer is briefly over neither; wait a moment before hiding, so the tooltip doesn't flicker.
+let tipHide = 0;
 function showTip(bit: Bit | null, cell: Element | null) {
-  if (!bit || !cell || !wave) return hideTip();
+  clearTimeout(tipHide);
+  if (!bit || !cell || !wave) {
+    tipHide = window.setTimeout(hideTip, 150);
+    return;
+  }
   const lane = wave.traces.length > 1 ? `${wave.traces[bit.lane].name} ` : '';
   tooltip.innerHTML = '';
   tooltip.append(

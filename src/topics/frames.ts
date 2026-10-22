@@ -3,7 +3,7 @@
  * frame, saved registers, the return address and locals, and the epilogue that tears it down and returns. spAt and
  * presentAt are exported for the checks.
  */
-import { code, status, syncUrl } from './dbg';
+import { code, status, stepButtons, syncUrl, walkthrough } from './dbg';
 
 const TOP = 0x20001f00; // the frame's top edge, where SP points on entry
 
@@ -55,10 +55,7 @@ export function mountFrames(root: HTMLElement) {
         <span class="dbg-file">checksum()</span>
         <span class="dbg-state"><i aria-hidden="true"></i>stepping</span>
         <div class="dbg-controls">
-          <button type="button" class="dbg-btn" data-act="prev">‹ Prev</button>
-          <span class="sf-step" aria-live="polite"></span>
-          <button type="button" class="dbg-btn" data-act="next">Next ›</button>
-          <button type="button" class="dbg-btn" data-act="reset">Reset</button>
+          ${stepButtons()}
         </div>
       </header>
       <div class="dbg-body stacked">
@@ -87,6 +84,8 @@ export function mountFrames(root: HTMLElement) {
         <a href="?p=bufover" data-nav>buffer overflow</a> does, and the backtrace, and the return, go wrong.</p>
     </section>`;
 
+  const walk = walkthrough(root, { count: () => STEPS.length, at: () => step, go: (i) => { step = i; draw(); } });
+
   function draw(note?: string) {
     const s = STEPS[step];
     code(root, STEPS.map((x) => x.asm), step, 0);
@@ -104,20 +103,10 @@ export function mountFrames(root: HTMLElement) {
     root.querySelector('.sf-stack')!.innerHTML = rows +
       `<div class="sf-sp"><b>SP</b> → 0x${sp.toString(16).toUpperCase()} <span>${TOP - sp} bytes · grows ↓</span></div>`;
 
-    root.querySelector('.sf-step')!.textContent = `step ${step + 1} / ${STEPS.length}`;
-    root.querySelector<HTMLButtonElement>('[data-act="prev"]')!.disabled = step === 0;
-    root.querySelector<HTMLButtonElement>('[data-act="next"]')!.disabled = step === STEPS.length - 1;
-    status(root, note ?? s.note);
+    walk.sync();
+    status(root, `Step ${step + 1} of ${STEPS.length}. ${note ?? s.note}`);
     syncUrl({ k: String(step) });
   }
 
   draw();
-  root.addEventListener('click', (e) => {
-    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
-    if (act === 'next' && step < STEPS.length - 1) step++;
-    else if (act === 'prev' && step > 0) step--;
-    else if (act === 'reset') step = 0;
-    else return;
-    draw();
-  });
 }

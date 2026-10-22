@@ -112,6 +112,7 @@ body {
 
 a { color: inherit; }
 button, a, summary, select { touch-action: manipulation; }
+button { font-family: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 
 .skip {
@@ -702,6 +703,8 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
 
 .explain {
   min-height: 92px;
+  font-size: 15px;
+  line-height: 1.6;
   padding: 14px 20px 16px;
   border-top: 1px solid var(--line);
   border-bottom: 10px solid var(--bezel);
@@ -808,17 +811,21 @@ tr.changed .hex { color: var(--dbg-changed); }
 /* A bit that came from outside the value, such as a 0 shifted in. */
 .bit.fill { outline: 1px dashed var(--dbg-dim); outline-offset: 2px; }
 tr.unused { opacity: 0.4; }
-.dbg-status { margin: 0; min-height: 42px; padding: 11px 16px; font: 14px var(--sans); color: var(--dbg-text); background: var(--dbg-panel); border-top: 1px solid var(--dbg-line); }
+.dbg-status { margin: 0; min-height: 71px; padding: 11px 16px; font: 15px/1.6 var(--sans); color: var(--dbg-text); background: var(--dbg-panel); border-top: 1px solid var(--dbg-line); }
 
 /* Pages with wide registers stack the code above the variables. */
 .dbg-body.stacked { grid-template-columns: minmax(0, 1fr); }
 .dbg-body.stacked .dbg-code { border-right: 0; border-bottom: 1px solid var(--dbg-line); }
 .dbg-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-left: auto; }
-.dbg-seg, .dbg-presets { display: inline-flex; gap: 2px; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
+.dbg-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
+.dbg-presets { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .dbg-seg button, .dbg-btn { height: 30px; padding: 0 12px; font: 600 13px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
 .dbg-seg button:hover, .dbg-btn:hover { color: var(--dbg-text); }
 .dbg-seg button[aria-checked='true'] { color: #10151b; background: var(--dbg-text); }
-.dbg-controls > .dbg-btn { border: 1px solid var(--dbg-line); background: var(--dbg-bg); }
+/* An action button always has its own outline; only a segmented control's options sit borderless in their box. */
+.dbg-btn { border: 1px solid var(--dbg-line); background: var(--dbg-bg); }
+/* The walkthrough's Step, filled like a selected option. */
+.dbg-btn.primary { color: #10151b; background: var(--dbg-text); border-color: var(--dbg-text); }
 .dbg-set { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--mono); color: var(--dbg-dim); }
 .dbg-set input, .dbg-set select { height: 32px; width: 12ch; padding: 0 8px; font: 14px var(--mono); color: var(--dbg-text); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 6px; }
 /* The same chevron as the settings menus, with room to breathe, in the debugger's dim text color. */
@@ -1084,7 +1091,7 @@ table.vars .hex { font-weight: 600; }
 .dg-controls { display: flex; gap: 8px; margin-left: auto; }
 .dg-btn { min-height: 36px; padding: 0 14px; font: 500 14px var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .dg-btn:hover:not(:disabled) { border-color: var(--faint); }
-.dg-btn.primary { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.dg-btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 .dg-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* The chip's outline, with its part number in the corner. */
@@ -1312,7 +1319,7 @@ table.vars .hex { font-weight: 600; }
 .pintab .pn { color: var(--dbg-text); }
 .pintab .pn small { color: var(--dbg-dim); }
 .mseg { display: inline-flex; gap: 2px; padding: 3px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
-.mseg button { height: 26px; padding: 0 10px; font: 600 12px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
+.mseg button { height: 30px; padding: 0 12px; font: 600 13px var(--sans); color: var(--dbg-dim); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
 .mseg button:hover { color: var(--dbg-text); }
 .mseg button .sm { display: none; }
 .mseg button[aria-checked='true'] { color: #10151b; background: var(--dbg-text); }
@@ -1422,10 +1429,12 @@ table.vars .hex { font-weight: 600; }
 /* The cursor: the scope's gold beam, sweeping to the current step. */
 .tr-head { position: absolute; top: 28px; bottom: 16px; width: 2px; margin-left: -1px; background: var(--ch1); box-shadow: 0 0 10px 2px rgba(242, 194, 48, 0.4); transition: left 180ms ease-out; pointer-events: none; z-index: 3; }
 /* A control inside a lane label, such as a priority that a click changes. */
-.tr-chip { padding: 0 5px; font: 600 11px var(--mono); color: var(--lane); background: color-mix(in srgb, var(--lane) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 45%, transparent); border-radius: 4px; cursor: pointer; }
+.tr-chip { position: relative; padding: 0 5px; font: 600 11px var(--mono); color: var(--lane); background: color-mix(in srgb, var(--lane) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lane) 45%, transparent); border-radius: 4px; cursor: pointer; }
+/* A larger, invisible tap area, so the small chip is easy to hit on a phone. */
+.tr-chip::after { content: ''; position: absolute; inset: -8px -6px; }
 .tr-chip:hover { background: color-mix(in srgb, var(--lane) 26%, transparent); }
 /* Explain line: the glass with the bottom bezel, reserving the longest explanation's height so stepping never resizes it. */
-.tr-status { display: block; margin: 0; min-height: 122px; padding: 14px 18px; font: 14px/1.5 var(--sans); border-top: 0; border-radius: 0 0 10px 10px; }
+.tr-status { display: block; margin: 0; min-height: 134px; padding: 14px 18px; font: 15px/1.6 var(--sans); border-top: 0; border-radius: 0 0 10px 10px; }
 .tr-status > b:first-child { color: var(--tr-dim); font-weight: 600; }
 .tr-status .good { color: var(--good); }
 .tr-status .bad { color: var(--bad); }
@@ -1465,8 +1474,9 @@ table.vars .hex { font-weight: 600; }
 .pm-irq { padding: 0 4px; font: 600 10px/16px var(--mono); font-style: normal; color: var(--tr-dim); border: 1px solid var(--tr-line); border-radius: 3px; }
 .pm-irq.on { color: var(--screen); background: var(--ch1); border-color: var(--ch1); }
 .pm-low { color: var(--tr-dim); font-weight: 600; }
-.mcu .tr-status { min-height: 168px; }
-@media (max-width: 760px) { .mcu .tr-status { min-height: 210px; } .mcu .tr-readout { min-height: 55px; } }
+@media (max-width: 760px) { .tr-status { min-height: 154px; } .mcu .tr-readout { min-height: 55px; } }
+.mcu .tr-status { min-height: 182px; }
+@media (max-width: 760px) { .mcu .tr-status { min-height: 226px; } }
 .pm-terms { display: grid; gap: 10px; padding-left: 0; list-style: none; }
 .pm-terms li b { display: block; color: var(--ink); }
 /* The colon is there for the plain-text mirror; on the page the term sits on its own line. */
@@ -1474,7 +1484,7 @@ table.vars .hex { font-weight: 600; }
 @media (max-width: 600px) {
   .pm-chip { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'core' 'flash' 'sram' 'periph'; margin: 10px; padding: 28px 10px 10px; }
   .pm-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mcu .tr-status { min-height: 300px; }
+  .mcu .tr-status { min-height: 370px; }
 }
 @media (max-width: 600px) {
   .tr-grid { grid-template-columns: 84px 1fr; padding: 10px 10px 14px; }
@@ -1482,7 +1492,7 @@ table.vars .hex { font-weight: 600; }
   .tr-ruler, .tr-track { margin-left: 8px; }
   .tr-seg em { display: none; }
   .tr-readout { min-height: 76px; }
-  .tr-status { min-height: 224px; }
+  .tr-status { min-height: 250px; }
   .trace { padding: 10px; }
   .tr-screen, .tr-status { border-width: 6px; }
 }
@@ -1664,7 +1674,6 @@ footer a:hover { color: var(--ink); }
 @media (max-width: 600px) { .xb-row { grid-template-columns: 84px repeat(4, 1fr); gap: 4px; } .xb-master small, .xb-slave small { display: none; } .xb-cell { min-height: 40px; } }
 
 /* Stack frames: a column of frame slots that appear in the prologue and vanish in the epilogue. */
-.frames .sf-step { min-width: 74px; font: 12px var(--mono); color: var(--dbg-dim); text-align: center; }
 .sf-stack { display: flex; flex-direction: column; gap: 4px; max-width: 440px; }
 .sf-slot { display: grid; grid-template-columns: 94px 1fr auto; align-items: center; gap: 10px; padding: 7px 10px; font: 12px var(--mono); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 7px; transition: box-shadow 150ms ease-out, border-color 150ms ease-out, opacity 150ms ease-out; }
 .sf-slot .sa { color: var(--dbg-dim); }
@@ -1705,7 +1714,6 @@ footer a:hover { color: var(--ink); }
 @media (max-width: 600px) { .sover .so-body { grid-template-columns: minmax(0, 1fr); } .so-stat { flex-direction: row; flex-wrap: wrap; gap: 8px 20px; } }
 
 /* Sections and startup: Flash on the left, SRAM on the right, a copy/zero arrow between, filling over the steps. */
-.sects .se-step { min-width: 74px; font: 12px var(--mono); color: var(--dbg-dim); text-align: center; }
 .se-body { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); align-items: center; gap: 8px; padding: 16px; }
 .se-col h4 { margin: 0 0 8px; font: 600 12px var(--sans); color: var(--dbg-dim); }
 .se-col h4 small { font: 400 11px var(--mono); }
@@ -1894,13 +1902,16 @@ footer a:hover { color: var(--ink); }
 .debugger.mem .dbg-file { margin: 0; padding: 0; font: 600 12px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); background: transparent; border: 0; }
 .debugger.mem .dbg-state { color: var(--faint); }
 .debugger.mem .dbg-state i { background: var(--ch1); box-shadow: 0 0 7px var(--ch1); }
-.debugger.mem .dbg-seg, .debugger.mem .dbg-presets, .debugger.mem .mseg { background: #fff; border-color: var(--line); }
+.debugger.mem .dbg-seg, .debugger.mem .mseg { background: #fff; border-color: var(--line); }
 .debugger.mem .dbg-seg button, .debugger.mem .mseg button, .debugger.mem .dbg-btn { color: var(--muted); }
 .debugger.mem .dbg-seg button:hover, .debugger.mem .mseg button:hover, .debugger.mem .dbg-btn:hover { color: var(--ink); }
 .debugger.mem .dbg-seg button[aria-checked='true'], .debugger.mem .mseg button[aria-checked='true'] { color: #fff; background: var(--ink); }
-.debugger.mem .dbg-controls > .dbg-btn, .debugger.mem .dbg-bar > .dbg-btn { background: #fff; border: 1px solid var(--line); }
+.debugger.mem .dbg-bar .dbg-btn { background: #fff; border: 1px solid var(--line); }
+.debugger.mem .dbg-bar .dbg-btn.primary { color: #fff; background: var(--ink); border-color: var(--ink); }
 .debugger.mem .dbg-set { color: var(--faint); }
-.debugger.mem .dbg-set input, .debugger.mem .dbg-set select { color: var(--ink); background: #fff; border-color: var(--line); }
+/* Text boxes on the face match the protocol settings: same height, type size, corners and colors. */
+.debugger.mem .dbg-set input, .debugger.mem .dbg-set select { height: 42px; padding: 0 12px; font: 15px var(--mono); color: var(--ink); background: var(--paper); border-color: var(--line); border-radius: 8px; }
+.debugger.mem .dbg-set select { padding-right: 36px; background-position: right 12px center; }
 
 /* Screen: the dark glass where content is drawn, with a bezel and an address graticule. Screen tokens so the shared
    .dbg-* content (code pane, tables, cards) renders light-on-dark here. */
@@ -1920,11 +1931,14 @@ footer a:hover { color: var(--ink); }
 .debugger.mem .dbg-code, .debugger.mem .dbg-vars { background: var(--screen); }
 /* Explain line: screen glass with the bottom bezel, a fixed height so one- vs two-line text never resizes the panel. */
 .debugger.mem > .dbg-status {
-  display: block; min-height: 92px; padding: 14px 18px; color: #dbe6ec;
+  display: block; min-height: 110px; padding: 14px 18px; color: #dbe6ec;
   background: var(--screen); border: 0;
   border-left: 10px solid var(--bezel); border-right: 10px solid var(--bezel); border-bottom: 10px solid var(--bezel);
   border-radius: 0 0 10px 10px;
 }
+/* Reserve the longest explanation at each width, so stepping never resizes the panel. */
+@media (max-width: 760px) { .debugger.mem > .dbg-status { min-height: 134px; } }
+@media (max-width: 600px) { .debugger.mem > .dbg-status { min-height: 206px; } }
 
 /* Function calls uses the .diagram chip view (only this page does), themed to match the memory instrument: a light
    face around the chip on dark glass, with the paper palette redefined to screen values so every block recolors. */

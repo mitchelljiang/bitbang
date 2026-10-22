@@ -9,6 +9,14 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-10-22',
+    items: [
+      ['improved', 'Every step-by-step diagram has the same controls: Back, Step, Play and Restart.'],
+      ['improved', 'Buttons, text boxes and explanations look the same across the site’s diagrams, and the explanation under each one no longer changes size as you step.'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-10-21',
     items: [
       ['improved', 'Minor UI/UX fixes and updates.'],

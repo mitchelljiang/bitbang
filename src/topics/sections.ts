@@ -3,7 +3,7 @@
  * then a few lines of startup code copy .data into RAM and zero .bss before main() runs. Step through it, watching the
  * SRAM side fill in. sramValue is exported for the checks.
  */
-import { status, syncUrl } from './dbg';
+import { status, stepButtons, syncUrl, walkthrough } from './dbg';
 
 export interface Sym { name: string; section: 'data' | 'bss' | 'rodata'; init: string; zero?: string }
 
@@ -47,10 +47,7 @@ export function mountSections(root: HTMLElement) {
         <span class="dbg-file">startup</span>
         <span class="dbg-state"><i aria-hidden="true"></i>${STEPS[0].name}</span>
         <div class="dbg-controls">
-          <button type="button" class="dbg-btn" data-act="prev">‹ Prev</button>
-          <span class="se-step" aria-live="polite"></span>
-          <button type="button" class="dbg-btn" data-act="next">Next ›</button>
-          <button type="button" class="dbg-btn" data-act="reset">Reset</button>
+          ${stepButtons()}
         </div>
       </header>
       <div class="se-body"></div>
@@ -78,6 +75,8 @@ export function mountSections(root: HTMLElement) {
         usual cause is an overwritten or skipped <code>.bss</code> zeroing loop, exactly this step going wrong.</p>
     </section>`;
 
+  const walk = walkthrough(root, { count: () => STEPS.length, at: () => step, go: (i) => { step = i; draw(); } });
+
   function draw(note?: string) {
     const flashRows = [
       secBlock('.text', 'code', 'Reset_Handler, main, …', true),
@@ -96,10 +95,8 @@ export function mountSections(root: HTMLElement) {
       <div class="se-col"><h4>SRAM <small>0x20000000</small></h4>${sramRows}</div>`;
 
     root.querySelector('.dbg-state')!.innerHTML = `<i aria-hidden="true"></i>${STEPS[step].name}`;
-    root.querySelector('.se-step')!.textContent = `step ${step + 1} / ${STEPS.length}`;
-    root.querySelector<HTMLButtonElement>('[data-act="prev"]')!.disabled = step === 0;
-    root.querySelector<HTMLButtonElement>('[data-act="next"]')!.disabled = step === STEPS.length - 1;
-    status(root, note ?? STEPS[step].note);
+    walk.sync();
+    status(root, `Step ${step + 1} of ${STEPS.length}. ${note ?? STEPS[step].note}`);
     syncUrl({ k: String(step) });
   }
 
@@ -116,12 +113,4 @@ export function mountSections(root: HTMLElement) {
   }
 
   draw();
-  root.addEventListener('click', (e) => {
-    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
-    if (act === 'next' && step < STEPS.length - 1) step++;
-    else if (act === 'prev' && step > 0) step--;
-    else if (act === 'reset') step = 0;
-    else return;
-    draw();
-  });
 }

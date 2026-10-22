@@ -3,7 +3,7 @@
  * is what Clang emits for the C shown, at -O1 for thumbv7em; the checks assemble it to confirm every encoding.
  */
 import { esc } from '../core/render';
-import { highlight } from './dbg';
+import { highlight, stepButtons, walkthrough } from './dbg';
 import { LR, PC, SP, addr, diagramHtml, drawRegs, hex8, run, showTransfers, thumb, transfers, type Cpu, type Instr } from './inspector';
 
 export const SOURCE = [
@@ -91,9 +91,7 @@ export function mountCalls(root: HTMLElement) {
       chip: 'STM32F407',
       core: 'Cortex-M4',
       label: 'Block diagram of the microcontroller',
-      controls: `<button type="button" class="dg-btn" data-act="back">Back</button>
-        <button type="button" class="dg-btn primary" data-act="step">Step</button>
-        <button type="button" class="dg-btn" data-act="restart">Restart</button>`,
+      controls: stepButtons('dg-btn'),
     })}
     <section class="prose">
       <h2>The calling convention</h2>
@@ -103,6 +101,7 @@ export function mountCalls(root: HTMLElement) {
         them before returning. SP must be a multiple of 8 at every public call.</p>
     </section>`;
 
+  const walk = walkthrough(root, { count: () => frames.length, at: () => at, go: (i) => step(i) });
   const step = (to: number) => {
     const before = at;
     at = Math.max(0, Math.min(frames.length - 1, to));
@@ -141,23 +140,17 @@ export function mountCalls(root: HTMLElement) {
           `<span class="m-note">${esc(note)}</span>${a === sp ? '<b class="pin">SP</b>' : '<span></span>'}</div>`;
       }).join('');
 
-    root.querySelector('.dg-status')!.textContent = `Step ${at} of ${frames.length - 1}. ${say(f.ran, cpu)}`;
+    root.querySelector('.dg-status')!.textContent = `Step ${at + 1} of ${frames.length}. ${say(f.ran, cpu)}`;
     root.querySelector('.dg-state')!.textContent = at === frames.length - 1 ? 'Returned' : 'Halted';
-    root.querySelector<HTMLButtonElement>('[data-act="back"]')!.disabled = at === 0;
-    root.querySelector<HTMLButtonElement>('[data-act="step"]')!.disabled = at === frames.length - 1;
+    walk.sync();
     void showTransfers(root, transfers(f.ran, f.access), animate);
   }
 
-  root.addEventListener('click', (e) => {
-    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
-    if (act === 'step') step(at + 1);
-    else if (act === 'back') step(at - 1);
-    else if (act === 'restart') step(0);
-  });
   root.querySelector('.diagram')!.addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key;
     if (k === 'ArrowRight' || k === 'ArrowLeft') {
       e.preventDefault();
+      walk.stop();
       step(at + (k === 'ArrowRight' ? 1 : -1));
     }
   });
