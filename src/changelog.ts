@@ -2,8 +2,9 @@ import { esc } from './core/render';
 
 /**
  * The changelog page (?p=changelog). Add a release at the top of CHANGES, newest first. Each change is new (pages and
- * features), improved (design and usability) or fixed (bugs and corrections). Keep entries short, and fold small
- * design fixes into one "Minor UI/UX fixes and updates" line; only big changes get their own. Links use `?p=id`.
+ * features), improved (design and usability) or fixed (bugs and corrections). Write terse fragments, not full
+ * sentences, and fold small design fixes into one "Minor UI/UX fixes and updates" line; only big changes get their own.
+ * Links use `?p=id`.
  */
 type Kind = 'new' | 'improved' | 'fixed';
 
@@ -11,8 +12,11 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-10-22',
     items: [
-      ['improved', 'Every step-by-step diagram has the same controls: Back, Step, Play and Restart.'],
-      ['improved', 'Buttons, text boxes and explanations look the same across the site’s diagrams, and the explanation under each one no longer changes size as you step.'],
+      ['improved', 'Faster first load: each page loads on demand.'],
+      ['improved', 'Smooth motion: sliding selections, settling bits, a gliding [memory map](?p=memmap) highlight.'],
+      ['improved', 'Hover and press feedback on buttons.'],
+      ['improved', 'Same step controls everywhere: Back, Step, Play, Restart.'],
+      ['improved', 'Consistent controls; diagrams no longer resize or shift as values change.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -25,30 +29,30 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-10-20',
     items: [
-      ['new', 'A Concurrency starting page, [Parts and terms](?p=mcu): TIM2, SysTick, the NVIC, the vector table and the stack, met by following one interrupt through the chip, plus a glossary.'],
-      ['new', 'The Concurrency section is complete: [priorities and nesting](?p=priorities), [context switching](?p=context), [scheduling](?p=scheduling), [race conditions](?p=races), [atomics and critical sections](?p=atomics), and [mutexes and semaphores](?p=locks).'],
-      ['new', '[Memory ordering and barriers](?p=barriers): why writes land out of order, and when DMB, DSB and ISB fix it, for interrupts, DMA, locks and the MPU.'],
-      ['improved', 'The Concurrency section’s traces are drawn as a logic analyzer on the same bench as the oscilloscope and the memory instrument.'],
+      ['new', 'Concurrency start page: [Parts and terms](?p=mcu), with a glossary.'],
+      ['new', 'Concurrency complete: [priorities](?p=priorities), [context switching](?p=context), [scheduling](?p=scheduling), [races](?p=races), [atomics](?p=atomics), [mutexes and semaphores](?p=locks).'],
+      ['new', '[Memory ordering and barriers](?p=barriers): DMB, DSB and ISB.'],
+      ['improved', 'Concurrency traces drawn as a logic analyzer.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
   {
     date: '2026-10-18',
     items: [
-      ['new', 'The Memory section is complete: the [memory map](?p=memmap), the [bus matrix](?p=interconnect), [stack frames](?p=frames), [stack overflow](?p=overflow), [sections and startup](?p=sections), [SRAM, DRAM and Flash](?p=cells), [caches](?p=caches), [virtual memory](?p=vaddr), [page tables and the TLB](?p=paging), and the [MPU and MMU](?p=mpu).'],
-      ['new', 'Start-of-frame (SOF) packets on the [USB 2.0](?p=usb) page.'],
-      ['improved', 'The Memory section’s diagrams are drawn as a bench instrument, the same family as the oscilloscope.'],
+      ['new', 'Memory complete: [memory map](?p=memmap), [bus matrix](?p=interconnect), [stack frames](?p=frames), [stack overflow](?p=overflow), [startup](?p=sections), [SRAM, DRAM and Flash](?p=cells), [caches](?p=caches), [virtual memory](?p=vaddr), [paging and the TLB](?p=paging), [MPU and MMU](?p=mpu).'],
+      ['new', 'USB 2.0 [start-of-frame packets](?p=usb).'],
+      ['improved', 'Memory diagrams drawn as a bench instrument.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
   {
     date: '2026-10-17',
     items: [
-      ['new', 'A Memory section, starting with [function calls](?p=calls) on a Cortex-M4.'],
-      ['new', 'A [buffer overflow](?p=bufover) page: how an unchecked copy overwrites the return address, and what stops it.'],
-      ['new', 'More Memory pages: [memory-mapped I/O](?p=mmio), [alignment](?p=alignment), [the stack](?p=stack) and [the heap](?p=heap), with garbage collection.'],
-      ['new', 'A Concurrency section, drawn as a trace timeline, starting with [interrupts](?p=interrupts).'],
-      ['new', 'Ethernet: [the frame](?p=ethframe), [100BASE-TX](?p=100base), [1000BASE-T](?p=1000baset), [1000BASE-X](?p=1000basex) and [MII and RMII](?p=rmii).'],
+      ['new', 'Memory section: [function calls](?p=calls) on a Cortex-M4.'],
+      ['new', '[Buffer overflow](?p=bufover): overwriting the return address, and the defenses.'],
+      ['new', '[Memory-mapped I/O](?p=mmio), [alignment](?p=alignment), [the stack](?p=stack), [the heap](?p=heap) with garbage collection.'],
+      ['new', 'Concurrency section: [interrupts](?p=interrupts) on a trace timeline.'],
+      ['new', 'Ethernet: [the frame](?p=ethframe), [100BASE-TX](?p=100base), [1000BASE-T](?p=1000baset), [1000BASE-X](?p=1000basex), [MII and RMII](?p=rmii).'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },

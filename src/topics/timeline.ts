@@ -74,9 +74,17 @@ export function drawTrace(root: HTMLElement, o: Trace) {
     </div>`).join('')}<div class="tr-head" aria-hidden="true"></div>`;
 }
 
-/** Fills the readout above the lanes. */
-export const readout = (root: HTMLElement, items: string[]) =>
-  (root.querySelector('.tr-readout')!.innerHTML = items.map((r) => `<span>${r}</span>`).join(''));
+/**
+ * Fills the readout above the lanes. `widths` (in characters) reserves each item's widest text across the walkthrough,
+ * so a longer value never pushes the items after it along.
+ */
+export const readout = (root: HTMLElement, items: string[], widths: number[] = []) =>
+  (root.querySelector('.tr-readout')!.innerHTML = items.map((r, i) =>
+    `<span${widths[i] ? ` style="min-width:${widths[i]}ch"` : ''}>${r}</span>`).join(''));
+
+/** The widest plain text of each readout position over all steps. */
+const readoutWidths = (steps: Step[]) => steps.reduce<number[]>((w, s) => (s.readout.forEach((r, i) =>
+  (w[i] = Math.max(w[i] ?? 0, r.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, '_').length))), w), []);
 
 /** Places the gold cursor at time `t`. It is a child of the grid, so it is placed from the first track's geometry. */
 export function cursor(root: HTMLElement, t: number, end: number) {
@@ -100,6 +108,7 @@ export interface Stepper {
 export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void): Stepper {
   let trace: Trace = { lanes: [], bars: [], end: 1, every: 1 };
   let steps: Step[] = [];
+  let widths: number[] = [];
   let at = 0;
   let timer: number | undefined;
   const btn = (a: string) => root.querySelector<HTMLButtonElement>(`.trace [data-act="${a}"]`);
@@ -109,7 +118,7 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
     root.querySelectorAll('.tr-seg.active').forEach((e) => e.classList.remove('active'));
     root.querySelector(`.tr-seg[data-i="${s.bar}"]`)?.classList.add('active');
     cursor(root, s.at, trace.end);
-    readout(root, s.readout);
+    readout(root, s.readout, widths);
     root.querySelector('.tr-status')!.innerHTML = `<b>Step ${at + 1} of ${steps.length}.</b> ${s.note}`;
     root.querySelectorAll<HTMLElement>('.tr-lane').forEach((l) => l.classList.toggle('on', l.dataset.lane === s.lane));
     btn('back')!.disabled = at === 0;
@@ -169,10 +178,8 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
 
   return {
     go: (i) => { stop(); go(i); },
-    load(t, s, i = 0) { stop(); trace = t; steps = s; drawTrace(root, t); go(i); },
+    load(t, s, i = 0) { stop(); trace = t; steps = s; widths = readoutWidths(s); drawTrace(root, t); go(i); },
     get at() { return at; },
   };
 }
 
-/** A plural noun: 1 frame, 2 frames. */
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;

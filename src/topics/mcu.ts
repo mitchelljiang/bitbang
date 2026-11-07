@@ -13,7 +13,7 @@ import { IRQS } from './priorities';
 export type Part = 'chip' | 'cpu' | 'nvic' | 'systick' | 'flash' | 'vectors' | 'sram' | 'stack' | 'periph' | 'tim2' | 'usart2' | 'adc' | 'gpio';
 
 /** The Flash base on an STM32F4, where the vector table sits at reset. */
-export const FLASH = 0x0800_0000;
+const FLASH = 0x0800_0000;
 /** Exceptions 1–15 belong to the core; interrupt n is exception 16 + n. */
 export const excOf = (irqn: number) => 16 + irqn;
 /** Each vector-table entry is one 32-bit address, so exception n's entry is at 4 × n. */

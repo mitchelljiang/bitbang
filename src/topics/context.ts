@@ -28,7 +28,7 @@ export const TOP = { A: 0x20001000, B: 0x20002000 };
 /** The hardware-stacked frame, lowest address first, as the ARMv7-M architecture defines it. */
 export const HW_FRAME = ['R0', 'R1', 'R2', 'R3', 'R12', 'LR', 'PC', 'xPSR'];
 /** STMDB R0!, {R4-R11} stores R4 at the lowest address. */
-export const SW_FRAME = ['R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11'];
+const SW_FRAME = ['R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11'];
 /** EXC_RETURN for a return to Thread mode on the process stack, without FPU state. */
 export const EXC_RETURN = 0xfffffffd;
 

@@ -3,11 +3,12 @@
  * handler), time left to right, with the lane that holds the CPU highlighted. A tiny priority-preemption simulator
  * produces the segments, so the nesting and the return order are correct by construction.
  */
-import { plural, stepper, traceHtml, type Bar, type BarKind, type Lane as TLane, type Mark, type Step } from './timeline';
+import { plural } from '../core/util';
+import { stepper, traceHtml, type Bar, type BarKind, type Lane as TLane, type Mark, type Step } from './timeline';
 
 export type Lane = 'main' | 'systick' | 'uart';
-export const LANES: Lane[] = ['main', 'systick', 'uart'];
-export const LANE_NAME: Record<Lane, string> = { main: 'main()', systick: 'SysTick', uart: 'UART RX' };
+const LANES: Lane[] = ['main', 'systick', 'uart'];
+const LANE_NAME: Record<Lane, string> = { main: 'main()', systick: 'SysTick', uart: 'UART RX' };
 /** Lower number is more urgent, as on a Cortex-M. main() is the background, with the least urgent "priority". */
 export const PRIO: Record<Lane, number> = { main: 256, systick: 2, uart: 1 };
 /** Each handler's address in the vector table, for the side panel. */
@@ -28,7 +29,7 @@ const STACK = 1;
 const UNSTACK = 1;
 
 /** The scenario the page plays: SysTick ticks, and a UART byte arrives mid-tick and preempts it. */
-export const ARRIVALS: Arrival[] = [
+const ARRIVALS: Arrival[] = [
   { lane: 'systick', t: 20, work: 12 },
   { lane: 'uart', t: 25, work: 6 },
   { lane: 'systick', t: 60, work: 12 },

@@ -41,7 +41,7 @@ export const sections: Section[] = [
   },
 ];
 
-export const sectionOf = (id: string) =>
+const sectionOf = (id: string) =>
   sections.find((s) => s.lead.some((l) => l.id === id) || s.categories.some((c) => c.entries.some((e) => e.id === id)));
 
 /** The section's pages in reading order, skipping ones without a page yet. Previous and next walk through these. */

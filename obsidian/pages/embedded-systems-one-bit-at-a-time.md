@@ -2,7 +2,7 @@
 id: home
 title: "Embedded systems, one bit at a time."
 section: Pages
-source: src/topics/home.ts
+source: src/home.ts
 url: ./
 ---
 # Embedded systems, one bit at a time.

@@ -7,7 +7,7 @@ import { FRAME_PARAMS, buildFrame } from './ethcommon';
  * mapping: the standard scrambles the bits and adds a trellis code that also uses level 0. Exported for the checks.
  */
 export const PAM5: Record<number, number> = { 0b00: -2, 0b01: -1, 0b11: 1, 0b10: 2 };
-export const PAIRS = ['A', 'B', 'C', 'D'];
+const PAIRS = ['A', 'B', 'C', 'D'];
 const IDLE = 4;
 
 export const gigabitT: Protocol = {

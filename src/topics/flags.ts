@@ -66,6 +66,7 @@ export function mountFlags(root: HTMLElement) {
     title: 'Overflow and status flags',
     intro: 'The adder does not know whether its inputs are signed or unsigned. It produces one 8-bit result and sets flags that describe it both ways: C when the result does not fit as unsigned, V when it does not fit as signed, plus N for negative and Z for zero. Click the bits of a and b, or try a preset.',
     file: 'flags.c',
+    cls: 'nzcv',
     controls: `
       ${seg('op', 'Operation', [['add', 'a + b'], ['sub', 'a − b']])}
       <div class="dbg-presets">${PRESETS.map(([name], k) => `<button type="button" class="dbg-btn" data-preset="${k}">${name}</button>`).join('')}</div>`,

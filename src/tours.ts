@@ -3,7 +3,7 @@
  * (10BASE-T builds its own inside its encoder.)
  */
 import type { Bit, Field, TourStop, Waveform } from './core/types';
-import { formatTime, hex, levelAt } from './core/util';
+import { formatTime, hex, levelAt, plural } from './core/util';
 
 type Range = [number, number];
 type Params = Record<string, string>;
@@ -15,7 +15,6 @@ const stop = (title: string, text: string, focus: Range | null, view?: Range): T
   ({ title, text, focus, view: view ?? focus ?? [0, 1] });
 const overview = (w: Waveform, title: string, text: string): TourStop => ({ title, text, view: [0, w.duration], focus: null });
 const time = (w: Waveform, units: number) => formatTime(units * w.unitTime);
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const valueOf = (w: Waveform, b: Bit) => (b.sample === undefined ? '?' : String(levelAt(w.traces[b.lane], b.sample + 1e-9)));
 

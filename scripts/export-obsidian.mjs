@@ -11,7 +11,8 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-const OUT = join(process.cwd(), 'obsidian');
+// OBSIDIAN_OUT exports somewhere else, e.g. a scratch folder to diff against the vault (see the pull-text skill).
+const OUT = process.env.OBSIDIAN_OUT || join(process.cwd(), 'obsidian');
 const URL = 'http://localhost:4321';
 
 // id -> source file, for the frontmatter.
@@ -137,7 +138,7 @@ function toMarkdown(d, meta) {
   const index = [`# bitbang text\n`,
     `The text of every page, exported from the site for editing. The \`source:\` field in each note names the TypeScript it came from.\n`,
     `> **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the \`source:\` files. Re-running \`npm run export-text\` regenerates these notes from \`src\` and overwrites them, so pull your edits in first.\n`];
-  const srcOf = (id, kind) => kind === 'protocol' ? `src/protocols/${PROTO_FILE[id] ?? id}.ts` : TOPIC_FILE[id] ? `src/topics/${TOPIC_FILE[id]}.ts` : id === 'basics' ? 'src/guide.ts' : id === 'about' ? 'src/about.ts' : `src/topics/${id}.ts`;
+  const srcOf = (id, kind) => kind === 'protocol' ? `src/protocols/${PROTO_FILE[id] ?? id}.ts` : TOPIC_FILE[id] ? `src/topics/${TOPIC_FILE[id]}.ts` : id === 'basics' ? 'src/guide.ts' : id === 'about' ? 'src/about.ts' : id === 'home' ? 'src/home.ts' : `src/topics/${id}.ts`;
 
   for (const { section, groups } of sections) {
     const dir = join(OUT, slug(section));

@@ -9,6 +9,14 @@ const LEDS: [number, string, string][] = [[12, 'green', '#4caf50'], [13, 'orange
 const MODES = ['Input', 'Output', 'Alternate', 'Analog']; // MODER field: 00, 01, 10, 11
 const SHORT = ['In', 'Out', 'Alt', 'An']; // narrow-screen labels
 
+/** The two registers for the given pin modes and output bits: MODER packs 2 bits per pin, ODR 1 bit per pin. */
+export const registers = (mode: Record<number, number>, out: Record<number, number>) => ({
+  moder: Object.entries(mode).reduce((v, [p, m]) => v | (m << (2 * +p)), 0) >>> 0,
+  odr: Object.entries(out).reduce((v, [p, o]) => v | (o << +p), 0) >>> 0,
+});
+/** A pin drives its LED only when it is configured as an output (MODER 01) and its ODR bit is 1. */
+export const lit = (mode: number, out: number) => mode === 1 && out === 1;
+
 export function mountMmio(root: HTMLElement) {
   const q = new URLSearchParams(location.search);
   const read = (k: string, d: number) => { const n = parseInt(q.get(k) ?? '', 16); return Number.isInteger(n) ? n >>> 0 : d; };
@@ -16,9 +24,9 @@ export function mountMmio(root: HTMLElement) {
   const out: Record<number, number> = {};
   for (const [p] of LEDS) { mode[p] = (read('m', 0) >>> (2 * p)) & 3; out[p] = (read('o', 0) >>> p) & 1; }
 
-  const moder = () => LEDS.reduce((v, [p]) => v | (mode[p] << (2 * p)), 0) >>> 0;
-  const odr = () => LEDS.reduce((v, [p]) => v | (out[p] << p), 0) >>> 0;
-  const lit = (p: number) => mode[p] === 1 && out[p] === 1;
+  const moder = () => registers(mode, out).moder;
+  const odr = () => registers(mode, out).odr;
+  const on = (p: number) => lit(mode[p], out[p]);
 
   root.innerHTML = `
     <section class="intro">
@@ -78,7 +86,7 @@ export function mountMmio(root: HTMLElement) {
 
   function draw() {
     const outs = LEDS.filter(([p]) => mode[p] === 1);
-    const highs = LEDS.filter(([p]) => lit(p));
+    const highs = LEDS.filter(([p]) => on(p));
     const lines = [
       '#include <stdint.h>',
       '#define GPIOD_MODER (*(volatile uint32_t *)0x40020C00)',
@@ -97,12 +105,12 @@ export function mountMmio(root: HTMLElement) {
 
     root.querySelector('.dbg-regs')!.innerHTML = `MODER <b>${hexN(moder(), 32)}</b> · ODR <b>${hexN(odr(), 16)}</b>`;
     root.querySelector('.pintab tbody')!.innerHTML = LEDS.map(([p, name, color]) => `
-      <tr${lit(p) ? ' class="on"' : ''}>
+      <tr${on(p) ? ' class="on"' : ''}>
         <td class="pn">PD${p} <small>${name}</small></td>
         <td><div class="mseg" role="radiogroup" aria-label="PD${p} mode">${MODES.map((m, k) =>
           `<button type="button" role="radio" data-pin="${p}" data-mode="${k}" aria-checked="${mode[p] === k}" title="MODER field = ${k.toString(2).padStart(2, '0')}"><span class="lg">${m}</span><span class="sm">${SHORT[k]}</span></button>`).join('')}</div></td>
         <td><button type="button" class="obit${out[p] ? ' hi' : ''}" data-odr="${p}" aria-pressed="${!!out[p]}">${out[p]}</button></td>
-        <td><span class="led${lit(p) ? ' on' : ''}" style="--led:${color}" aria-label="${name} LED ${lit(p) ? 'on' : 'off'}"></span></td>
+        <td><span class="led${on(p) ? ' on' : ''}" style="--led:${color}" aria-label="${name} LED ${on(p) ? 'on' : 'off'}"></span></td>
       </tr>`).join('');
 
     const explain = () => {

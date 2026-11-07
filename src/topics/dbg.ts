@@ -133,13 +133,13 @@ export function bits(name: string, v: number, width: number, o: BitOpts = {}) {
 }
 
 /** How long the pointer may sit between two hover targets before the text resets, so the gaps don't flash it. */
-export const HOVER_GRACE = 150;
+const HOVER_GRACE = 150;
 
 /**
  * While the pointer is over a bit that has a tip, the status line explains it; moving away restores what was there.
  * Crossing the gap between two bits keeps the tip, so the old text does not flash in between.
  */
-export function hoverTips(root: HTMLElement) {
+function hoverTips(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>('.debugger').forEach((dbg) => {
     const status = dbg.querySelector<HTMLElement>('.dbg-status')!;
     let saved: string | null = null;
@@ -244,6 +244,8 @@ export function parseNumber(s: string): number | null {
 }
 
 export const hexN = (v: number, width: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(width / 4, '0');
+/** A 32-bit address or word: 0x2001FFF8. */
+export const hex8 = (v: number) => hexN(v, 32);
 export const binN = (v: number, width: number) => ((v >>> 0).toString(2).padStart(width, '0').match(/.{4}/g) ?? []).join(' ');
 
 /** Back / Step / Play / Restart: the controls every stepped walkthrough shares, drawn in the panel's button class. */

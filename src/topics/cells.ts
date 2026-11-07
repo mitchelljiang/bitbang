@@ -46,6 +46,16 @@ function cellSvg(type: Mem, present: boolean): string {
     <text x="120" y="138" fill="${txt}" font-size="11" text-anchor="middle">charge sits on an isolated gate, no power needed</text></svg>`;
 }
 
+/**
+ * Whether a cell still holds its bit. Flash keeps it without power until erased; SRAM and DRAM lose it when the power
+ * goes, and DRAM also once its capacitor has leaked below the sense threshold (40%).
+ */
+export function holds(type: Mem, powered: boolean, charge: number): boolean {
+  if (type === 'flash') return charge > 0;
+  if (!powered) return false;
+  return type === 'sram' || charge > 40;
+}
+
 export function mountCells(root: HTMLElement) {
   let type = oneOf('m', TYPES, 'dram');
   let powered = true;
@@ -98,11 +108,7 @@ export function mountCells(root: HTMLElement) {
         <b>wear levelling</b>, spreading writes so no one block is erased to death while others sit idle.</p>
     </section>`;
 
-  function present(): boolean {
-    if (type === 'flash') return charge > 0; // non-volatile: power does not matter
-    if (!powered) return false; // SRAM and DRAM are volatile
-    return type === 'sram' ? true : charge > 40; // DRAM lost once the capacitor drains
-  }
+  const present = () => holds(type, powered, charge);
 
   function draw(note?: string) {
     const here = present();

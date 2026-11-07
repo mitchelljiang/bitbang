@@ -179,7 +179,9 @@ export function mountBufover(root: HTMLElement) {
     root.querySelector('.dbg-code code')!.innerHTML =
       SOURCE.map((l, n) => `<span class="ln${n === 3 ? ' pc' : ''}"><span class="gutter">${n + 1}</span>${highlight(l) || ' '}</span>`).join('') +
       '<span class="ln sep"><span class="gutter"></span>greet, compiled:</span>' +
-      asm.map((l, n) => `<span class="ln asm${n === asmPc ? ' pc' : ''}"><span class="gutter"></span>${highlight(l) || ' '}</span>`).join('');
+      asm.map((l, n) => `<span class="ln asm${n === asmPc ? ' pc' : ''}"><span class="gutter"></span>${highlight(l) || ' '}</span>`).join('') +
+      // Without the protector the listing is shorter; blank lines keep the pane the height it has with it.
+      '<span class="ln" aria-hidden="true"> </span>'.repeat(ASM.canary.length - asm.length);
 
     // Place the written bytes into the frame, byte by byte from buf[0] downward.
     const all = slots();
@@ -202,7 +204,10 @@ export function mountBufover(root: HTMLElement) {
       const addr = `0x${(BASE + s.off).toString(16).toUpperCase()}`;
       return `<div class="row k-${s.kind}${touched ? ' touched' : ''}">` +
         `<span class="addr">${addr}</span><span class="cells">${cells}</span><span class="rname">${esc(s.name)}</span></div>`;
-    }).join('');
+    }).join('') +
+      // The canary's row, held invisibly when there is no canary, so turning the protector on does not grow the frame.
+      (canary ? '' : `<div class="row" style="visibility: hidden" aria-hidden="true"><span class="addr">0</span><span class="cells">${
+        byteCell({ b: 0, over: false, kind: 'canary' }).repeat(4)}</span><span class="rname">canary</span></div>`);
 
     // The consequence on return.
     const ret = slots().find((s) => s.kind === 'ret')!;

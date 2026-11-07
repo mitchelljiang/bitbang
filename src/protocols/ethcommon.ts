@@ -5,7 +5,7 @@
 import type { Kind, Param } from '../core/types';
 import { parseBytes, parseHex } from '../core/util';
 
-export const MIN_PAYLOAD = 46;
+const MIN_PAYLOAD = 46;
 
 /** CRC-32 as used by Ethernet (reflected, polynomial 0x04C11DB7, start and finish with all ones). */
 export function crc32(bytes: number[]) {

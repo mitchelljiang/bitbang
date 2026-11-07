@@ -40,7 +40,7 @@ fault).
 
 ## 3. Register it
 
-In `src/topics/index.ts` add `import { mountX } from './<id>'` and `<id>: mountX` to the `topics` record. The page's
+In `src/topics/index.ts` add `<id>: () => import('./<id>').then((m) => m.mountX),` to the `topics` record (pages are lazy chunks; no static import). The page's
 status flips to **live** automatically.
 
 ## 4. Style it

@@ -3,7 +3,7 @@
  * base, size and permissions; every access is checked against them, and one that breaks the rules, or lands outside
  * every region, faults. Choose an access and see which region catches it. checkAccess is exported for the checks.
  */
-import { markSeg, oneOf, seg, status, syncUrl } from './dbg';
+import { hex8, markSeg, oneOf, seg, status, syncUrl } from './dbg';
 
 type Perm = 'rw' | 'ro' | 'none';
 export interface Region { name: string; base: number; size: number; priv: Perm; unpriv: Perm; exec: boolean }
@@ -41,7 +41,6 @@ const MARKS = [
   { label: 'GPIO reg', addr: 0x40020c14 }, { label: 'Stack guard', addr: 0x2001f810 },
   { label: 'Unmapped', addr: 0x60000000 },
 ];
-const hex8 = (v: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
 const permText = (p: Perm) => (p === 'rw' ? 'read/write' : p === 'ro' ? 'read-only' : 'no access');
 
 export function mountMpu(root: HTMLElement) {

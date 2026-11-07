@@ -10,7 +10,7 @@
  *
  * Exits non-zero if anything fails.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,9 +24,17 @@ import { SECTIONS } from '../src/guide';
 import { index } from '../src/search';
 import { RESOURCES } from '../src/resources';
 import { buildFrame } from '../src/protocols/ethcommon';
-import { CONTROL, FOUR_B_FIVE_B, scrambler } from '../src/protocols/fast';
+import { CONTROL, FOUR_B_FIVE_B, mlt3, scrambler } from '../src/protocols/fast';
+import { crc5, crc16 } from '../src/protocols/usb';
 import { PAM5 } from '../src/protocols/gigt';
 import { CHANGELOG_TEXT } from '../src/changelog';
+import { catalog } from '../src/catalog';
+import { bitTopics } from '../src/bits';
+import { memoryTopics } from '../src/memory';
+import { concurrencyTopics } from '../src/concurrency';
+import { topics } from '../src/topics';
+import { plural } from '../src/core/util';
+import { hex8, hexN, parseNumber } from '../src/topics/dbg';
 import { apply, type Op } from '../src/topics/bitwise';
 import { decodeFloat32, encodeFloat32, fixedValue, qRsqrt, toInt8 } from '../src/topics/numbers';
 import { MASK_OPS, SHIFTS, bytesOf, endianCode, maskOp, rmwRun, shift, shiftCode, sourceBit } from '../src/topics/ops';
@@ -38,6 +46,9 @@ import { WIN_ADDR, outcome } from '../src/topics/bufover';
 import { END as IRQ_END, PRIO, trace } from '../src/topics/interrupts';
 import { accesses, aligned } from '../src/topics/alignment';
 import { firstFit } from '../src/topics/heap';
+import { lit as ledLit, registers as gpioRegs } from '../src/topics/mmio';
+import { FNS as STACK_FNS, TOP as STACK_TOP, spFor } from '../src/topics/thestack';
+import { holds } from '../src/topics/cells';
 import { REGIONS as MMAP, regionOf } from '../src/topics/memmap';
 import { MASTERS, arbitrate } from '../src/topics/interconnect';
 import { SLOTS as FRAME_SLOTS, presentAt, spAt } from '../src/topics/frames';
@@ -73,12 +84,45 @@ const level = (tr: Trace, t: number): Level => at(tr, t).v;
 
 let failures = 0;
 let passes = 0;
-const check = (name: string, ok: boolean, detail = '') => {
+/** The report, in order. Checks that wait on an external program hold their place as a promise. */
+const report: (string | Promise<string>)[] = [];
+const line = (name: string, ok: boolean, detail = '') => {
   if (ok) passes++;
   else failures++;
-  console.log(`${ok ? '  ok  ' : '  FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
+  return `${ok ? '  ok  ' : '  FAIL'} ${name}${detail ? ` — ${detail}` : ''}`;
 };
-const section = (title: string) => console.log(`\n${title}`);
+const check = (name: string, ok: boolean, detail = '') => report.push(line(name, ok, detail));
+/**
+ * A check answered by an external program (Python, a C compiler, Clang, sigrok). It runs alongside the others, which
+ * is most of the suite's time saved, and is still reported in its place. A program that is missing or fails is a FAIL.
+ */
+const later = (name: string, test: () => Promise<[boolean, string?]>) =>
+  report.push(test().catch((e: Error): [boolean, string] => [false, e.message.split('\n')[0]]).then(([ok, detail]) => line(name, ok, detail)));
+const section = (title: string) => report.push(`\n${title}`);
+
+/** Runs a program and resolves to its output. At most 8 run at once. */
+let running = 0;
+const waiting: (() => void)[] = [];
+const sh = async (cmd: string, args: string[] = []) => {
+  if (running >= 8) await new Promise<void>((r) => waiting.push(r));
+  running++;
+  try {
+    return await new Promise<string>((ok, fail) => execFile(cmd, args, { maxBuffer: 1 << 24 }, (e, out) => (e ? fail(e) : ok(out.toString()))));
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+};
+/** Compiles a C file with cc and runs it, resolving to its output lines. */
+const cc = async (file: string, flags = ['-O0', '-w'], args: string[] = []) => {
+  const exe = file.replace(/\.c$/, '');
+  await sh('cc', [...flags, '-o', exe, file]);
+  return (await sh(exe, args)).trim().split('\n');
+};
+/** Python's zlib, an independent CRC-32: whether the last 4 bytes of `bytes` are the CRC of the rest (little-endian). */
+const zlibOk = (bytes: number[]) => sh('python3', ['-I', '-c',
+  `import zlib,sys; f=bytes.fromhex(sys.argv[1]); print(zlib.crc32(f[:-4])==int.from_bytes(f[-4:],'little'))`,
+  Buffer.from(bytes).toString('hex')]).then((o) => o.trim() === 'True');
 
 /** Settings worth checking for each protocol, beyond the defaults. */
 const CASES: [string, Params][] = [
@@ -298,27 +342,12 @@ section('3. Protocol-specific checks');
     for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(bits.slice(i, i + 8).reduceRight((acc, v) => acc * 2 + v, 0));
     const frame = bytes.slice(8, -4);
     const fcs = bytes.slice(-4);
-    let ok = false;
-    try {
-      const py = `import zlib,sys; f=bytes.fromhex(sys.argv[1]); c=bytes.fromhex(sys.argv[2]); print(zlib.crc32(f)==int.from_bytes(c,'little'))`;
-      ok = execFileSync('python3', ['-I', '-c', py, Buffer.from(frame).toString('hex'), Buffer.from(fcs).toString('hex')]).toString().trim() === 'True';
-    } catch {
-      console.log('        (python3 not available; skipping zlib check)');
-      ok = true;
-    }
-    check(`10BASE-T ${JSON.stringify(o)}: preamble, SFD and FCS (zlib.crc32)`, ok && bytes.slice(0, 7).every((b) => b === 0x55) && bytes[7] === 0xd5 && frame.length >= 60);
+    const framed = bytes.slice(0, 7).every((b) => b === 0x55) && bytes[7] === 0xd5 && frame.length >= 60;
+    later(`10BASE-T ${JSON.stringify(o)}: preamble, SFD and FCS (zlib.crc32)`, async () => [framed && await zlibOk([...frame, ...fcs])]);
   }
   // Every Ethernet physical layer: decode the signal on its wire back into bytes, independently of its encoder, and
   // check that it carries the same frame as the Ethernet frame page, with a CRC that Python's zlib accepts.
   {
-    const zlibOk = (bytes: number[]) => {
-      try {
-        const py = `import zlib,sys; f=bytes.fromhex(sys.argv[1]); print(zlib.crc32(f[:-4])==int.from_bytes(f[-4:],'little'))`;
-        return execFileSync('python3', ['-I', '-c', py, Buffer.from(bytes.slice(8)).toString('hex')]).toString().trim() === 'True';
-      } catch {
-        return true;
-      }
-    };
     const toBytes = (bits: number[]) => {
       const out: number[] = [];
       for (let i = 0; i + 8 <= bits.length; i += 8) out.push(bits.slice(i, i + 8).reduceRight((acc, v) => acc * 2 + v, 0));
@@ -327,8 +356,8 @@ section('3. Protocol-specific checks');
     const same = (name: string, got: number[], o: Params) => {
       const want = buildFrame(params(name, o)).bytes;
       const match = got.length === want.length && got.every((b, i) => b === want[i]);
-      check(`${name} ${JSON.stringify(o)}: decodes to the same frame, and zlib accepts its CRC`, match && zlibOk(got),
-        match ? '' : `got ${got.length} bytes, want ${want.length}; first difference at ${got.findIndex((b, i) => b !== want[i])}`);
+      later(`${name} ${JSON.stringify(o)}: decodes to the same frame, and zlib accepts its CRC`, async () => [match && await zlibOk(got.slice(8)),
+        match ? '' : `got ${got.length} bytes, want ${want.length}; first difference at ${got.findIndex((b, i) => b !== want[i])}`]);
     };
     const at = (tr: Trace, t: number) => level(tr, t) as number;
 
@@ -498,7 +527,7 @@ section('3c. Representing numbers');
   check('UQ4.4 0xB2 is 11.125, UQ0.8 0x80 is 0.5, UQ8.0 0xFF is 255', fixedValue(0xb2, 4) === 11.125 && fixedValue(0x80, 8) === 0.5 && fixedValue(0xff, 0) === 255);
   // IEEE 754: bit patterns and exact decimal values, against Python's struct and Decimal as an independent reference.
   const values = ['0.1', '1', '-2.5', '3.4028234663852886e38', '1e-45', '5.877472e-39', '0', '-0.0', '123.456'];
-  const py = execFileSync('python3', ['-c', `
+  const python = sh('python3', ['-c', `
 import struct, decimal, sys
 for s in sys.argv[1:]:
     b = struct.unpack('>I', struct.pack('>f', float(s)))[0]
@@ -507,14 +536,17 @@ for s in sys.argv[1:]:
     if '.' in d: d = d.rstrip('0').rstrip('.')
     if d in ('-0',): d = '-0'
     print(f'{b:08X} {d}')
-`, ...values]).toString().trim().split('\n');
+`, ...values]);
   const mine = values.map((v) => {
     const b = encodeFloat32(Number(v));
     const d = decodeFloat32(b);
     return `${b.toString(16).toUpperCase().padStart(8, '0')} ${d.exact === '-0' || (d.kind === 'zero' && d.sign) ? '-0' : d.exact}`;
   });
-  const diffs = values.map((v, i) => (mine[i] === py[i] ? '' : `${v}: ${mine[i]} vs python ${py[i]}`)).filter(Boolean);
-  check(`${values.length} floats: bit patterns and exact decimal values match Python`, diffs.length === 0, diffs.join('; '));
+  later(`${values.length} floats: bit patterns and exact decimal values match Python`, async () => {
+    const py = (await python).trim().split('\n');
+    const diffs = values.map((v, i) => (mine[i] === py[i] ? '' : `${v}: ${mine[i]} vs python ${py[i]}`)).filter(Boolean);
+    return [diffs.length === 0, diffs.join('; ')];
+  });
   const special = [[0x7f800000, 'infinity'], [0xff800000, 'infinity'], [0x7fc00000, 'nan'], [0x00000001, 'subnormal'], [0x80000000, 'zero']] as const;
   check('infinity, NaN, subnormal and zero are recognized', special.every(([b, k]) => decodeFloat32(b).kind === k));
   // Fast inverse square root: the page's steps against the C code itself, compiled and run.
@@ -539,14 +571,6 @@ int main(int argc, char **argv) {
     printf("%08X %08X %a %a\\n", i0, i, (double)y0, (double)y);
   }
 }`);
-    const exe = join(dir, 'q');
-    let out = '';
-    try {
-      execFileSync('cc', ['-O0', '-ffp-contract=off', '-o', exe, src]);
-      out = execFileSync(exe, inputs).toString().trim();
-    } catch {
-      out = '';
-    }
     const hexf = (v: number) => {
       // %a formatting of a double, to compare exactly with C.
       if (v === 0) return '0x0p+0';
@@ -561,7 +585,10 @@ int main(int argc, char **argv) {
       const q = qRsqrt(Number(x));
       return `${hexN(q.i0)} ${hexN(q.i1)} ${hexf(q.y0)} ${hexf(q.y1)}`;
     }).join('\n');
-    check('fast inverse square root matches the C code compiled and run', out !== '' && mine === out, out ? `page: ${mine.split('\n')[0]} vs C: ${out.split('\n')[0]}` : 'could not compile with cc');
+    later('fast inverse square root matches the C code compiled and run', async () => {
+      const out = (await cc(src, ['-O0', '-ffp-contract=off'], inputs)).join('\n');
+      return [mine === out, `page: ${mine.split('\n')[0]} vs C: ${out.split('\n')[0]}`];
+    });
   }
 }
 
@@ -593,14 +620,11 @@ section('3d. Shifts, masks, read-modify-write and endianness');
     const dir = mkdtempSync(join(tmpdir(), 'shift-'));
     const src = join(dir, 'shift.c');
     writeFileSync(src, `#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${body}\n}\n`);
-    let out: string[] = [];
-    try {
-      execFileSync('cc', ['-O0', '-w', '-o', join(dir, 's'), src]);
-      out = execFileSync(join(dir, 's')).toString().trim().split('\n');
-    } catch { /* no compiler: reported below */ }
-    const bad = cases.filter(({ op, x, n }, k) => Number(out[k]) !== (op === 'sar' ? toInt8(shift(op, x, n)) : shift(op, x, n)));
-    check(`the shifts page's C, compiled and run, gives the page's results (${cases.length} cases)`, out.length === cases.length && bad.length === 0,
-      out.length ? bad.slice(0, 3).map(({ op, x, n }) => `${op} ${x} ${n}`).join('; ') : 'could not compile with cc');
+    later(`the shifts page's C, compiled and run, gives the page's results (${cases.length} cases)`, async () => {
+      const out = await cc(src);
+      const bad = cases.filter(({ op, x, n }, k) => Number(out[k]) !== (op === 'sar' ? toInt8(shift(op, x, n)) : shift(op, x, n)));
+      return [out.length === cases.length && bad.length === 0, bad.slice(0, 3).map(({ op, x, n }) => `${op} ${x} ${n}`).join('; ')];
+    });
   }
 
   // Masks: bits outside the mask never change; inside it, set, clear and toggle do what they say.
@@ -634,36 +658,28 @@ section('3d. Shifts, masks, read-modify-write and endianness');
   {
     const dir = mkdtempSync(join(tmpdir(), 'endian-'));
     const little = new Uint8Array(new Uint16Array([0x0102]).buffer)[0] === 0x02;
-    const runs = ([[0x1234, 16], [0x12345678, 32]] as const).map(([x, w]) => {
-      const lines = endianCode(x, w, little);
-      const src = join(dir, `e${w}.c`);
-      writeFileSync(src, lines.join('\n') + '\n');
-      try {
-        execFileSync('cc', ['-O0', '-o', join(dir, `e${w}`), src]);
-        const out = execFileSync(join(dir, `e${w}`)).toString().trim().split('\n');
+    later(`the endianness program, compiled and run here (${little ? 'little' : 'big'}-endian), prints what the page says`, async () => {
+      const runs = (await Promise.all(([[0x1234, 16], [0x12345678, 32]] as const).map(async ([x, w]) => {
+        const lines = endianCode(x, w, little);
+        const src = join(dir, `e${w}.c`);
+        writeFileSync(src, lines.join('\n') + '\n');
+        const out = await cc(src, ['-O0']);
         const said = [lines[8].replace(/^.*\/\/ prints /, ''), lines[10].endsWith('runs') ? 'little-endian' : 'big-endian'];
         return out[0] === said[0] && out[1] === said[1] ? '' : `${w}-bit: printed ${out.join(' / ')}, page says ${said.join(' / ')}`;
-      } catch {
-        return `${w}-bit: could not compile with cc`;
-      }
-    }).filter(Boolean);
-    check(`the endianness program, compiled and run here (${little ? 'little' : 'big'}-endian), prints what the page says`, runs.length === 0, runs.join('; '));
+      }))).filter(Boolean);
+      return [runs.length === 0, runs.join('; ')];
+    });
   }
 }
 
 section('3e. Bit tricks, status flags, checksums and CRC');
 {
   const all = Array.from({ length: 256 }, (_, v) => v);
-  /** Compiles a C program and returns its output lines, or null if there is no compiler. */
+  /** Compiles and runs a C program, resolving to its output lines. */
   const runC = (name: string, src: string) => {
-    const dir = mkdtempSync(join(tmpdir(), `${name}-`));
-    writeFileSync(join(dir, `${name}.c`), src);
-    try {
-      execFileSync('cc', ['-O0', '-w', '-o', join(dir, name), join(dir, `${name}.c`)]);
-      return execFileSync(join(dir, name), { maxBuffer: 1 << 24 }).toString().trim().split('\n');
-    } catch {
-      return null;
-    }
+    const file = join(mkdtempSync(join(tmpdir(), `${name}-`)), `${name}.c`);
+    writeFileSync(file, src);
+    return cc(file);
   };
   const body = (lines: string[]) => lines.filter((l) => !l.startsWith('#') && l.trim()).map((l) => l.replace(/\/\/.*$/, '')).join(' ');
 
@@ -679,9 +695,11 @@ section('3e. Bit tricks, status flags, checksums and CRC');
     const cases = TRICKS.flatMap((t) => all.map((x) => ({ t, x })));
     const out = runC('tricks', `#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${cases.map(({ t, x }) =>
       `  { ${body(trickCode(t, x))} printf("%d\\n", (int)${result[t]}); }`).join('\n')}\n}\n`);
-    const bad = out ? cases.filter(({ t, x }, k) => Number(out[k]) !== trick(t, x)) : [];
-    check(`the bit tricks page's C, compiled and run, gives the page's results (${cases.length} cases)`, out !== null && bad.length === 0,
-      out ? bad.slice(0, 3).map(({ t, x }) => `${t} ${x}`).join('; ') : 'could not compile with cc');
+    later(`the bit tricks page's C, compiled and run, gives the page's results (${cases.length} cases)`, async () => {
+      const lines = await out;
+      const bad = cases.filter(({ t, x }, k) => Number(lines[k]) !== trick(t, x));
+      return [bad.length === 0, bad.slice(0, 3).map(({ t, x }) => `${t} ${x}`).join('; ')];
+    });
   }
 
   // Status flags, against the definitions: C and V say whether the unsigned and the signed result fit.
@@ -697,12 +715,14 @@ section('3e. Bit tricks, status flags, checksums and CRC');
     const cases = FLAG_OPS.flatMap((op) => [0, 1, 5, 10, 80, 100, 127, 128, 129, 200, 255].flatMap((a) => [0, 1, 10, 80, 100, 127, 128, 200, 255].map((b) => ({ op, a, b }))));
     const out = runC('flags', `#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\nint main(void) {\n${cases.map(({ op, a, b }) =>
       `  { ${body(flagCode(op, a, b))} printf("%d %d %d %d %d\\n", r, n, z, c, v); }`).join('\n')}\n}\n`);
-    const bad = out ? cases.filter(({ op, a, b }, k) => {
-      const f = arith(op, a, b);
-      return out[k] !== `${f.r} ${f.n} ${f.z} ${f.c} ${f.v}`;
-    }) : [];
-    check(`the flags page's C, compiled and run, sets the page's flags (${cases.length} cases)`, out !== null && bad.length === 0,
-      out ? bad.slice(0, 3).map(({ op, a, b }) => `${op} ${a} ${b}`).join('; ') : 'could not compile with cc');
+    later(`the flags page's C, compiled and run, sets the page's flags (${cases.length} cases)`, async () => {
+      const lines = await out;
+      const bad = cases.filter(({ op, a, b }, k) => {
+        const f = arith(op, a, b);
+        return lines[k] !== `${f.r} ${f.n} ${f.z} ${f.c} ${f.v}`;
+      });
+      return [bad.length === 0, bad.slice(0, 3).map(({ op, a, b }) => `${op} ${a} ${b}`).join('; ')];
+    });
   }
 
   // Checksums and CRC: the published CRC-8/SMBUS check value, the checksum's defining property, the stepper's final
@@ -717,9 +737,11 @@ section('3e. Bit tricks, status flags, checksums and CRC');
   {
     const out = runC('check', `#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n${LISTINGS.sum.join('\n')}\n${LISTINGS.crc8.join('\n')}\nint main(void) {\n${
       samples.map((d) => `  { const uint8_t d[] = {${d.join(', ')}}; printf("%d %d\\n", checksum(d, ${d.length}), crc8(d, ${d.length})); }`).join('\n')}\n}\n`);
-    const bad = out ? samples.filter((d, k) => out[k] !== `${checksum(d)} ${crc8(d)}`) : [];
-    check('the page\'s checksum and CRC-8 functions, compiled and run, agree with the page', out !== null && bad.length === 0,
-      out ? bad.map((d) => d.join(' ')).join('; ') : 'could not compile with cc');
+    later('the page\'s checksum and CRC-8 functions, compiled and run, agree with the page', async () => {
+      const lines = await out;
+      const bad = samples.filter((d, k) => lines[k] !== `${checksum(d)} ${crc8(d)}`);
+      return [bad.length === 0, bad.map((d) => d.join(' ')).join('; ')];
+    });
   }
 }
 
@@ -738,28 +760,27 @@ section('3f. Memory: function calls');
 
   // The encodings, from a real assembler, and the instructions, from a real compiler, when Clang can target Arm.
   const dir = mkdtempSync(join(tmpdir(), 'stack-'));
-  const objdump = (o: string) => execFileSync('objdump', ['-d', '--triple=thumbv7em-none-eabi', o]).toString()
+  const objdump = async (o: string) => (await sh('objdump', ['-d', '--triple=thumbv7em-none-eabi', o]))
     .split('\n').map((l) => l.match(/^\s*([0-9a-f]+):\s+((?:[0-9a-f]{4} ?)+)\s+(\S+)\s*(.*)$/)).filter(Boolean)
     .map((m) => ({ addr: parseInt(m![1], 16), enc: m![2].trim(), text: `${m![3]} ${m![4]}`.replace(/\s*@.*$/, '').replace(/#0x([0-9a-f]+)/g, (_, h) => `#${parseInt(h, 16)}`).trim() }));
-  try {
-    const base = PROGRAM[0].addr;
+  const base = PROGRAM[0].addr;
+  later('every encoding on the page matches the Arm assembler', async () => {
     const asm = ['.syntax unified', '.thumb', ...PROGRAM.flatMap((p) => [
       ...(p.addr === base ? ['square:'] : p.text.startsWith('push') ? ['main:'] : []), `  ${p.text}`])].join('\n') + '\n';
     writeFileSync(join(dir, 'p.s'), asm);
-    execFileSync('clang', ['--target=thumbv7em-none-eabi', '-c', join(dir, 'p.s'), '-o', join(dir, 'p.o')]);
-    const got = objdump(join(dir, 'p.o'));
+    await sh('clang', ['--target=thumbv7em-none-eabi', '-c', join(dir, 'p.s'), '-o', join(dir, 'p.o')]);
+    const got = await objdump(join(dir, 'p.o'));
     const bad = PROGRAM.filter((p, k) => got[k]?.enc !== p.enc || got[k]?.addr !== p.addr - base);
-    check('every encoding on the page matches the Arm assembler', got.length === PROGRAM.length && bad.length === 0, bad.map((p) => p.text).join('; '));
-
+    return [got.length === PROGRAM.length && bad.length === 0, bad.map((p) => p.text).join('; ')];
+  });
+  later('the machine code is what Clang -O1 emits for the C shown, for a Cortex-M4', async () => {
     writeFileSync(join(dir, 's.c'), SOURCE.join('\n').replace('int square', '__attribute__((noinline)) int square') + '\n');
-    execFileSync('clang', ['--target=thumbv7em-none-eabi', '-mcpu=cortex-m4', '-O1', '-c', join(dir, 's.c'), '-o', join(dir, 's.o')]);
+    await sh('clang', ['--target=thumbv7em-none-eabi', '-mcpu=cortex-m4', '-O1', '-c', join(dir, 's.c'), '-o', join(dir, 's.o')]);
     const norm = (t: string) => t.replace(/\s+/g, ' ').replace(/^bl .*/, 'bl');
-    const compiled = objdump(join(dir, 's.o')).map((x) => norm(x.text));
+    const compiled = (await objdump(join(dir, 's.o'))).map((x) => norm(x.text));
     const page = PROGRAM.map((p) => norm(p.text));
-    check('the machine code is what Clang -O1 emits for the C shown, for a Cortex-M4', compiled.join(' | ') === page.join(' | '), `Clang: ${compiled.join(' | ')}`);
-  } catch (e) {
-    check('the page\'s machine code assembles and compiles with Clang for Arm', false, (e as Error).message.split('\n')[0]);
-  }
+    return [compiled.join(' | ') === page.join(' | '), `Clang: ${compiled.join(' | ')}`];
+  });
 }
 
 section('3g. Memory: buffer overflow');
@@ -935,8 +956,54 @@ section('3m. Concurrency: parts and terms');
   check(`${TERMS.flatMap((g) => g.terms).length} glossary terms link to live pages`, dead.length === 0, dead.join('; '));
 }
 
-section('3i. Memory: alignment and the heap');
+section('3n. Shared helpers and site structure');
 {
+  // USB's CRCs, against the published check values for "123456789" (Greg Cook's CRC catalogue), so they are checked
+  // even where sigrok is not installed. CRC-5 bits go out least significant first, as the data does.
+  const ascii = [...'123456789'].map((c) => c.charCodeAt(0));
+  const c5 = crc5(ascii.flatMap((b) => Array.from({ length: 8 }, (_, i) => (b >> i) & 1)));
+  check('CRC-5/USB of "123456789" is 0x19', c5.reduceRight((acc, b) => acc * 2 + b, 0) === 0x19, c5.join(''));
+  const c16 = crc16(ascii);
+  check('CRC-16/USB of "123456789" is 0xB4C8, sent low byte first', c16[0] === 0xc8 && c16[1] === 0xb4, c16.map((b) => b.toString(16)).join(' '));
+
+  // MLT-3: a 1 moves to the next level of 0, +1, 0, −1; a 0 holds. So the line never jumps straight between +1 and −1.
+  const code = Array.from({ length: 64 }, (_, i) => ((i * 37) >> 2) & 1);
+  const lv = mlt3(code);
+  const moved = lv.every((v, i) => (v !== (i ? lv[i - 1] : 0)) === (code[i] === 1));
+  const cycle = lv.filter((v, i) => v !== (i ? lv[i - 1] : 0)).every((v, k, ch) => v === [1, 0, -1, 0][k % 4] && Math.abs(v - (k ? ch[k - 1] : 0)) === 1);
+  check('MLT-3 changes level exactly on a 1, cycling 0, +1, 0, −1', moved && cycle, lv.slice(0, 16).join(','));
+
+  // What a reader types into a value box.
+  const parsed: [string, number | null][] = [['0xB2', 0xb2], ['178', 178], ['0b1011_0010', 0xb2], ['-5', -5], ['-0x10', -16], [' 42 ', 42], ['0x', null], ['12a', null], ['', null]];
+  const badParse = parsed.filter(([s, want]) => parseNumber(s) !== want);
+  check('typed values parse as hex, binary or decimal, and junk is refused', badParse.length === 0, badParse.map(([s]) => `${JSON.stringify(s)} -> ${parseNumber(s)}`).join('; '));
+  check('hex formatting pads to the width and wraps negatives', hexN(0xb2, 8) === '0xB2' && hexN(0xb2, 16) === '0x00B2' && hexN(-1, 16) === '0xFFFFFFFF'
+    && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
+
+  // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
+  const entries = [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics].flatMap((c) => c.entries.map((e) => e.id));
+  const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
+  check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
+  const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));
+  check('every interactive page and protocol is listed in a sidebar', orphans.length === 0, orphans.join(', '));
+}
+
+section('3i. Memory: I/O registers, the stack, memory cells, alignment and the heap');
+{
+  // Memory-mapped I/O, against the STM32F4 reference manual (RM0090 §8.4): MODER gives pin y bits 2y+1:2y, 01 is
+  // output. The Discovery board's LED setup, PD12–PD15 as outputs and driven high, is MODER 0x55000000, ODR 0xF000.
+  const leds = gpioRegs({ 12: 1, 13: 1, 14: 1, 15: 1 }, { 12: 1, 13: 1, 14: 1, 15: 1 });
+  check('PD12–PD15 as outputs, driven high: MODER 0x55000000, ODR 0xF000', leds.moder === 0x55000000 && leds.odr === 0xf000,
+    `${leds.moder.toString(16)} ${leds.odr.toString(16)}`);
+  check('an LED lights only for an output pin driven high', [0, 1, 2, 3].every((m) => [0, 1].every((o) => ledLit(m, o) === (m === 1 && o === 1))));
+  // The stack page: each call moves SP down by exactly its frame, and frames sit back to back below the top of SRAM.
+  const chain = ['main', 'read_line', 'parse_int', 'checksum'];
+  const frameSize = (f: string) => STACK_FNS[f].slots.reduce((n, x) => n + x.size, 0);
+  check('the stack page: SP drops by each frame\'s size, from the top of SRAM', chain.every((_, k) =>
+    spFor(chain.slice(0, k + 1)) === STACK_TOP - chain.slice(0, k + 1).reduce((n, f) => n + frameSize(f), 0)) && spFor([]) === STACK_TOP);
+  // Memory cells: Flash keeps its bit without power; SRAM and DRAM lose it; DRAM also loses it once it has leaked.
+  check('SRAM and DRAM forget when the power goes, Flash does not, and leaked DRAM is lost', holds('sram', true, 0) && !holds('sram', false, 100)
+    && holds('dram', true, 100) && !holds('dram', true, 20) && !holds('dram', false, 100) && holds('flash', false, 100) && !holds('flash', true, 0));
   // Alignment: a value takes one bus access exactly when it is naturally aligned and fits in one 32-bit word.
   const sizes = [1, 2, 4];
   let bad = '';
@@ -1125,7 +1192,7 @@ try {
   execFileSync('sigrok-cli', ['--version'], { stdio: 'ignore' });
 } catch {
   sigrok = false;
-  console.log('  skip  sigrok-cli is not installed (brew install sigrok-cli)');
+  report.push('  skip  sigrok-cli is not installed (brew install sigrok-cli)');
 }
 if (sigrok) {
   const dir = mkdtempSync(join(tmpdir(), 'bitbang-vcd-'));
@@ -1157,13 +1224,14 @@ if (sigrok) {
     writeFileSync(file, out);
     return file;
   };
-  const run = (file: string, args: string[], downsample = 1) =>
-    execFileSync('sigrok-cli', ['-I', `vcd:downsample=${downsample}`, '-i', file, ...args]).toString();
-  const expect = (name: string, out: string, wants: string[], forbid = /error|warning|too (early|late|short|long)/i) => {
-    const missing = wants.filter((x) => !out.includes(x));
-    const bad = out.split('\n').filter((l) => forbid.test(l));
-    check(`sigrok ${name}`, missing.length === 0 && bad.length === 0, [missing.length ? `missing: ${missing.join(', ')}` : '', bad.slice(0, 2).join('; ')].filter(Boolean).join(' | '));
-  };
+  const run = (file: string, args: string[], downsample = 1) => sh('sigrok-cli', ['-I', `vcd:downsample=${downsample}`, '-i', file, ...args]);
+  const expect = (name: string, decoded: Promise<string>, wants: string[], forbid = /error|warning|too (early|late|short|long)/i) =>
+    later(`sigrok ${name}`, async () => {
+      const out = await decoded;
+      const missing = wants.filter((x) => !out.includes(x));
+      const bad = out.split('\n').filter((l) => forbid.test(l));
+      return [missing.length === 0 && bad.length === 0, [missing.length ? `missing: ${missing.join(', ')}` : '', bad.slice(0, 2).join('; ')].filter(Boolean).join(' | ')];
+    });
 
   expect('UART 8O2', run(vcd('uart', enc('uart', { parity: 'odd', stop: '2', data: 'Ok' })), ['-P', 'uart:rx=TX:baudrate=9600:parity=odd:stop_bits=2:format=hex', '-A', 'uart=rx-data:rx-warnings'], 100), ['4F', '6B']);
   expect('RS-232 (inverted)', run(vcd('rs232', enc('rs232')), ['-P', 'uart:rx=TxD:baudrate=9600:invert_rx=yes:format=hex', '-A', 'uart=rx-data:rx-warnings'], 100), ['48', '69']);
@@ -1192,5 +1260,8 @@ if (sigrok) {
   usb('USB IN answered with NAK by the device', { xfer: 'in', addr: '3', ep: '1', data: '', hs: 'NAK' }, 'full-speed', ['IN ADDR 3 EP 1', 'NAK']);
 }
 
-console.log(`\n${passes} passed, ${failures} failed`);
-process.exit(failures ? 1 : 0);
+Promise.all(report).then((lines) => {
+  console.log(lines.join('\n'));
+  console.log(`\n${passes} passed, ${failures} failed`);
+  process.exit(failures ? 1 : 0);
+});

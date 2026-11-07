@@ -1,6 +1,6 @@
 import type { Level, Protocol, Trace } from './types';
 
-export const MAX_BYTES = 16;
+const MAX_BYTES = 16;
 
 /** A protocol's settings at their defaults. */
 export const defaults = (p: Protocol) => Object.fromEntries(p.params.map((x) => [x.key, x.default]));
@@ -60,6 +60,9 @@ export function parseBytes(input: string, format: string, max = MAX_BYTES): numb
   if (bytes.length > max) throw new Error(`${bytes.length} bytes entered; the maximum is ${max}.`);
   return bytes;
 }
+
+/** A plural noun: 1 frame, 2 frames. */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export const hex = (b: number) => '0x' + b.toString(16).toUpperCase().padStart(2, '0');
 

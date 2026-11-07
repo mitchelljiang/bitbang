@@ -21,6 +21,7 @@ import { MOTION_MS, easeInOut, mountTour } from './tour';
 import { mountEye } from './eye';
 import { TOURS } from './tours';
 import { mountSearch } from './search';
+import { animatePanels } from './topics/motion';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -37,6 +38,7 @@ const aboutView = $('#about');
 const changelogView = $('#changelog');
 const homeView = $('#home');
 let topicView = $('#topic');
+animatePanels(vizView);
 /** The topic page currently mounted in the topic view, so returning to it keeps its state. */
 let topicShown = '';
 const glance = $('#glance');
@@ -573,14 +575,22 @@ mountAbout(aboutView);
 mountChangelog(changelogView);
 const home = mountHome(homeView);
 
-function route() {
+let routing = 0;
+/**
+ * Shows the page in the URL. A topic page's code is fetched first, while the current page stays on screen, so the
+ * switch happens in one step once it arrives; a newer navigation in the meantime wins.
+ */
+async function route() {
   const q = new URLSearchParams(location.search);
   const id = q.get('p') ?? '';
   const p = protocols.find((x) => x.id === id);
-  const topic = p ? undefined : topics[id];
-  const wipCat = p || topic ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const load = p ? undefined : topics[id];
+  const ticket = ++routing;
+  const mount = load && topicShown !== id ? await load() : undefined;
+  if (ticket !== routing) return;
+  const wipCat = p || load ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
-  const page = p ? 'viz' : topic ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
+  const page = p ? 'viz' : load ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
   const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };
   for (const [k, v] of Object.entries(views)) v.hidden = k !== page;
   // The home page, About and the changelog belong to no section, so they have no sidebar.
@@ -604,13 +614,14 @@ function route() {
     $('#wip-links').innerHTML = related
       .map((x) => `<a href="?p=${x}" data-nav>${esc(protocols.find((y) => y.id === x)!.name)}</a>`).join('');
     document.title = `${wip.name} · bitbang`;
-  } else if (topic) {
-    if (topicShown !== id) {
+  } else if (load) {
+    if (mount) {
       // Mount each page into a fresh element, so the last page's listeners and timers are dropped with the old one.
       const fresh = topicView.cloneNode(false) as HTMLElement;
       topicView.replaceWith(fresh);
       topicView = fresh;
-      topic(topicView);
+      mount(topicView);
+      animatePanels(topicView);
       topicShown = id;
     }
     document.title = `${topicView.querySelector('h1')?.textContent ?? ''} · bitbang`;
@@ -663,8 +674,7 @@ document.addEventListener('click', (e) => {
 });
 window.addEventListener('popstate', () => {
   clearTimeout(scrollSave);
-  route();
-  restoreScroll();
+  route().then(restoreScroll);
 });
 // Back and forward switch entries before telling the page, so the position is saved as the reader scrolls (shortly
 // after they stop, since browsers limit how often history can be rewritten). It also covers a reload.
@@ -675,8 +685,15 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 window.addEventListener('pagehide', saveScroll);
 
-route();
-// The home page's opening plays from the top, so only other pages restore a saved position on load.
-if (new URLSearchParams(location.search).has('p')) restoreScroll();
-// The first page is built: show the content and footer, now that the footer has its real position.
-document.documentElement.classList.remove('loading');
+route().then(() => {
+  // The home page's opening plays from the top, so only other pages restore a saved position on load.
+  if (new URLSearchParams(location.search).has('p')) restoreScroll();
+  // The first page is built: show the content and footer, now that the footer has its real position.
+  document.documentElement.classList.remove('loading');
+});
+// Fetch a topic page's code as soon as a link to it is pointed at, so opening it is instant.
+document.addEventListener('pointerover', (e) => {
+  const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[data-nav]') : null;
+  const id = a && new URL(a.href).searchParams.get('p');
+  if (id) topics[id]?.();
+}, { passive: true });

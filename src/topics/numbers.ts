@@ -353,6 +353,7 @@ export function mountFloat(root: HTMLElement) {
     title: 'IEEE 754 floating point',
     intro: 'A <code>float</code> stores a sign bit, an 8-bit exponent and a 23-bit fraction. The value is ±1.fraction × 2 to the power of exponent − 127, so it covers a huge range with about seven significant digits. Type a number, pick one below, or click the bits.',
     file: 'float.c',
+    cls: 'ieee',
     controls: `
       <div class="dbg-presets">${PRESETS.map(([n, v]) => `<button type="button" class="dbg-btn" data-bits="${v}">${n}</button>`).join('')}</div>
       <label class="dbg-set">f = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set f"></label>`,

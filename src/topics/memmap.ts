@@ -3,7 +3,7 @@
  * you what it reaches, Flash, SRAM, a peripheral register or the core's own control block. Type an address, or pick a
  * landmark, and the map highlights the region it falls in. regionOf is exported for the checks.
  */
-import { markSeg, seg, status, syncUrl } from './dbg';
+import { hex8, markSeg, seg, status, syncUrl } from './dbg';
 
 export interface Region {
   id: string;
@@ -40,7 +40,6 @@ const MARKS: { label: string; addr: number; note: string }[] = [
   { label: 'SysTick', addr: 0xe000e010, note: 'The core’s own timer, in the Private Peripheral Bus, reached by the CPU but not sitting on the peripheral bus.' },
 ];
 
-const hex8 = (v: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
 
 export function mountMemmap(root: HTMLElement) {
   const q = new URLSearchParams(location.search).get('a');
@@ -90,17 +89,50 @@ export function mountMemmap(root: HTMLElement) {
 
   const input = root.querySelector<HTMLInputElement>('.dbg-set input')!;
 
+  // The regions are drawn once; a redraw moves the highlight and opens the "is here" line in the region it lands in.
+  const body = root.querySelector<HTMLElement>('.mm-body')!;
+  body.innerHTML = REGIONS.map((r) => `<div class="mm-region" data-region="${r.id}">
+      <div class="mm-head"><span class="mm-name">${r.name}</span><span class="mm-range">${hex8(r.lo)} – ${hex8(r.hi)}</span></div>
+      <div class="mm-use">${r.use}${r.example ? ` <span class="mm-ex">${r.example}</span>` : ''}</div>
+      <div class="mm-open"><div><div class="mm-here"></div></div></div>
+    </div>`).join('') + '<div class="mm-glide" aria-hidden="true"></div>';
+  const glide = body.querySelector<HTMLElement>('.mm-glide')!;
+
+  /**
+   * Sends the highlight to where the active region will be once the "is here" lines finish opening and closing. Both
+   * move on the same curve for the same time, so the outline and the region it frames arrive together.
+   */
+  function aim(instant = false) {
+    const regions = [...body.querySelectorAll<HTMLElement>('.mm-region')];
+    const gap = parseFloat(getComputedStyle(body).rowGap) || 0;
+    let y = regions[0].offsetTop;
+    for (const r of regions) {
+      const open = r.querySelector<HTMLElement>('.mm-open')!;
+      const on = r.classList.contains('on');
+      const h = r.getBoundingClientRect().height - open.getBoundingClientRect().height + (on ? open.firstElementChild!.scrollHeight : 0);
+      if (on) {
+        if (instant) glide.style.transition = 'none';
+        glide.style.transform = `translateY(${y}px)`;
+        glide.style.height = `${h}px`;
+        if (instant) { void glide.offsetWidth; glide.style.transition = ''; }
+        return;
+      }
+      y += h + gap;
+    }
+  }
+  new ResizeObserver(() => aim(true)).observe(body);
+  let shown = false;
+
   function draw(note?: string) {
     const here = regionOf(addr)!;
-    root.querySelector('.mm-body')!.innerHTML = REGIONS.map((r) => {
-      const on = r.id === here.id;
-      const span = `${hex8(r.lo)} – ${hex8(r.hi)}`;
-      return `<div class="mm-region${on ? ' on' : ''}" data-region="${r.id}">
-        <div class="mm-head"><span class="mm-name">${r.name}</span><span class="mm-range">${span}</span></div>
-        <div class="mm-use">${r.use}${r.example ? ` <span class="mm-ex">${r.example}</span>` : ''}</div>
-        ${on ? `<div class="mm-here">${hex8(addr)} is here<span>offset +0x${(addr - r.lo >>> 0).toString(16).toUpperCase()} into ${r.name}</span></div>` : ''}
-      </div>`;
-    }).join('');
+    for (const el of body.querySelectorAll<HTMLElement>('.mm-region')) {
+      const on = el.dataset.region === here.id;
+      el.classList.toggle('on', on);
+      el.querySelector('.mm-open')!.setAttribute('aria-hidden', String(!on));
+      if (on) el.querySelector('.mm-here')!.innerHTML = `${hex8(addr)} is here<span>offset +0x${(addr - here.lo >>> 0).toString(16).toUpperCase()} into ${here.name}</span>`;
+    }
+    aim(!shown);
+    shown = true;
 
     const offset = (addr - here.lo) >>> 0;
     status(root, note ?? `${hex8(addr)} is in the <b>${here.name}</b> region, 0x${offset.toString(16).toUpperCase()} bytes above its base ${hex8(here.lo)}. ${here.use}`);

@@ -16,7 +16,7 @@ export const MASTERS: Master[] = [
 ];
 
 /** The bus slaves: the things a master can reach. */
-export const SLAVES: Slave[] = [
+const SLAVES: Slave[] = [
   { id: 'flash', name: 'Flash', addr: '0x08000000' },
   { id: 'sram1', name: 'SRAM1', addr: '0x20000000' },
   { id: 'sram2', name: 'SRAM2', addr: '0x2001C000' },

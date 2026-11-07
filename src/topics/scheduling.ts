@@ -4,12 +4,13 @@
  * change each task's execution time. A tick-by-tick simulator draws who runs, who waits, and which deadlines are missed.
  */
 import { oneOf, seg, markSeg, syncUrl } from './dbg';
-import { plural, stepper, traceHtml, type Bar, type Lane, type Mark, type Step } from './timeline';
+import { plural } from '../core/util';
+import { stepper, traceHtml, type Bar, type Lane, type Mark, type Step } from './timeline';
 
 export type TaskId = 't1' | 't2' | 't3';
 export interface Task { id: TaskId; name: string; what: string; period: number; c: number; color: string }
 export type Policy = 'rm' | 'rev' | 'rr' | 'coop';
-export const POLICIES: Policy[] = ['rm', 'rev', 'rr', 'coop'];
+const POLICIES: Policy[] = ['rm', 'rev', 'rr', 'coop'];
 
 /** The task set: utilization 2/4 + 2/10 + 5/20 = 0.95, above the rate-monotonic bound for three tasks yet schedulable. */
 export const TASKS: Task[] = [

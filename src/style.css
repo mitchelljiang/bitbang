@@ -32,6 +32,8 @@
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
   --ease: 150ms ease-out;
+  /* Motion that shows where something went: quick to start, gentle to settle. */
+  --glide: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: light;
 }
 
@@ -288,7 +290,6 @@ main, .top, footer {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 10px;
-  transition: border-color var(--ease);
 }
 .pager a:hover { border-color: var(--accent); }
 .pager a.next { grid-column: 2; text-align: right; }
@@ -390,7 +391,6 @@ main, .top, footer {
   text-decoration: none;
   border: 1px solid var(--line);
   border-radius: 999px;
-  transition: border-color var(--ease), color var(--ease);
 }
 .card-links a:first-child { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .card-links a:hover { border-color: var(--accent); }
@@ -413,10 +413,8 @@ main, .top, footer {
   border-radius: 8px;
   cursor: pointer;
   text-decoration: none;
-  transition: background var(--ease), border-color var(--ease), color var(--ease);
 }
 .toolbar button:hover:not(:disabled) { border-color: var(--faint); }
-.toolbar button:active:not(:disabled) { transform: translateY(1px); }
 .toolbar button svg { width: 12px; height: 12px; }
 .toolbar button svg path { fill: currentColor; }
 .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -502,7 +500,6 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
   border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
-  transition: color var(--ease), border-color var(--ease);
 }
 .tag-chip:hover { color: var(--accent); border-color: var(--accent); }
 .intro .fullname { margin: 0 0 14px; font: 500 19px/1.3 var(--sans); color: var(--faint); letter-spacing: -0.005em; }
@@ -800,7 +797,6 @@ kbd { font: 12px var(--mono); background: var(--paper); border: 1px solid var(--
   border: 1px solid var(--dbg-line);
   border-radius: 5px;
   cursor: pointer;
-  transition: background 120ms ease-out, color 120ms ease-out;
 }
 .bit:hover { border-color: var(--dbg-dim); }
 .bit.on { color: #10151b; background: #e6edf3; border-color: #e6edf3; }
@@ -922,7 +918,6 @@ table.vars .hex { font-weight: 600; }
   border: 1px solid var(--line);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color var(--ease);
 }
 .tour-head button:hover:not(:disabled) { border-color: var(--faint); }
 .tour-head button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -1085,7 +1080,6 @@ table.vars .hex { font-weight: 600; }
  * SRAM and the other blocks below it. Each step lights the blocks it used and sends a packet along the bus for every
  * transfer. Unlike the scope and the debugger, the diagram follows the page's light or dark theme.
  */
-.diagram { margin-top: 8px; }
 .dg-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .dg-state { font: 500 13px var(--mono); color: var(--faint); }
 .dg-controls { display: flex; gap: 8px; margin-left: auto; }
@@ -1247,7 +1241,8 @@ table.vars .hex { font-weight: 600; }
 .align .word .cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .align .cell { display: grid; justify-items: center; gap: 2px; padding: 6px 0; background: var(--dbg-panel); border: 1px solid var(--dbg-line); border-radius: 5px; }
 .align .cell small { font: 10px var(--mono); color: var(--dbg-dim); }
-.align .cell b { min-height: 14px; font: 600 13px var(--mono); color: var(--dbg-text); }
+/* An empty cell is as tall as a filled one, so a value spanning two words does not change the grid's height. */
+.align .cell b { height: 17px; font: 600 13px/17px var(--mono); color: var(--dbg-text); }
 .align .cell.val-a { background: color-mix(in srgb, #5fd0a4 22%, transparent); border-color: #5fd0a4; }
 .align .cell.val-b { background: color-mix(in srgb, #ff7b66 22%, transparent); border-color: #ff7b66; }
 .align .cell.val b { color: var(--dbg-text); }
@@ -1461,7 +1456,6 @@ table.vars .hex { font-weight: 600; }
 .pm-part {
   display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
   color: var(--tr-text); background: var(--screen); border: 1px solid var(--tr-line); border-radius: 6px; cursor: pointer;
-  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
 }
 .pm-part:hover { border-color: var(--tr-dim); }
 .pm-part:focus-visible { outline: 2px solid var(--ch1); outline-offset: 2px; }
@@ -1642,14 +1636,22 @@ footer a:hover { color: var(--ink); }
 .memmap .dbg-seg { flex-wrap: wrap; }
 .memmap .dbg-set input { width: 13ch; }
 .mm-body { display: flex; flex-direction: column; gap: 4px; padding: 16px; }
-.mm-region { padding: 10px 12px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; transition: border-color 120ms ease-out, background 120ms ease-out; }
-.mm-region.on { border-color: var(--dbg-pc); background: color-mix(in srgb, var(--dbg-pc) 9%, var(--dbg-bg)); }
+.mm-body { position: relative; }
+.mm-region { padding: 10px 12px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
+/* One highlight for the whole map: it glides from the old region to the new one, so you see which way the address moved. */
+.mm-glide { position: absolute; top: 0; left: 16px; right: 16px; border: 1px solid var(--dbg-pc); border-radius: 8px; background: color-mix(in srgb, var(--dbg-pc) 9%, transparent); pointer-events: none; transition: transform 260ms var(--glide), height 260ms var(--glide); }
+/* The "is here" line opens in the active region and closes in the last one, on the same curve as the highlight. */
+.mm-open { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 260ms var(--glide); }
+.mm-open > div { min-height: 0; overflow: hidden; }
+.mm-region.on .mm-open { grid-template-rows: 1fr; }
+.mm-open .mm-here { opacity: 0; transition: opacity 120ms ease-out; }
+.mm-region.on .mm-here { opacity: 1; transition-delay: 100ms; }
 .mm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .mm-name { font: 600 14px var(--sans); color: var(--dbg-text); }
 .mm-range { font: 12px var(--mono); color: var(--dbg-dim); }
 .mm-use { margin-top: 4px; font: 13px/1.55 var(--sans); color: var(--dbg-dim); max-width: 70ch; }
 .mm-ex { font: 12px var(--mono); color: var(--dbg-text); white-space: nowrap; }
-.mm-here { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 8px; font: 600 13px var(--mono); color: var(--dbg-pc); }
+.mm-here { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-top: 8px; font: 600 13px var(--mono); color: var(--dbg-pc); }
 .mm-here span { font-weight: 400; color: var(--dbg-dim); }
 @media (max-width: 600px) { .mm-head { flex-direction: column; gap: 2px; } }
 
@@ -1663,7 +1665,7 @@ footer a:hover { color: var(--ink); }
 .xb-slave.busy small { color: #ff9f8c; }
 .xb-master { display: flex; flex-direction: column; justify-content: center; font: 600 13px var(--sans); color: var(--dbg-text); }
 .xb-master small { font: 400 11px var(--sans); color: var(--dbg-dim); }
-.xb-cell { display: grid; place-items: center; min-height: 46px; font-size: 18px; line-height: 1; color: var(--dbg-dim); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; cursor: pointer; transition: all 120ms ease-out; }
+.xb-cell { display: grid; place-items: center; min-height: 46px; font-size: 18px; line-height: 1; color: var(--dbg-dim); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; cursor: pointer; }
 .xb-cell:hover { border-color: var(--dbg-dim); }
 .xb-cell.on.go { color: #10151b; background: #5fd0a4; border-color: #5fd0a4; }
 .xb-cell.on.wait { color: #2a0f0a; background: var(--dbg-pc); border-color: var(--dbg-pc); }
@@ -1801,7 +1803,7 @@ footer a:hover { color: var(--ink); }
 .vm-proc h4, .vm-phys h4 { margin: 0 0 8px; font: 600 12px var(--sans); color: var(--dbg-dim); }
 .vm-proc h4 small, .vm-phys h4 small { font-weight: 400; }
 .vm-pages { display: flex; flex-direction: column; gap: 5px; }
-.vm-page { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 6px; padding: 8px 9px; font: 12px var(--mono); text-align: left; color: var(--dbg-text); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 7px; cursor: pointer; transition: border-color 150ms ease-out; }
+.vm-page { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 6px; padding: 8px 9px; font: 12px var(--mono); text-align: left; color: var(--dbg-text); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 7px; cursor: pointer; }
 .vm-page:hover { border-color: var(--dbg-dim); }
 .vm-page .vp-arrow { color: var(--dbg-dim); }
 .vm-page .vp-fr { color: var(--dbg-dim); text-align: right; }
@@ -1931,7 +1933,7 @@ footer a:hover { color: var(--ink); }
 .debugger.mem .dbg-code, .debugger.mem .dbg-vars { background: var(--screen); }
 /* Explain line: screen glass with the bottom bezel, a fixed height so one- vs two-line text never resizes the panel. */
 .debugger.mem > .dbg-status {
-  display: block; min-height: 110px; padding: 14px 18px; color: #dbe6ec;
+  display: block; min-height: 110px; padding: 14px 18px;
   background: var(--screen); border: 0;
   border-left: 10px solid var(--bezel); border-right: 10px solid var(--bezel); border-bottom: 10px solid var(--bezel);
   border-radius: 0 0 10px 10px;
@@ -2030,3 +2032,54 @@ footer a:hover { color: var(--ink); }
 .sc-load b { color: var(--ink); font-weight: 600; }
 .sc-load b.good { color: var(--k-start); }
 .sc-load b.bad { color: var(--error); }
+
+/* ===== Motion and interaction ===== */
+
+/* A segmented control's selection slides between options: one thumb under the buttons, moved by src/topics/motion.ts.
+   The thumb paints the selected fill, so the selected button itself stays clear (important: each theme's selected rule
+   is more specific). */
+.glide { position: relative; }
+.glide > .seg-thumb { position: absolute; top: 0; left: 0; border-radius: 6px; background: var(--dbg-text); pointer-events: none; transition: transform 200ms var(--glide), width 200ms var(--glide), height 200ms var(--glide), opacity 120ms ease-out; }
+.debugger.mem .glide > .seg-thumb, .tr-bar .glide > .seg-thumb { background: var(--ink); }
+.glide > button { position: relative; z-index: 1; }
+.glide > button[aria-checked='true'] { background: transparent !important; }
+
+/* A bit that just changed settles into its new state instead of snapping. */
+.bit.flipped { animation: bit-flip 220ms var(--glide); }
+@keyframes bit-flip { from { transform: scale(0.82); opacity: 0.6; } }
+
+/* Every button answers the pointer the same way: hovering tints it and firms its edge, pressing sinks it a little.
+   The tint is a layer of the button's own text color, so it reads on light faces, dark screens and filled buttons. */
+.toolbar button, .dbg-btn, .dg-btn, .tr-btn, .tour-head button, .rd-replay, .card-links a, .pager a, .tag-chip,
+.dbg-seg button, .mseg button, .dbg-ops button, .tr-chip, .bit, .pm-part, .vm-page, .xb-cell {
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out,
+    filter 150ms ease-out, transform 100ms ease-out;
+}
+@media (hover: hover) {
+  :is(.toolbar button, .dbg-btn, .dg-btn, .tr-btn, .tour-head button, .rd-replay, .pager a, .tag-chip):hover:not(:disabled) {
+    background-image: linear-gradient(color-mix(in srgb, currentColor 7%, transparent) 0 0);
+  }
+  :is(.dbg-btn, .dg-btn, .tr-btn):hover:not(:disabled) { border-color: var(--faint); }
+  .debugger:not(.mem) .dbg-btn:hover { border-color: var(--dbg-dim); }
+  :is(.dbg-btn.primary, .dg-btn.primary, .tr-btn.primary, .toolbar button[aria-pressed='true']):hover:not(:disabled) { filter: brightness(1.15); }
+  /* An unselected option shows where the selection would go. */
+  :is(.dbg-seg, .mseg, .dbg-ops) button:not([aria-checked='true']):hover { background-image: linear-gradient(color-mix(in srgb, currentColor 9%, transparent) 0 0); }
+}
+:is(.toolbar button, .dbg-btn, .dg-btn, .tr-btn, .tour-head button, .rd-replay, .card-links a, .tag-chip):active:not(:disabled) { transform: scale(0.97); }
+:is(.dbg-seg, .mseg, .dbg-ops) button:active { transform: scale(0.96); }
+.bitrow.editable .bit:active, .xb-cell:active, .tr-chip:active { transform: scale(0.92); }
+
+/* Nothing slides sideways when only a value changes. A variable's value cell keeps the width of the widest value its
+   table shows (a 16-bit hex value with its decimal, or a byte as unsigned / signed), so the bits beside it stay put. */
+table.vars td.val { min-width: 14ch; }
+.debugger.nzcv table.vars td.val { min-width: 17ch; }
+.debugger.ieee table.vars td.val { min-width: 48ch; }
+/* A 32-bit row spans every column, and when it is wider than the rest the browser shares out the difference by content.
+   The name column is held to its own width, so the spare room goes to the value side and the names never move. */
+table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
+/* Play becomes Pause while playing: the button keeps Pause's width so the buttons next to it never move. */
+.dbg-btn[data-act='play'] { min-width: 63px; }
+.dg-btn[data-act='play'] { min-width: 70px; }
+.tr-btn[data-act='play'] { min-width: 67px; }
+#play { min-width: 86px; }
+

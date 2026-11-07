@@ -3,8 +3,8 @@
  * is what Clang emits for the C shown, at -O1 for thumbv7em; the checks assemble it to confirm every encoding.
  */
 import { esc } from '../core/render';
-import { highlight, stepButtons, walkthrough } from './dbg';
-import { LR, PC, SP, addr, diagramHtml, drawRegs, hex8, run, showTransfers, thumb, transfers, type Cpu, type Instr } from './inspector';
+import { hex8, highlight, stepButtons, walkthrough } from './dbg';
+import { LR, PC, SP, addr, diagramHtml, drawRegs, run, showTransfers, thumb, transfers, type Cpu, type Instr } from './inspector';
 
 export const SOURCE = [
   'int square(int x)',

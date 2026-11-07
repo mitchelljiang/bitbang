@@ -3,7 +3,7 @@
  * per level, then caches the result in the TLB so the next access to that page skips the walk. Access addresses and
  * watch the two-level walk, and the TLB turn a repeat access into a hit. walk and tlbLookup are exported for the checks.
  */
-import { status, syncUrl } from './dbg';
+import { hexN, status, syncUrl } from './dbg';
 
 // 12-bit virtual address: L1 index (2) | L2 index (2) | offset (8). 256-byte pages.
 const L1_SHIFT = 10, L2_SHIFT = 8, OFFSET_MASK = 0xff;
@@ -37,7 +37,7 @@ const PRESETS = [
   { label: 'p', addr: 0x024 }, { label: 'p+64', addr: 0x064 }, { label: 'q', addr: 0x124 },
   { label: 'r', addr: 0x424 }, { label: 's', addr: 0x224 }, { label: 't', addr: 0xc24 },
 ];
-const hex3 = (v: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(3, '0');
+const hex3 = (v: number) => hexN(v, 12);
 const vpageOf = (addr: number) => addr >> L2_SHIFT;
 
 export function mountPaging(root: HTMLElement) {

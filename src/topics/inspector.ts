@@ -4,6 +4,7 @@
  * screen comes from running it.
  */
 import { esc } from '../core/render';
+import { hex8 } from './dbg';
 
 // ---- the processor ----
 
@@ -126,7 +127,6 @@ export function run(program: Instr[], start: Cpu): Frame[] {
 
 // ---- drawing: the chip as a datasheet block diagram ----
 
-export const hex8 = (v: number) => '0x' + u32(v).toString(16).toUpperCase().padStart(8, '0');
 /** An address the way datasheets print it, with a gap between the halves: 0x2001_FFF8. */
 export const addr = (v: number) => {
   const h = u32(v).toString(16).toUpperCase().padStart(8, '0');
@@ -172,7 +172,7 @@ export function diagramHtml(o: { chip: string; core: string; label: string; cont
 }
 
 /** Which block an address belongs to. */
-export const blockOf = (a: number): Block =>
+const blockOf = (a: number): Block =>
   a >= 0xe0000000 ? 'system' : a >= 0x40000000 ? 'periph' : a >= 0x20000000 ? 'sram' : 'flash';
 
 /** The registers, with the ones this step changed highlighted. */

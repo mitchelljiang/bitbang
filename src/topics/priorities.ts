@@ -4,7 +4,8 @@
  * urgent interrupt, pending when not, ties broken by exception number, and tail-chaining on return.
  */
 import { syncUrl } from './dbg';
-import { plural, stepper, traceHtml, type Bar, type Lane, type Mark, type Step } from './timeline';
+import { plural } from '../core/util';
+import { stepper, traceHtml, type Bar, type Lane, type Mark, type Step } from './timeline';
 
 export type Irq = 'tim2' | 'usart2' | 'adc';
 export interface IrqDef { id: Irq; name: string; irqn: number; t: number; work: number; color: string }

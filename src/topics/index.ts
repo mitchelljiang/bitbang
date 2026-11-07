@@ -1,72 +1,45 @@
-import { mountBitwise } from './bitwise';
-import { mountBinary, mountFixed, mountFloat, mountTwos } from './numbers';
-import { mountCrc } from './crc';
-import { mountFlags } from './flags';
-import { mountEndian, mountMasks, mountRmw, mountShifts } from './ops';
-import { mountBufover } from './bufover';
-import { mountInterrupts } from './interrupts';
-import { mountAlignment } from './alignment';
-import { mountHeap } from './heap';
-import { mountTheStack } from './thestack';
-import { mountMmio } from './mmio';
-import { mountCalls } from './calls';
-import { mountTricks } from './tricks';
-import { mountMemmap } from './memmap';
-import { mountInterconnect } from './interconnect';
-import { mountFrames } from './frames';
-import { mountOverflow } from './overflow';
-import { mountSections } from './sections';
-import { mountCells } from './cells';
-import { mountCaches } from './caches';
-import { mountVaddr } from './vaddr';
-import { mountPaging } from './paging';
-import { mountMpu } from './mpu';
-import { mountPriorities } from './priorities';
-import { mountContext } from './context';
-import { mountScheduling } from './scheduling';
-import { mountRaces } from './races';
-import { mountAtomics } from './atomics';
-import { mountLocks } from './locks';
-import { mountBarriers } from './barriers';
-import { mountMcu } from './mcu';
-
-/** The interactive page for each Bits and bytes and Memory topic, by id. */
-export const topics: Record<string, (root: HTMLElement) => void> = {
-  binary: mountBinary,
-  twos: mountTwos,
-  fixed: mountFixed,
-  float: mountFloat,
-  bitwise: mountBitwise,
-  shifts: mountShifts,
-  masks: mountMasks,
-  tricks: mountTricks,
-  rmw: mountRmw,
-  endianness: mountEndian,
-  flags: mountFlags,
-  crc: mountCrc,
-  calls: mountCalls,
-  bufover: mountBufover,
-  interrupts: mountInterrupts,
-  mmio: mountMmio,
-  alignment: mountAlignment,
-  stack: mountTheStack,
-  heap: mountHeap,
-  memmap: mountMemmap,
-  interconnect: mountInterconnect,
-  frames: mountFrames,
-  overflow: mountOverflow,
-  sections: mountSections,
-  cells: mountCells,
-  caches: mountCaches,
-  vaddr: mountVaddr,
-  paging: mountPaging,
-  mpu: mountMpu,
-  priorities: mountPriorities,
-  context: mountContext,
-  scheduling: mountScheduling,
-  races: mountRaces,
-  atomics: mountAtomics,
-  locks: mountLocks,
-  barriers: mountBarriers,
-  mcu: mountMcu,
+/**
+ * Every interactive topic page, by id. Each page is its own chunk, loaded the first time it is opened (or hovered in a
+ * link), so the first visit downloads only the shell and the page it lands on. src/search.ts reads the keys to know
+ * which pages are live.
+ */
+export type Mount = (root: HTMLElement) => void;
+export const topics: Record<string, () => Promise<Mount>> = {
+  binary: () => import('./numbers').then((m) => m.mountBinary),
+  twos: () => import('./numbers').then((m) => m.mountTwos),
+  fixed: () => import('./numbers').then((m) => m.mountFixed),
+  float: () => import('./numbers').then((m) => m.mountFloat),
+  bitwise: () => import('./bitwise').then((m) => m.mountBitwise),
+  shifts: () => import('./ops').then((m) => m.mountShifts),
+  masks: () => import('./ops').then((m) => m.mountMasks),
+  tricks: () => import('./tricks').then((m) => m.mountTricks),
+  rmw: () => import('./ops').then((m) => m.mountRmw),
+  endianness: () => import('./ops').then((m) => m.mountEndian),
+  flags: () => import('./flags').then((m) => m.mountFlags),
+  crc: () => import('./crc').then((m) => m.mountCrc),
+  calls: () => import('./calls').then((m) => m.mountCalls),
+  bufover: () => import('./bufover').then((m) => m.mountBufover),
+  interrupts: () => import('./interrupts').then((m) => m.mountInterrupts),
+  mmio: () => import('./mmio').then((m) => m.mountMmio),
+  alignment: () => import('./alignment').then((m) => m.mountAlignment),
+  stack: () => import('./thestack').then((m) => m.mountTheStack),
+  heap: () => import('./heap').then((m) => m.mountHeap),
+  memmap: () => import('./memmap').then((m) => m.mountMemmap),
+  interconnect: () => import('./interconnect').then((m) => m.mountInterconnect),
+  frames: () => import('./frames').then((m) => m.mountFrames),
+  overflow: () => import('./overflow').then((m) => m.mountOverflow),
+  sections: () => import('./sections').then((m) => m.mountSections),
+  cells: () => import('./cells').then((m) => m.mountCells),
+  caches: () => import('./caches').then((m) => m.mountCaches),
+  vaddr: () => import('./vaddr').then((m) => m.mountVaddr),
+  paging: () => import('./paging').then((m) => m.mountPaging),
+  mpu: () => import('./mpu').then((m) => m.mountMpu),
+  priorities: () => import('./priorities').then((m) => m.mountPriorities),
+  context: () => import('./context').then((m) => m.mountContext),
+  scheduling: () => import('./scheduling').then((m) => m.mountScheduling),
+  races: () => import('./races').then((m) => m.mountRaces),
+  atomics: () => import('./atomics').then((m) => m.mountAtomics),
+  locks: () => import('./locks').then((m) => m.mountLocks),
+  barriers: () => import('./barriers').then((m) => m.mountBarriers),
+  mcu: () => import('./mcu').then((m) => m.mountMcu),
 };

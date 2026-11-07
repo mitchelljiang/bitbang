@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build --base ./",
     "preview": "vite preview",
+    "smoke": "npm run build && node --experimental-websocket --no-warnings scripts/smoke.mjs",
     "verify": "esbuild scripts/verify.ts --bundle --platform=node --log-level=warning --outfile=node_modules/.cache/verify.cjs && node node_modules/.cache/verify.cjs",
     "export-text": "npm run build && (lsof -ti :4321 >/dev/null || python3 -m http.server 4321 -d dist >/dev/null 2>&1 &) ; sleep 1 ; node --experimental-websocket scripts/export-obsidian.mjs"
   },

@@ -5,13 +5,13 @@
  */
 import { status, syncUrl } from './dbg';
 
-const TOP = 0x20020000; // end of SRAM; the stack starts here and grows down
+export const TOP = 0x20020000; // end of SRAM; the stack starts here and grows down
 
 interface Slot { name: string; size: number; note: string }
 interface Fn { name: string; slots: Slot[] }
 
 /** The functions that can be on the stack, each with the local storage its frame needs. */
-const FNS: Record<string, Fn> = {
+export const FNS: Record<string, Fn> = {
   main: { name: 'main()', slots: [
     { name: 'argc / argv', size: 8, note: 'main’s own locals' },
   ] },
@@ -29,6 +29,9 @@ const FNS: Record<string, Fn> = {
     { name: 'uint32_t crc, i', size: 8, note: 'the running total and index' },
   ] },
 };
+
+/** SP with these functions on the stack, outermost first: the top of SRAM minus every frame's size. */
+export const spFor = (stack: string[]) => stack.reduce((sp, f) => sp - FNS[f].slots.reduce((s, x) => s + x.size, 0), TOP);
 
 export function mountTheStack(root: HTMLElement) {
   const start = new URLSearchParams(location.search).get('s');
@@ -85,11 +88,7 @@ export function mountTheStack(root: HTMLElement) {
         faults the instant SP crosses a set address.</p>
     </section>`;
 
-  function addr(upToFrame: number): number {
-    let a = TOP;
-    for (let f = 0; f < upToFrame; f++) a -= FNS[callStack[f]].slots.reduce((s, x) => s + x.size, 0);
-    return a;
-  }
+  const addr = (upToFrame: number) => spFor(callStack.slice(0, upToFrame));
 
   function draw() {
     const sp = addr(callStack.length);

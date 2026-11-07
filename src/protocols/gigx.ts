@@ -16,7 +16,7 @@ interface Group { byte: number; k: boolean; label: string; kind: Kind; info: str
  * first idle after a frame is /I1/ if the running disparity is positive, which brings it back to negative. Exported for
  * the checks.
  */
-export function gigxGroups(bytes: number[]) {
+function gigxGroups(bytes: number[]) {
   const out: Group[] = [];
   const idle2 = () => out.push(
     { byte: K(28, 5), k: true, label: '/I2/ K28.5', kind: 'dummy', info: 'Idle, /I2/: the comma K28.5, whose bit pattern cannot appear anywhere else, so the receiver aligns to code-group boundaries on it.' },
