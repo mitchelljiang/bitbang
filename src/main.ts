@@ -645,14 +645,13 @@ async function route() {
 /** The "Related resources" list at the bottom of every page in a section, grouped by kind. */
 function showResources(id: string | null) {
   const box = $('#resources');
-  box.hidden = !id;
-  if (!id) return;
-  const list = RESOURCES[id] ?? [];
+  const list = id ? RESOURCES[id] ?? [] : [];
+  // Pages without sources yet show nothing rather than a placeholder.
+  box.hidden = !list.length;
+  if (!list.length) return;
   const kinds = [...new Set(list.map((r) => r.kind))];
-  box.innerHTML = '<h2 id="resources-title">Related resources</h2>' + (list.length
-    ? kinds.map((k) => `<h3>${esc(k)}</h3><ul>${list.filter((r) => r.kind === k).map((r) =>
-        `<li><a href="${esc(r.url)}" rel="noopener" target="_blank">${esc(r.title)}</a>${r.note ? ` <span>${esc(r.note)}</span>` : ''}</li>`).join('')}</ul>`).join('')
-    : '<p class="resources-empty">Specifications, datasheets and other sources for this page will be listed here.</p>');
+  box.innerHTML = '<h2 id="resources-title">Related resources</h2>' + kinds.map((k) => `<h3>${esc(k)}</h3><ul>${list.filter((r) => r.kind === k).map((r) =>
+        `<li><a href="${esc(r.url)}" rel="noopener" target="_blank">${esc(r.title)}</a>${r.note ? ` <span>${esc(r.note)}</span>` : ''}</li>`).join('')}</ul>`).join('');
 }
 
 // In-site links swap views without a page load; the back button still works and returns to where the reader was.

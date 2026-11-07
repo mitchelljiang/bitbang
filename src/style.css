@@ -278,7 +278,6 @@ main, .top, footer {
 .resources li { padding: 4px 0; }
 .resources li a { font-weight: 500; color: var(--accent); }
 .resources li span { color: var(--muted); }
-.resources-empty { margin: 0; color: var(--faint); }
 .resources + .pager { margin-top: 40px; }
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 64px; }
 .pager a {
@@ -364,7 +363,8 @@ main, .top, footer {
 .opened .cards.after { animation-delay: 150ms; }
 /* Fades in while rising slightly. Transforms do not affect layout, so nothing else on the page moves. */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-.cards { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.cards { margin-top: 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 700px) { .cards { grid-template-columns: minmax(0, 1fr); } }
 /* Each card spans four rows of a shared grid (title, text, count, links), so those line up from card to card. */
 .card {
   display: grid;
@@ -1083,6 +1083,7 @@ table.vars .hex { font-weight: 600; }
 .dg-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .dg-state { font: 500 13px var(--mono); color: var(--faint); }
 .dg-controls { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 600px) { .dg-bar { flex-wrap: wrap; row-gap: 8px; } }
 .dg-btn { min-height: 36px; padding: 0 14px; font: 500 14px var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .dg-btn:hover:not(:disabled) { border-color: var(--faint); }
 .dg-btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
@@ -1351,7 +1352,8 @@ table.vars .hex { font-weight: 600; }
 .tr-bar .dbg-seg button[aria-checked='true'] { color: var(--paper); background: var(--ink); }
 .tr-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 /* Settings get their own row under the title, so the step buttons stay put whatever the settings are. */
-.tr-set { display: flex; flex-wrap: wrap; gap: 8px; flex-basis: 100%; }
+.tr-set { display: flex; flex-wrap: wrap; gap: 8px; flex-basis: 100%; min-width: 0; }
+@media (max-width: 600px) { .tr-set .dbg-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } }
 .tr-btn { height: 32px; padding: 0 14px; font: 600 13px var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
 .tr-btn:hover:not(:disabled) { border-color: var(--faint); }
 .tr-btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
@@ -1589,8 +1591,12 @@ footer a:hover { color: var(--ink); }
 @media (max-width: 600px) {
   main, .top, footer { padding: 0 16px; }
   .top { padding-top: 10px; padding-bottom: 10px; }
-  .top { flex-wrap: wrap; }
-  .top-search { order: 3; flex-basis: 100%; max-width: none; }
+  .top { flex-wrap: wrap; column-gap: 8px; row-gap: 6px; }
+  .top-search { order: 2; flex: 1; min-width: 0; max-width: none; position: static; }
+  .top-search input { font-size: 16px; }  /* 16px stops iOS zooming in on focus */
+  .search-results { top: calc(100% - 4px); left: 16px; right: 16px; }
+  .top-right { order: 3; }
+  .tabs { order: 4; flex-basis: 100%; margin-left: -10px; }
   .tabs .long { display: none; }
   .tabs .short { display: inline; }
   .tabs a { padding: 0 10px; }
@@ -1661,6 +1667,7 @@ footer a:hover { color: var(--ink); }
 .xb-corner { align-self: end; font: 11px var(--mono); color: var(--dbg-dim); }
 .xb-slave { display: flex; flex-direction: column; gap: 1px; padding: 2px 4px; text-align: center; font: 600 13px var(--sans); color: var(--dbg-text); }
 .xb-slave small { font: 10px var(--mono); color: var(--dbg-dim); }
+.xb-slave .sm { display: none; }
 .xb-slave.busy { color: #ff9f8c; }
 .xb-slave.busy small { color: #ff9f8c; }
 .xb-master { display: flex; flex-direction: column; justify-content: center; font: 600 13px var(--sans); color: var(--dbg-text); }
@@ -1673,7 +1680,7 @@ footer a:hover { color: var(--ink); }
 .xb-key b { font-size: 14px; }
 .xb-key .k-go { color: #5fd0a4; }
 .xb-key .k-wait { color: var(--dbg-pc); }
-@media (max-width: 600px) { .xb-row { grid-template-columns: 84px repeat(4, 1fr); gap: 4px; } .xb-master small, .xb-slave small { display: none; } .xb-cell { min-height: 40px; } }
+@media (max-width: 600px) { .xb-row { grid-template-columns: 84px repeat(4, minmax(0, 1fr)); gap: 4px; } .xb-master small, .xb-slave small { display: none; } .xb-slave .lg { display: none; } .xb-slave .sm { display: inline; } .xb-cell { min-height: 40px; } }
 
 /* Stack frames: a column of frame slots that appear in the prologue and vanish in the epilogue. */
 .sf-stack { display: flex; flex-direction: column; gap: 4px; max-width: 440px; }

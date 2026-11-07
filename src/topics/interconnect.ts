@@ -6,7 +6,7 @@
 import { status, syncUrl } from './dbg';
 
 export interface Master { id: string; name: string; note: string }
-export interface Slave { id: string; name: string; addr: string }
+export interface Slave { id: string; name: string; short?: string; addr: string }
 
 /** The bus masters, in arbitration priority order (highest first): the core wins a tie, then DMA2, then DMA1. */
 export const MASTERS: Master[] = [
@@ -20,7 +20,7 @@ const SLAVES: Slave[] = [
   { id: 'flash', name: 'Flash', addr: '0x08000000' },
   { id: 'sram1', name: 'SRAM1', addr: '0x20000000' },
   { id: 'sram2', name: 'SRAM2', addr: '0x2001C000' },
-  { id: 'periph', name: 'Peripherals', addr: '0x40000000' },
+  { id: 'periph', name: 'Peripherals', short: 'Periph', addr: '0x40000000' },
 ];
 
 export type Grant = 'go' | 'wait';
@@ -94,7 +94,7 @@ export function mountInterconnect(root: HTMLElement) {
     const going = MASTERS.filter((m) => grant[m.id] === 'go').length;
 
     const head = `<div class="xb-row xb-headrow"><span class="xb-corner">master ╲ slave</span>${SLAVES.map((s) =>
-      `<span class="xb-slave${contended.has(s.id) ? ' busy' : ''}">${s.name}<small>${s.addr}</small></span>`).join('')}</div>`;
+      `<span class="xb-slave${contended.has(s.id) ? ' busy' : ''}">${s.short ? `<span class="lg">${s.name}</span><span class="sm">${s.short}</span>` : s.name}<small>${s.addr}</small></span>`).join('')}</div>`;
     const rows = MASTERS.map((m) => {
       const cells = SLAVES.map((s) => {
         const on = targets[m.id] === s.id;

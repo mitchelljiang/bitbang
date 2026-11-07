@@ -82,6 +82,11 @@ export function mountSearch(root: HTMLElement) {
       aria-controls="search-results" autocomplete="off" spellcheck="false">
     <ul class="search-results" id="search-results" hidden></ul>`;
   const input = root.querySelector('input')!;
+  // On a phone the box shares a row with the logo, so the hint is shortened to fit.
+  const narrow = matchMedia('(max-width: 600px)');
+  const hint = () => (input.placeholder = narrow.matches ? 'Search' : 'Search by name or tag');
+  hint();
+  narrow.addEventListener('change', hint);
   const results = root.querySelector<HTMLElement>('.search-results')!;
 
   /** The tag being shown, when the search came from a tag chip. Typing switches back to a text search. */

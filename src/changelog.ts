@@ -10,6 +10,14 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-11-07',
+    items: [
+      ['improved', 'Phone header matches the desktop one: logo, search and theme on one row, sections below.'],
+      ['fixed', 'Phone: [scheduling](?p=scheduling) policies, [function calls](?p=calls) buttons and the [bus matrix](?p=interconnect) no longer spill out of their panels.'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-10-22',
     items: [
       ['improved', 'Faster first load: each page loads on demand.'],
