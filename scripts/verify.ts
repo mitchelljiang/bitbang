@@ -11,7 +11,7 @@
  * Exits non-zero if anything fails.
  */
 import { execFile, execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Level, Trace, Waveform } from '../src/core/types';
@@ -32,6 +32,8 @@ import { catalog } from '../src/catalog';
 import { bitTopics } from '../src/bits';
 import { memoryTopics } from '../src/memory';
 import { concurrencyTopics } from '../src/concurrency';
+import { peripheralTopics } from '../src/peripherals';
+import { architectureTopics } from '../src/architecture';
 import { topics } from '../src/topics';
 import { plural } from '../src/core/util';
 import { hex8, hexN, parseNumber } from '../src/topics/dbg';
@@ -56,6 +58,15 @@ import { overflowed, spForDepth } from '../src/topics/overflow';
 import { SYMS, sramValue } from '../src/topics/sections';
 import { access as cacheAccess, fields as cacheFields, type Line } from '../src/topics/caches';
 import { PROCS, translate } from '../src/topics/vaddr';
+import { I_MAX, R_PULL, VDD as GP_VDD, idrOf, level as gpioLevel, solve as gpioSolve, type Pin as GpioPin } from '../src/topics/gpio';
+import { timer as runTimer, updateHz } from '../src/topics/timers';
+import { duty as pwmDuty, oc as pwmOc } from '../src/topics/pwm';
+import { ideal as adcIdeal, sar } from '../src/topics/adc';
+import { counter as dbCounter, levelAt, lockout as dbLockout, none as dbNone, raw as dbRaw } from '../src/topics/debounce';
+import { RLR as WD_RLR, TIMEOUT as WD_TIMEOUT, run as wdRun, timeoutMs } from '../src/topics/watchdog';
+import { ideal as dacIdeal, rc, table as dacTable, volts as dacVolts } from '../src/topics/dac';
+import { dma } from '../src/topics/dma';
+import { COND, ISAS, ISA_IDS, asm as inAsm, decode as inDecode, encode as inEncode, opcodeOk as inOpOk, immOf as inImm, formOf as inForm, thumbTarget as inTarget, target as isaTarget } from '../src/topics/instructions';
 import { L2 as PG_L2, tlbLookup, walk as pgWalk } from '../src/topics/paging';
 import { REGIONS as MPU, checkAccess } from '../src/topics/mpu';
 import { LR, PC, SP, run } from '../src/topics/inspector';
@@ -956,6 +967,185 @@ section('3m. Concurrency: parts and terms');
   check(`${TERMS.flatMap((g) => g.terms).length} glossary terms link to live pages`, dead.length === 0, dead.join('; '));
 }
 
+section('3o. Peripherals: GPIO, debouncing, timers, PWM, watchdog, ADC, DAC, DMA');
+{
+  // GPIO: the datasheet's rules (strong beats weak, two strong drivers short, nothing floats) against the same pin solved
+  // as a resistor network, in all 48 settings. The circuit's verdict: over the pin's 25 mA limit is a short, otherwise
+  // the input thresholds (0.7 / 0.3 × VDD) decide, and no path at all is floating.
+  const pins: GpioPin[] = [];
+  for (const mode of ['in', 'out'] as const) for (const otype of ['pp', 'od'] as const) for (const pull of ['none', 'up', 'down'] as const)
+    for (const odr of [0, 1] as const) for (const btn of [false, true]) pins.push({ mode, otype, pull, odr, btn });
+  const byCircuit = (p: GpioPin) => { const { v, amps } = gpioSolve(p); return v === null ? 'float' : amps > I_MAX ? 'short' : idrOf(v) === 1 ? 'high' : idrOf(v) === 0 ? 'low' : '?'; };
+  const disagree = pins.filter((p) => gpioLevel(p) !== byCircuit(p));
+  check('GPIO: the rules and the solved circuit agree in all 48 settings', pins.length === 48 && disagree.length === 0, disagree.map((p) => JSON.stringify(p)).join(' '));
+  const pressed = gpioSolve({ mode: 'in', otype: 'pp', pull: 'up', odr: 0, btn: true });
+  check('GPIO: a pressed button against the 40 kΩ pull-up draws 3.3 V / 40 kΩ ≈ 82 µA', Math.abs(pressed.amps - GP_VDD / R_PULL) < 1e-7 && pressed.amps > 82e-6 && pressed.amps < 83e-6, String(pressed.amps));
+  check('GPIO: only push-pull driving 1 into a pressed button shorts', pins.filter((p) => gpioLevel(p) === 'short').every((p) => p.mode === 'out' && p.otype === 'pp' && p.odr === 1 && p.btn));
+  check('GPIO: open-drain writing 1 with no pull floats', gpioLevel({ mode: 'out', otype: 'od', pull: 'none', odr: 1, btn: false }) === 'float');
+
+  // Timers: the tick-by-tick counter against the closed form f = clk / ((PSC + 1)(ARR + 1)), and the reference manual's
+  // worked values: 84 MHz with PSC 8399, ARR 9999 is 1 Hz; 16 MHz with PSC 15999, ARR 999 is 1 Hz.
+  let timerBad = '';
+  for (let psc = 0; psc <= 5; psc++) for (let arr = 1; arr <= 12; arr++) {
+    const N = 400, r = runTimer(psc, arr, N), P = (psc + 1) * (arr + 1);
+    const ups = r.update.map((u, k) => (u ? k : -1)).filter((k) => k >= 0);
+    const evenly = ups.every((k, i) => k === (i + 1) * P);
+    if (!evenly || ups.length !== Math.floor((N - 1) / P) || Math.max(...r.cnt) !== arr || r.cnt[0] !== 0) timerBad += ` psc${psc}/arr${arr}`;
+  }
+  check('timers: updates come every (PSC+1)(ARR+1) clocks and CNT runs 0 to ARR', !timerBad, timerBad);
+  check('timers: 84 MHz, PSC 8399, ARR 9999 → 1 Hz; 16 MHz, PSC 15999, ARR 999 → 1 Hz',
+    updateHz(84e6, 8399, 9999) === 1 && updateHz(16e6, 15999, 999) === 1 && updateHz(16e6, 15, 999) === 1000);
+
+  // PWM (RM0090, general-purpose timers, PWM mode): mode 1 is active while CNT < CCR. Duty over one period, counted tick by tick, against CCR / (ARR + 1),
+  // including the two ends the manual names: CCR = 0 holds the output low, CCR > ARR holds it high.
+  let pwmBad = '';
+  for (let arr = 1; arr <= 20; arr++) for (let ccr = 0; ccr <= arr + 3; ccr++) for (const m of [1, 2] as const) {
+    const r = runTimer(0, arr, arr + 1);
+    const high = r.cnt.filter((c) => pwmOc(m, c, ccr) === 1).length / (arr + 1);
+    if (Math.abs(high - pwmDuty(m, ccr, arr)) > 1e-12) pwmBad += ` arr${arr}/ccr${ccr}/m${m}`;
+  }
+  check('PWM: duty counted tick by tick equals CCR / (ARR + 1), mode 2 its complement', !pwmBad, pwmBad);
+  check('PWM: CCR = 0 is 0% and CCR > ARR is 100% in mode 1', pwmDuty(1, 0, 9) === 0 && pwmDuty(1, 10, 9) === 1 && pwmDuty(1, 99, 9) === 1);
+
+  // ADC: the successive-approximation search lands on the ideal code, floor(Vin / Vref × 2^N), at the middle of every code
+  // at 4, 8, 10 and 12 bits, in exactly N comparisons. Mid-scale on a 3.3 V, 12-bit converter is 2048; full scale is 4095.
+  let adcBad = '';
+  for (const n of [4, 8, 10, 12]) for (let code = 0; code < 2 ** n; code++) {
+    const vin = ((code + 0.5) * 3.3) / 2 ** n, r = sar(vin, 3.3, n);
+    if (r.code !== code || adcIdeal(vin, 3.3, n) !== code || r.steps.length !== n) { adcBad += ` ${n}b/${code}`; break; }
+  }
+  check('ADC: successive approximation finds the ideal code at every code, 4 to 12 bits', !adcBad, adcBad);
+  check('ADC: 1.65 V is 2048 and 3.3 V is 4095 at 12 bits', sar(1.65, 3.3, 12).code === 2048 && sar(3.3, 3.3, 12).code === 4095 && sar(0, 3.3, 12).code === 0);
+
+  // Debouncing, against presses counted by hand from the signal: the press has four falling edges and the release two,
+  // the spike one more; a 2 ms filter is shorter than the 4.7 ms bounce and a 5 ms one is not.
+  const quiet = dbRaw(false), noisy = dbRaw(true);
+  const counts = (f: (e: [number, number][], n: number) => { presses: number[] }, e: [number, number][]) => [2, 5, 10].map((n) => f(e, n).presses.length).join(',');
+  check('debounce: with no filter every falling edge is a press (6, or 7 with the spike)', dbNone(quiet).presses.length === 6 && dbNone(noisy).presses.length === 7);
+  check('debounce: a counter of 2 counts 2 presses, of 5 or 10 counts 1, spike or not', counts(dbCounter, quiet) === '2,1,1' && counts(dbCounter, noisy) === '2,1,1', `${counts(dbCounter, quiet)} / ${counts(dbCounter, noisy)}`);
+  // Lockout, traced by hand: 2 ms ends mid-bounce on press and release (3 presses); 5 and 10 ms are clean (1); the spike
+  // adds one release and one press to each.
+  check('debounce: lockouts of 2, 5, 10 ms count 3, 1, 1 presses, and 4, 2, 2 with the spike', counts(dbLockout, quiet) === '3,1,1' && counts(dbLockout, noisy) === '4,2,2', `${counts(dbLockout, quiet)} / ${counts(dbLockout, noisy)}`);
+  // The counter, against its definition on random signals: the output flips at sample t exactly when the n samples up
+  // to t all disagree with it and all came after its last flip.
+  let dbBad = 0;
+  for (let trial = 0; trial < 200; trial++) {
+    const e: [number, number][] = [[0, 1]];
+    let lvl = 1;
+    for (let t = 0.7; t < 50; t += 0.4 + ((trial * 7 + Math.round(t * 10) * 13) % 9) / 3) { lvl ^= 1; e.push([+t.toFixed(2), lvl]); }
+    for (const n of [2, 3, 5]) {
+      const want: number[] = [];
+      let v = 1, last = -Infinity;
+      for (let t = n - 1; t <= 50; t++) {
+        if (t - last >= n && Array.from({ length: n }, (_, j) => levelAt(e, t - j)).every((x) => x !== v)) { v ^= 1; last = t; want.push(t); }
+      }
+      if (dbCounter(e, n).out.slice(1).map(([t]) => t).join() !== want.join()) dbBad++;
+    }
+  }
+  check('debounce: the counter flips exactly when n fresh samples in a row disagree (600 random signals)', dbBad === 0, String(dbBad));
+  check('debounce: a 5 ms counter reports the press at 16 ms, 5 samples after the pin settles at 12.3 ms', dbCounter(quiet, 5).presses[0] === 16);
+
+  // Watchdog (RM0090 IWDG): the timeout table's ends, /4 with RLR 0 is 0.125 ms and RLR 4095 is 512 ms, /256 with
+  // RLR 4095 is 32768 ms; and the simulation resets exactly when no kick comes within the timeout.
+  check('watchdog: timeouts 0.125 ms, 512 ms and 32 768 ms at the ends of the table', timeoutMs(0, 0) === 0.125 && timeoutMs(0, 4095) === 512 && timeoutMs(6, 4095) === 32768 && WD_TIMEOUT === 50 && WD_RLR === 399);
+  const wdOk = [10, 20, 30, 45, 49].every((k) => wdRun(k).resets.length === 0) && [51, 60, 80].every((k) => wdRun(k).resets[0] === 50);
+  check('watchdog: kicks more often than 50 ms never reset; slower ones reset at 50 ms', wdOk);
+  check('watchdog: a loop that hangs after its kick at 60 ms resets 50 ms later, at 110 ms', wdRun(20, 70).resets[0] === 110);
+
+  // DAC (RM0090: DAC_OUT = VREF × DOR / 4096): mid-code is half the reference, the top code one step short of it; each
+  // table entry is within half a step of the ideal; an RC filter reaches 1 − 1/e of a step after one time constant.
+  check('DAC: code 2048 is 1.65 V and 4095 is 3.3 × 4095/4096 V at 12 bits', dacVolts(2048, 12) === 1.65 && Math.abs(dacVolts(4095, 12) - 3.2991943359375) < 1e-12);
+  const dacWorst = Math.max(...[3, 6, 12].flatMap((n) => [8, 16, 32].flatMap((sN) => (['sine', 'triangle'] as const).flatMap((sh) =>
+    dacTable(sh, n, sN).map((c, k) => Math.abs(dacVolts(c, n) - dacIdeal(sh, k / sN)) / (3.3 / 2 ** n))))));
+  check('DAC: every table entry is within half a step of the ideal wave', dacWorst <= 0.5 + 1e-9, dacWorst.toFixed(3));
+  const step = rc([1], 1, 1, 1000, 0);
+  check('DAC: an RC filter reaches 63.2% (1 − 1/e) of a step after one time constant', Math.abs(step[step.length - 1][1] - (1 - Math.exp(-1))) < 1e-12);
+
+  // DMA (RM0090: NDTR counts down per transfer; HTIF at half, TCIF at zero; circular mode reloads NDTR and wraps).
+  const circ = dma(1000, 8, true), norm = dma(12, 8, false);
+  check('DMA: in circular mode byte k lands at k mod 8 and NDTR + position is always 8', circ.every((x) => x.index === x.byte % 8 && (x.tc ? x.ndtr === 8 : x.ndtr === 8 - (x.byte % 8) - 1)));
+  check('DMA: half-transfer after bytes 3, 11, 19…, complete after 7, 15, 23…', circ.every((x) => x.ht === (x.byte % 8 === 3) && x.tc === (x.byte % 8 === 7)));
+  check('DMA: normal mode moves exactly 8 bytes, then stops', norm.filter((x) => x.index !== null).length === 8 && norm.slice(8).every((x) => x.index === null) && norm[7].tc);
+}
+
+section('3p. Architecture: instruction encoding');
+{
+  // Operand values for a form's fields, spread over their ranges by k.
+  const opsFor = (isa: (typeof ISA_IDS)[number], f: string, k: number, mul: number) => Object.fromEntries(inForm(isa, f).fields.filter((x) => x.kind !== 'op')
+    .map((x) => [x.name, (k * (mul + 2 * x.lo) + x.hi) % 2 ** (x.hi - x.lo + 1)]));
+  // Every field the page lets the reader change, round-tripped: decode(encode(x)) gives x back, and the opcode bits never move.
+  let roundBad = '';
+  for (const isa of ISA_IDS) for (const f of ISAS[isa].forms) for (let k = 0; k < 400; k++) {
+    const ops = opsFor(isa, f.id, k, 37), w = inEncode(isa, f.id, ops), back = inDecode(isa, f.id, w);
+    if (Object.entries(ops).some(([n, v]) => back[n] !== v) || !inOpOk(isa, f.id, w) || w >= 2 ** ISAS[isa].width) { roundBad += ` ${isa}.${f.id}`; break; }
+  }
+  check('instructions: every field in all three sets decodes back to what was encoded', !roundBad, roundBad);
+  check('instructions: a Thumb branch reads the PC as its address + 4', inTarget(0x100, 0) === 0x104 && inTarget(0x100, 0xff) === 0x102 && inTarget(0x100, 0x80) === 0x100 + 4 - 256);
+  // RISC-V's branch immediate, put back together from its four pieces by hand: bne a0, a1, -4 is 0xFEB51EE3 (imm = 1 111111 1110 0).
+  check('instructions: RISC-V branch offsets are reassembled from imm[12|10:5|4:1|11]', inImm(inForm('riscv', 'bcond'), 0xfeb51ee3) === -4
+    && inImm(inForm('riscv', 'bcond'), 0x00b51463) === 8 && inImm(inForm('riscv', 'bcond'), 0x80000063) === -4096 && inImm(inForm('riscv', 'bcond'), 0x7e000fe3) === 4094);
+  check('instructions: Xtensa MOVI joins s and imm8 into a signed 12-bit constant', inImm(inForm('xtensa', 'movi'), 0x2aa022) === 42 && inImm(inForm('xtensa', 'movi'), 0x80af22) === -128
+    && inImm(inForm('xtensa', 'movi'), 0xffa722) === 2047 && inImm(inForm('xtensa', 'movi'), 0x00a822) === -2048);
+  check('instructions: branch targets count from the branch (RISC-V) or from it + 4 (Thumb, Xtensa)',
+    isaTarget('riscv', 0x00b51463) === ISAS.riscv.addr + 8 && isaTarget('xtensa', 0x041237) === ISAS.xtensa.addr + 8 && isaTarget('thumb', 0xd001) === ISAS.thumb.addr + 6);
+  // The Thumb encodings, from the Arm assembler: Clang assembles what the page prints, and its bytes must match the page's word.
+  const inDir = mkdtempSync(join(tmpdir(), 'instr-'));
+  later('instructions: 300 Thumb encodings match the Arm assembler in Clang', async () => {
+    const cases: { f: string; w: number }[] = [];
+    for (const f of ISAS.thumb.forms) for (let k = 0; k < 60; k++) {
+      const ops = opsFor('thumb', f.id, k, 53);
+      if (f.id === 'bcond') ops.cond %= 14; // 1110 and 1111 are UDF and SVC, not branches
+      cases.push({ f: f.id, w: inEncode('thumb', f.id, ops) });
+    }
+    // A branch is written with a label placed imm8 × 2 + 4 bytes from it, padded with NOPs; the NOPs are dropped after.
+    const lines = cases.flatMap(({ f, w }, i) => {
+      if (f !== 'bcond') return [`  ${inAsm('thumb', f, w)}`];
+      const o = inDecode('thumb', f, w), imm = o.imm8 & 0x80 ? o.imm8 - 256 : o.imm8, off = 4 + 2 * imm;
+      const nops = (n: number) => Array(n / 2).fill('  nop');
+      return off >= 2 ? [`  b${COND[o.cond]}.n L${i}`, ...nops(off - 2), `L${i}:`] : [`L${i}:`, ...nops(-off), `  b${COND[o.cond]}.n L${i}`];
+    });
+    writeFileSync(join(inDir, 'i.s'), ['.syntax unified', '.thumb', ...lines].join('\n') + '\n');
+    await sh('clang', ['--target=thumbv7em-none-eabi', '-c', join(inDir, 'i.s'), '-o', join(inDir, 'i.o')]);
+    const got = (await sh('objdump', ['-d', '--triple=thumbv7em-none-eabi', join(inDir, 'i.o')])).split('\n')
+      .map((l) => l.match(/^\s*[0-9a-f]+:\s+([0-9a-f]{4})\s+(\S+)/)).filter((m) => m && m[2] !== 'nop').map((m) => parseInt(m![1], 16));
+    const bad = cases.filter((c, k) => got[k] !== c.w).map((c) => `${inAsm('thumb', c.f, c.w)} page ${c.w.toString(16)} clang ${got[cases.indexOf(c)]?.toString(16)}`);
+    return [got.length === cases.length && bad.length === 0, bad.slice(0, 3).join('; ') || `${got.length} decoded`];
+  });
+  check('instructions: movs r3, #42 is 0x232A, stored as 2A 23', inEncode('thumb', 'movs', { Rd: 3, imm8: 42 }) === 0x232a && inAsm('thumb', 'movs', 0x232a) === 'movs r3, #42');
+
+  // RISC-V and Xtensa, from the Capstone disassembler (pip install --pre capstone, in bitbang/.venv): it decodes each
+  // word, and its text must say what the page's does, numbers compared by value. Words the page calls not an
+  // instruction must not decode. Xtensa branches print as ". +8", relative to the branch.
+  const py = existsSync('.venv/bin/python') ? '.venv/bin/python' : 'python3';
+  let capstone = true;
+  try { execFileSync(py, ['-I', '-c', 'import capstone; assert capstone.CS_ARCH_XTENSA'], { stdio: 'ignore' }); } catch { capstone = false; }
+  if (!capstone) report.push('  skip  Capstone 6 is not installed (python3 -m venv .venv && .venv/bin/pip install --pre capstone)');
+  else for (const isa of ['riscv', 'xtensa'] as const) {
+    const I = ISAS[isa];
+    later(`instructions: 600 ${I.label} encodings match the Capstone disassembler`, async () => {
+      const cases: { f: string; w: number }[] = [];
+      for (const f of I.forms) for (let k = 0; k < 120; k++) cases.push({ f: f.id, w: inEncode(isa, f.id, opsFor(isa, f.id, k, 53 + 2 * k)) });
+      const n = I.width / 8;
+      const script = `import capstone as c,sys
+d=c.Cs(c.CS_ARCH_RISCV,c.CS_MODE_RISCV32) if sys.argv[1]=='riscv' else c.Cs(c.CS_ARCH_XTENSA,0)
+d.syntax=c.CS_OPT_SYNTAX_REAL if sys.argv[1]=='riscv' else d.syntax
+for h in sys.argv[3:]:
+  i=list(d.disasm(int(h,16).to_bytes(${n},'little'),int(sys.argv[2])))
+  print(i[0].mnemonic+' '+i[0].op_str if i and i[0].size==${n} else '-')`;
+      const out = (await sh(py, ['-I', '-c', script, isa, String(I.addr), ...cases.map((c) => c.w.toString(16))])).trim().split('\n');
+      const num = (s: string) => /^-?(0x[0-9a-f]+|\d+)$/i.test(s) ? String(s.startsWith('-') ? -Number(s.slice(1)) : Number(s)) : s;
+      const norm = (s: string) => s.toLowerCase().replace(/\. ?([+-]?)(0x[0-9a-f]+|\d+)/, (_, sg, d) => String(I.addr + (sg === '-' ? -1 : 1) * Number(d))).split(/[\s,()]+/).filter(Boolean).map(num).join(' ');
+      const bad = cases.map((c, k) => ({ c, page: inAsm(isa, c.f, c.w), cs: out[k] }))
+        .filter(({ page, cs }) => (page === null ? cs !== '-' : cs === '-' || norm(page) !== norm(cs)));
+      const invalid = cases.filter((c) => inAsm(isa, c.f, c.w) === null).length;
+      return [out.length === cases.length && bad.length === 0,
+        bad.slice(0, 3).map((b) => `${b.c.w.toString(16)}: page "${b.page}" capstone "${b.cs}"`).join('; ') || `${cases.length} decoded, ${invalid} not instructions`];
+    });
+  }
+  check('instructions: lui a0, 0x60004 is 0x60004537 and movi a2, 42 is 22 A0 2A', inAsm('riscv', 'lui', 0x60004537) === 'lui a0, 0x60004'
+    && inEncode('xtensa', 'movi', { imm8: 42, s: 0, t: 2 }) === 0x2aa022 && inAsm('xtensa', 'movi', 0x2aa022) === 'movi a2, 42');
+}
+
 section('3n. Shared helpers and site structure');
 {
   // USB's CRCs, against the published check values for "123456789" (Greg Cook's CRC catalogue), so they are checked
@@ -981,7 +1171,7 @@ section('3n. Shared helpers and site structure');
     && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
 
   // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
-  const entries = [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics].flatMap((c) => c.entries.map((e) => e.id));
+  const entries = [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));

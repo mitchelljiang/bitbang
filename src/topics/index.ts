@@ -42,4 +42,13 @@ export const topics: Record<string, () => Promise<Mount>> = {
   locks: () => import('./locks').then((m) => m.mountLocks),
   barriers: () => import('./barriers').then((m) => m.mountBarriers),
   mcu: () => import('./mcu').then((m) => m.mountMcu),
+  gpio: () => import('./gpio').then((m) => m.mountGpio),
+  timers: () => import('./timers').then((m) => m.mountTimers),
+  pwm: () => import('./pwm').then((m) => m.mountPwm),
+  adc: () => import('./adc').then((m) => m.mountAdc),
+  debounce: () => import('./debounce').then((m) => m.mountDebounce),
+  watchdog: () => import('./watchdog').then((m) => m.mountWatchdog),
+  dac: () => import('./dac').then((m) => m.mountDac),
+  dma: () => import('./dma').then((m) => m.mountDma),
+  instructions: () => import('./instructions').then((m) => m.mountInstructions),
 };

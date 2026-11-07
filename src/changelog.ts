@@ -12,6 +12,10 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-11-07',
     items: [
+      ['new', 'Peripherals section: [GPIO](?p=gpio), [debouncing](?p=debounce), [timers](?p=timers), [PWM](?p=pwm), [watchdog](?p=watchdog), [ADC](?p=adc), [DAC](?p=dac), [DMA](?p=dma).'],
+      ['new', 'Architecture section, starting with [instruction encoding](?p=instructions) for Arm Thumb, RISC-V and Xtensa, checked against Clang and Capstone.'],
+      ['improved', 'Three tabs: Data, Hardware and Software, with their sections in the sidebar.'],
+      ['improved', 'Formulas typeset as equations.'],
       ['improved', 'Phone header matches the desktop one: logo, search and theme on one row, sections below.'],
       ['fixed', 'Phone: [scheduling](?p=scheduling) policies, [function calls](?p=calls) buttons and the [bus matrix](?p=interconnect) no longer spill out of their panels.'],
       ['improved', 'Minor UI/UX fixes and updates.'],

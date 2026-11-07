@@ -44,7 +44,8 @@ async function connect() {
 
 /** Runs in the page: reads the visible page into a structured object of its text. */
 const EXTRACT = `(() => {
-  const txt = (el) => el ? el.textContent.replace(/\\s+/g, ' ').trim() : '';
+  // Equations are MathML carrying their LaTeX as alttext; inline ones are written back as $…$.
+  const txt = (el) => { if (!el) return ''; const c = el.cloneNode(true); c.querySelectorAll('math').forEach((m) => m.replaceWith('$' + (m.getAttribute('alttext') || '') + '$')); return c.textContent.replace(/\\s+/g, ' ').trim(); };
   const main = [...document.querySelectorAll('main')].find((m) => !m.hidden);
   const page = main ? main.id : 'home';
   const out = { page, title: txt(document.querySelector(main ? '#' + main.id + ' h1' : '.hero h1')) };
@@ -55,6 +56,7 @@ const EXTRACT = `(() => {
       if (t === 'H2' || t === 'H3') parts.push({ h: txt(n), level: t === 'H2' ? 2 : 3 });
       else if (t === 'P') parts.push({ p: txt(n) });
       else if (t === 'UL' || t === 'OL') parts.push({ list: [...n.children].map((li) => txt(li)) });
+      else if (t === 'DIV' && n.classList.contains('eq')) parts.push({ math: n.querySelector('math')?.getAttribute('alttext') || '' });
       else if (t === 'PRE') parts.push({ code: n.textContent.replace(/\\n+$/,'') });
       else if (t === 'TABLE') parts.push({ table: [...n.querySelectorAll('tr')].map((tr) => [...tr.children].map((c) => txt(c))) });
     }
@@ -91,6 +93,7 @@ function body(parts) {
     if (p.h) md.push((p.level === 3 ? '### ' : '## ') + p.h);
     else if (p.p) md.push(p.p);
     else if (p.list) md.push(p.list.map((x) => '- ' + x).join('\n'));
+    else if (p.math !== undefined) md.push('$$\n' + p.math + '\n$$');
     else if (p.code) md.push('```c\n' + p.code + '\n```');
     else if (p.table) md.push(p.table.map((r, i) => '| ' + r.join(' | ') + ' |' + (i === 0 ? '\n| ' + r.map(() => '---').join(' | ') + ' |' : '')).join('\n'));
   }
@@ -128,11 +131,14 @@ function toMarkdown(d, meta) {
   // Build the page list from the sidebars of each section.
   const sections = [];
   await go('?p=uart');
-  const tabs = await evalJson(`[...document.querySelectorAll('#tabs a')].map((a) => ({ name: a.querySelector('.long').textContent, href: a.getAttribute('href') }))`);
-  for (const tab of tabs) {
-    await go(tab.href);
-    const groups = await evalJson(`[...document.querySelectorAll('.side-nav .side-group')].map((g) => ({ group: g.querySelector('h3').textContent, pages: [...g.querySelectorAll('a[data-nav]:not(.wip)')].map((a) => ({ id: new URL(a.href).searchParams.get('p'), name: a.textContent.trim() })) }))`);
-    sections.push({ section: tab.name, groups });
+  const tabs = await evalJson(`[...document.querySelectorAll('#tabs a')].map((a) => a.getAttribute('href'))`);
+  // Each tab's sidebar lists a few sections; each becomes a folder.
+  for (const href of tabs) {
+    await go(href);
+    // A cold browser can still be loading the page; wait until its sidebar has entries, or a section would be skipped.
+    for (let k = 0; k < 50 && !(await evalJson(`document.querySelectorAll('.side-nav a[data-nav]').length`)); k++) await sleep(100);
+    sections.push(...await evalJson(`[...document.querySelectorAll('.side-nav .side-sec')].map((s) => ({ section: s.querySelector('summary').textContent,
+      groups: [...s.querySelectorAll('.side-group')].map((g) => ({ group: g.querySelector('h3').textContent, pages: [...g.querySelectorAll('a[data-nav]:not(.wip)')].map((a) => ({ id: new URL(a.href).searchParams.get('p'), name: a.textContent.trim() })) })) }))`));
   }
 
   const index = [`# bitbang text\n`,

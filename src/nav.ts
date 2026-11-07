@@ -1,6 +1,8 @@
 import { bitTopics } from './bits';
 import { concurrencyTopics } from './concurrency';
 import { memoryTopics } from './memory';
+import { peripheralTopics } from './peripherals';
+import { architectureTopics } from './architecture';
 import { catalog, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
@@ -8,8 +10,6 @@ import { statusOf } from './search';
 interface Section {
   id: string;
   name: string;
-  /** The tab label on narrow screens. */
-  short: string;
   /** One or two sentences for the section's card on the home page. */
   blurb: string;
   /** Pages listed before the categories, such as the protocol guide. */
@@ -17,37 +17,59 @@ interface Section {
   categories: Category[];
 }
 
-/** The parts of the site. Each has a header tab, a sidebar listing its pages, and previous/next links. */
+/** The parts of the site, grouped under the header tabs by `areas` below. Each lists its pages in the sidebar. */
 export const sections: Section[] = [
   {
-    id: 'protocols', name: 'Protocols', short: 'Protocols',
+    id: 'protocols', name: 'Protocols',
     blurb: 'How chips and devices talk to each other over wires, from UART and SPI to USB and PCI Express, with the timing of every edge.',
     lead: [{ id: 'basics', name: 'How protocols work' }], categories: catalog,
   },
   {
-    id: 'bits', name: 'Bits and bytes', short: 'Bits',
+    id: 'bits', name: 'Bits and bytes',
     blurb: 'How numbers are stored, changed and checked inside a computer: binary, two’s complement, floating point, masks and CRCs.',
     lead: [], categories: bitTopics,
   },
   {
-    id: 'memory', name: 'Memory', short: 'Memory',
+    id: 'memory', name: 'Memory',
     blurb: 'Where code and data live and how they get there: the memory map, the stack, the heap, memory hardware and virtual memory.',
     lead: [], categories: memoryTopics,
   },
   {
-    id: 'concurrency', name: 'Concurrency', short: 'Concurrency',
+    id: 'concurrency', name: 'Concurrency',
     blurb: 'How one processor does more than one thing at once: interrupts, tasks and the bugs that come from sharing data.',
     lead: [], categories: concurrencyTopics,
+  },
+  {
+    id: 'peripherals', name: 'Peripherals',
+    blurb: 'The hardware blocks beside the processor: pins, timers, PWM, the ADC and DMA, register by register.',
+    lead: [], categories: peripheralTopics,
+  },
+  {
+    id: 'architecture', name: 'Architecture',
+    blurb: 'How the processor runs a program: the instructions it reads, the registers it works in, and the pipeline that runs them.',
+    lead: [], categories: architectureTopics,
   },
 ];
 
 const sectionOf = (id: string) =>
   sections.find((s) => s.lead.some((l) => l.id === id) || s.categories.some((c) => c.entries.some((e) => e.id === id)));
 
-/** The section's pages in reading order, skipping ones without a page yet. Previous and next walk through these. */
-export const pagesOf = (s: Section) => [...s.lead, ...s.categories.flatMap((c) => c.entries.filter((e) => statusOf.get(e.id) !== 'soon'))];
+interface Area { id: string; name: string; sections: Section[] }
+const by = (...ids: string[]) => ids.map((id) => sections.find((s) => s.id === id)!);
+/** The header tabs: each groups a few sections, which the sidebar lists in this order. */
+export const areas: Area[] = [
+  { id: 'data', name: 'Data', sections: by('bits', 'protocols') },
+  { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals') },
+  { id: 'software', name: 'Software', sections: by('concurrency') },
+];
+export const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 
-function sidebarHtml(s: Section) {
+/** The section's pages in reading order, skipping ones without a page yet. */
+export const pagesOf = (s: Section) => [...s.lead, ...s.categories.flatMap((c) => c.entries.filter((e) => statusOf.get(e.id) !== 'soon'))];
+/** An area's pages, section after section. Previous and next walk through these. */
+const areaPages = (a: Area) => a.sections.flatMap(pagesOf);
+
+function groupsHtml(s: Section) {
   const lead = s.lead.length
     ? `<div class="side-group"><h3>Start here</h3><ul>${s.lead.map((l) => `<li><a href="?p=${l.id}" data-nav>${esc(l.name)}</a></li>`).join('')}</ul></div>`
     : '';
@@ -60,8 +82,15 @@ function sidebarHtml(s: Section) {
       return `<li class="soon" ${title}>${esc(e.name)}</li>`;
     });
     return `<div class="side-group"><h3>${esc(cat.heading ?? cat.name)}</h3><ul>${items.join('')}</ul></div>`;
-  }).join('') + (s.categories.some((c) => c.entries.some((e) => statusOf.get(e.id) === 'wip'))
-    ? '<p class="side-key" aria-hidden="true"><i></i>In progress</p>' : '');
+  }).join('');
+}
+
+/** The area's sections, each a collapsible list of its groups. */
+function sidebarHtml(a: Area) {
+  return a.sections.map((s) => `
+    <details class="side-sec" data-section="${s.id}"><summary>${esc(s.name)}</summary><div class="side-sec-body">${groupsHtml(s)}</div></details>`).join('')
+    + (a.sections.some((s) => s.categories.some((c) => c.entries.some((e) => statusOf.get(e.id) === 'wip')))
+      ? '<p class="side-key" aria-hidden="true"><i></i>In progress</p>' : '');
 }
 
 /**
@@ -69,8 +98,7 @@ function sidebarHtml(s: Section) {
  * On narrow screens the sidebar collapses behind a button.
  */
 export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElement) {
-  tabs.innerHTML = sections.map((s) =>
-    `<a href="?p=${pagesOf(s)[0]?.id ?? ''}" data-nav data-section="${s.id}"><span class="long">${esc(s.name)}</span><span class="short">${esc(s.short)}</span></a>`).join('');
+  tabs.innerHTML = areas.map((a) => `<a href="?p=${areaPages(a)[0]?.id ?? ''}" data-nav data-area="${a.id}">${esc(a.name)}</a>`).join('');
   side.innerHTML = `
     <button class="side-toggle" type="button" aria-expanded="false" aria-controls="side-nav"></button>
     <nav class="side-nav" id="side-nav"></nav>`;
@@ -84,28 +112,36 @@ export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElemen
   list.addEventListener('click', (e) => {
     if ((e.target as Element).closest('a')) setOpen(false);
   });
-  let shown: Section | undefined;
+  let shown: Area | undefined;
+  let openFor: Section | undefined;
 
   return {
     /** Shows the navigation for page `id`, or none for pages outside any section (the home page, About). */
     show(id: string | null) {
       const s = id ? sectionOf(id) : undefined;
-      for (const a of tabs.querySelectorAll('a')) a.toggleAttribute('aria-current', a.dataset.section === s?.id);
+      const area = s && areaOf(s);
+      for (const a of tabs.querySelectorAll('a')) a.toggleAttribute('aria-current', a.dataset.area === area?.id);
       side.hidden = !s;
       pager.hidden = !s;
       setOpen(false);
-      if (!s || !id) return;
-      if (s !== shown) {
-        list.setAttribute('aria-label', s.name);
-        list.innerHTML = sidebarHtml(s);
-        shown = s;
+      if (!s || !id || !area) return;
+      if (area !== shown) {
+        list.setAttribute('aria-label', area.name);
+        list.innerHTML = sidebarHtml(area);
+        shown = area;
+        openFor = undefined;
+      }
+      // Arriving in a section opens its list; the others stay as the reader left them.
+      if (s !== openFor) {
+        list.querySelector<HTMLDetailsElement>(`.side-sec[data-section="${s.id}"]`)!.open = true;
+        openFor = s;
       }
       for (const a of list.querySelectorAll('a')) {
         const here = new URL(a.href).searchParams.get('p') === id;
         a.toggleAttribute('aria-current', here);
         if (here && !side.classList.contains('open')) a.scrollIntoView({ block: 'nearest' });
       }
-      const pages = pagesOf(s);
+      const pages = areaPages(area);
       const i = pages.findIndex((x) => x.id === id);
       toggle.innerHTML = `<span>${esc(s.name)}</span><b>${esc(pages[i]?.name ?? '')}</b>`;
       const link = (x: { id: string; name: string } | undefined, dir: 'prev' | 'next') => x

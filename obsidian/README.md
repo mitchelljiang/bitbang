@@ -4,6 +4,20 @@ The text of every page, exported from the site for editing. The `source:` field 
 
 > **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the `source:` files. Re-running `npm run export-text` regenerates these notes from `src` and overwrites them, so pull your edits in first.
 
+## Bits and bytes
+- [[binary-and-hexadecimal|Binary and hexadecimal]] — Start here
+- [[two-s-complement|Two’s complement]] — Start here
+- [[fixed-point|Fixed point]] — Start here
+- [[ieee-754-floating-point|IEEE 754 floating point]] — Start here
+- [[and-or-xor-and-not|AND, OR, XOR and NOT]] — Bitwise operations
+- [[shifts-and-rotates|Shifts and rotates]] — Bitwise operations
+- [[masks|Masks]] — Bitwise operations
+- [[bit-tricks|Bit tricks]] — Bitwise operations
+- [[read-modify-write|Read-modify-write]] — Bitwise operations
+- [[endianness|Endianness]] — Bitwise operations
+- [[overflow-and-status-flags|Overflow and status flags]] — Arithmetic and error checking
+- [[checksums-and-crc|Checksums and CRC]] — Arithmetic and error checking
+
 ## Protocols
 - [[uart|UART]] — Asynchronous serial
 - [[rs-232|RS-232]] — Asynchronous serial
@@ -27,19 +41,8 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[jtag|JTAG]] — Debug & programming
 - [[swd|SWD]] — Debug & programming
 
-## Bits and bytes
-- [[binary-and-hexadecimal|Binary and hexadecimal]] — Start here
-- [[two-s-complement|Two’s complement]] — Start here
-- [[fixed-point|Fixed point]] — Start here
-- [[ieee-754-floating-point|IEEE 754 floating point]] — Start here
-- [[and-or-xor-and-not|AND, OR, XOR and NOT]] — Bitwise operations
-- [[shifts-and-rotates|Shifts and rotates]] — Bitwise operations
-- [[masks|Masks]] — Bitwise operations
-- [[bit-tricks|Bit tricks]] — Bitwise operations
-- [[read-modify-write|Read-modify-write]] — Bitwise operations
-- [[endianness|Endianness]] — Bitwise operations
-- [[overflow-and-status-flags|Overflow and status flags]] — Arithmetic and error checking
-- [[checksums-and-crc|Checksums and CRC]] — Arithmetic and error checking
+## Architecture
+- [[instructions|Instructions]] — Instruction set
 
 ## Memory
 - [[memory-map|Memory map]] — The address space
@@ -58,6 +61,16 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[virtual-and-physical-addresses|Virtual and physical addresses]] — Virtual memory
 - [[page-tables-and-the-tlb|Page tables and the TLB]] — Virtual memory
 - [[mpu-and-mmu|MPU and MMU]] — Virtual memory
+
+## Peripherals
+- [[gpio|GPIO]] — Pins
+- [[debouncing|Debouncing]] — Pins
+- [[timers|Timers]] — Time
+- [[pwm|PWM]] — Time
+- [[watchdog|Watchdog]] — Time
+- [[adc|ADC]] — Analog
+- [[dac|DAC]] — Analog
+- [[dma|DMA]] — Data
 
 ## Concurrency
 - [[parts-and-terms|Parts and terms]] — Start here

@@ -1,6 +1,6 @@
 import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
 import { defaults } from './core/util';
-import { pagesOf, sections } from './nav';
+import { areas, pagesOf } from './nav';
 import { statusOf } from './search';
 import { protocols } from './protocols';
 import { mountScopeAids } from './cursor';
@@ -26,13 +26,14 @@ const steps: Step[] = groupSteps(hi.bits);
 const laneNames = hi.traces.map((t) => t.name);
 const HINT = '<p class="hint">Click any bit, or use <kbd>←</kbd> <kbd>→</kbd> to step through them.</p>';
 
-/** One card per section, from the same list as the header tabs, so a new section appears here automatically. */
+/** One card per section, in header-tab order, so a new section appears here automatically. */
 function cardsHtml() {
-  return sections.map((s) => {
+  return areas.flatMap((a) => a.sections.map((s) => ({ a, s }))).map(({ a, s }) => {
     const pages = pagesOf(s);
     const ready = pages.filter((p) => statusOf.get(p.id) === 'live').length;
     return `
       <article class="card">
+        <p class="card-area">${esc(a.name)}</p>
         <h2><a href="?p=${pages[0].id}" data-nav>${esc(s.name)}</a></h2>
         <p>${esc(s.blurb)}</p>
         <p class="card-meta">${ready ? `${ready} interactive page${ready === 1 ? '' : 's'}` : 'In progress'}</p>

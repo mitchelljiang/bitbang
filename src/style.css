@@ -205,7 +205,6 @@ main, .top, footer {
 }
 .tabs a:hover { color: var(--ink); background: var(--sel); }
 .tabs a[aria-current] { color: var(--accent); background: var(--sel); font-weight: 600; }
-.tabs .short { display: none; }
 
 /* ---- sidebar and page layout ---- */
 
@@ -238,6 +237,36 @@ main, .top, footer {
   mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 40px), transparent 100%);
 }
 .side-toggle { display: none; }
+/* A tab's sections: each a heading that folds its list away. Arriving in a section opens it. */
+.side-sec + .side-sec { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.side-sec > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  margin: 0 -10px;
+  font: 600 16px var(--sans);
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--ease);
+}
+.side-sec > summary::-webkit-details-marker { display: none; }
+.side-sec > summary:hover { background: var(--sel); }
+.side-sec > summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border: solid var(--faint);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--ease);
+}
+.side-sec:not([open]) > summary::after { transform: rotate(-45deg); }
+.side-sec-body { padding: 10px 0 6px; }
 .side-group + .side-group { margin-top: 20px; }
 .side-group h3 { margin: 0 0 4px; font: 600 12px var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
 .side-group ul { list-style: none; margin: 0; padding: 0; }
@@ -330,17 +359,16 @@ main, .top, footer {
   .side.open .side-toggle::after { transform: translateY(1px) rotate(-135deg); }
   .side-nav { display: none; }
   .side.open .side-nav {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 18px 24px;
+    display: block;
     margin-top: 6px;
     padding: 18px 20px;
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 10px;
   }
+  .side.open .side-sec-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 18px 24px; }
   .side.open .side-group + .side-group { margin-top: 0; }
-  .side.open .side-key { grid-column: 1 / -1; margin: 0; }
+  .side.open .side-key { margin: 14px 0 0; }
 }
 
 /* ---- home ---- */
@@ -363,12 +391,21 @@ main, .top, footer {
 .opened .cards.after { animation-delay: 150ms; }
 /* Fades in while rising slightly. Transforms do not affect layout, so nothing else on the page moves. */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-.cards { margin-top: 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+/* Cards fill every row: three to a row, and a short last row shares its width (five sections make three and two). */
+.cards { margin-top: 48px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+.cards > .card { grid-column: span 2; }
+.cards > .card:nth-child(3n+1):nth-last-child(2), .cards > .card:nth-child(3n+2):last-child { grid-column: span 3; }
+.cards > .card:nth-child(3n+1):last-child { grid-column: 1 / -1; }
+@media (max-width: 1000px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cards > .card:nth-child(n):nth-last-child(n) { grid-column: auto; }
+  .cards > .card:nth-child(odd):last-child { grid-column: 1 / -1; }
+}
 @media (max-width: 700px) { .cards { grid-template-columns: minmax(0, 1fr); } }
-/* Each card spans four rows of a shared grid (title, text, count, links), so those line up from card to card. */
+/* Each card spans five rows of a shared grid (area, title, text, count, links), so those line up from card to card. */
 .card {
   display: grid;
-  grid-row: span 4;
+  grid-row: span 5;
   grid-template-rows: subgrid;
   row-gap: 0;
   align-content: start;
@@ -378,7 +415,8 @@ main, .top, footer {
   border-radius: 14px;
   box-shadow: var(--shadow);
 }
-.card > h2:first-child { margin-top: 0; }
+.card-area { margin: 0 0 4px !important; font: 600 12px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint) !important; }
+.card .card-area + h2 { margin-top: 0; }
 .card h2 { margin: 18px 0 6px; font: 700 26px/1.2 var(--sans); letter-spacing: -0.02em; }
 .card h2 a { color: var(--ink); text-decoration: none; }
 .card h2 a:hover { color: var(--accent); }
@@ -1588,18 +1626,23 @@ footer a { color: var(--muted); text-underline-offset: 3px; }
 footer .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 footer a:hover { color: var(--ink); }
 
+/* Narrower than one full header row: logo, search and theme on the first row, the section tabs on the row below,
+   in the same order as the desktop header. */
+@media (max-width: 760px) {
+  .top { flex-wrap: wrap; column-gap: 8px; row-gap: 6px; }
+  .top-search { order: 2; flex: 1; min-width: 0; position: static; }
+  .search-results { top: calc(100% - 4px); left: 24px; right: 24px; }
+  .top-right { order: 3; }
+  .tabs { order: 4; flex-basis: 100%; margin-left: -14px; }
+}
 @media (max-width: 600px) {
   main, .top, footer { padding: 0 16px; }
   .top { padding-top: 10px; padding-bottom: 10px; }
-  .top { flex-wrap: wrap; column-gap: 8px; row-gap: 6px; }
-  .top-search { order: 2; flex: 1; min-width: 0; max-width: none; position: static; }
+  .top-search { max-width: none; }
   .top-search input { font-size: 16px; }  /* 16px stops iOS zooming in on focus */
-  .search-results { top: calc(100% - 4px); left: 16px; right: 16px; }
-  .top-right { order: 3; }
-  .tabs { order: 4; flex-basis: 100%; margin-left: -10px; }
-  .tabs .long { display: none; }
-  .tabs .short { display: inline; }
-  .tabs a { padding: 0 10px; }
+  .search-results { left: 16px; right: 16px; }
+  .tabs { margin-left: -12px; }
+  .tabs a { padding: 0 12px; }
   .shell { padding: 0 16px; }
   .hero { padding-top: 28px; }
   .hero h1 { font-size: 34px; }
@@ -2039,6 +2082,165 @@ footer a:hover { color: var(--ink); }
 .sc-load b { color: var(--ink); font-weight: 600; }
 .sc-load b.good { color: var(--k-start); }
 .sc-load b.bad { color: var(--error); }
+
+/* Equations in prose: native MathML, set a little larger than the text and scrolled sideways if a phone is too narrow. */
+.prose .eq { overflow-x: auto; overflow-y: hidden; margin: 18px 0 22px; padding: 4px 0; }
+.prose .eq math { font-size: 1.15em; font-family: 'STIX Two Math', 'Cambria Math', 'Latin Modern Math', math; color: var(--ink); }
+
+/* ===== Architecture: instruction encoding, on the Bits debugger ===== */
+.instr .dbg-bar { flex-wrap: wrap; gap: 10px 16px; }
+.instr .dbg-bar .dbg-seg { flex-wrap: wrap; }
+.instr .in-bits { padding: 6px 0 4px; overflow-x: auto; }
+.instr .in-read { display: grid; gap: 8px; margin: 16px 0 0; font: 14px var(--mono); }
+.instr .in-read > div { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 4px 12px; align-items: baseline; }
+.instr .in-read dt { font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--dbg-dim); }
+.instr .in-read dd { margin: 0; color: var(--dbg-text); overflow-wrap: anywhere; }
+.instr .dbg-code b { font-weight: 600; color: var(--dbg-text); }
+.instr .dbg-code .ln { padding-left: 14px; }
+.instr .dbg-status { min-height: 71px; }
+/* 32 bits on one row: narrower cells than the shared dense row. */
+.instr .in-bits.w32 .bitrow { gap: 8px; }
+.instr .in-bits.w32 .grp-cells { gap: 2px; }
+.instr .in-bits.w32 .col.gap { margin-right: 4px; }
+.instr .in-bits.w32 .bit { width: 19px; height: 30px; font-size: 12px; }
+@media (max-width: 600px) { .instr .in-read > div { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* ===== Peripherals section: the bench instrument with signals on the glass ===== */
+/* Peripheral pages are memory-instrument panels (.debugger.mem) whose screen draws pins and waveforms. */
+
+/* The face: a title, then labelled settings that wrap as a group, then (on the ADC) the step buttons. */
+.pf-bar, .gp-bar { flex-wrap: wrap; gap: 10px 16px; }
+.pf-ctls, .gp-ctls { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.pf-ctl, .gp-ctl { display: flex; align-items: center; gap: 8px; font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.pf-bar .dbg-controls { margin-left: auto; }
+
+/* The glass: a readout line, then the lanes. */
+.pf-screen { padding: 0 0 12px; }
+.pf-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; min-height: 40px; padding: 9px 16px; font: 13px var(--mono); color: var(--dbg-dim); border-bottom: 1px solid var(--dbg-line); background: var(--screen); }
+.pf-readout b { font-weight: 600; color: var(--dbg-text); }
+/* No graticule behind the peripheral readouts, so they read cleanly. */
+.debugger.mem.periph > div { background-image: none; }
+.pf-lamp { display: inline-flex; align-items: center; gap: 8px; }
+.pf-led { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, #ff5a4f calc(var(--glow) * 100%), #3a1f1f); box-shadow: 0 0 calc(var(--glow) * 14px) calc(var(--glow) * 3px) rgba(255, 90, 79, 0.65); transition: background 160ms ease-out, box-shadow 160ms ease-out; }
+
+/* Lanes: a label column and a track; ticks above, markers drawn over every track. */
+.wv { --wv-label: 108px; position: relative; padding: 6px 18px 0 16px; }
+.wv-ruler { height: 20px; margin-left: var(--wv-label); position: relative; }
+.wv-ruler > div { position: relative; height: 100%; }
+.wv-ruler span { position: absolute; top: 2px; transform: translateX(-50%); font: 11px var(--mono); color: var(--dbg-dim); white-space: nowrap; }
+.wv-ruler span:first-child:not(.mid) { transform: none; }
+.wv-lane { display: grid; grid-template-columns: var(--wv-label) minmax(0, 1fr); align-items: center; border-top: 1px solid rgba(150, 185, 200, 0.08); }
+.wv-label { display: flex; flex-direction: column; min-width: 0; }
+.wv-label b { font: 600 13px var(--mono); color: var(--lane); white-space: nowrap; }
+.wv-label small { font: 11px var(--sans); color: var(--dbg-dim); white-space: nowrap; }
+.wv-track { position: relative; height: 100%; }
+.wv-track svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wv-track path { fill: none; stroke: var(--lane); stroke-width: 2; stroke-linejoin: round; }
+.wv-track path.ghost { stroke: var(--dbg-dim); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.7; }
+.wv-track path.extra { stroke-width: 2.5; }
+.wv-ref { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--ref, var(--dbg-dim)); }
+.wv-ref em { position: absolute; right: 0; bottom: 2px; font: normal 600 11px var(--mono); color: var(--ref, var(--dbg-dim)); background: var(--screen); padding: 0 4px; }
+.wv-dot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--lane); border: 2px solid var(--screen); }
+.wv-dot.keep { background: #5fd0a4; }
+.wv-dot.drop { background: #ff7b66; }
+.wv-over { position: absolute; top: 26px; bottom: 0; left: calc(16px + var(--wv-label)); right: 18px; pointer-events: none; }
+.wv-over > div { position: relative; height: 100%; }
+.wv-mark { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(242, 194, 48, 0.45); }
+.wv-mark em { position: absolute; top: -18px; left: 4px; font: normal 600 10px var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ch1); }
+.wv-cursor { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ch1); }
+
+/* Good and bad results in a readout, and a marker for something that went wrong. */
+.pf-readout b.good { color: #5fd0a4; }
+.pf-readout b.bad { color: #ff7b66; }
+.wv-mark.bad { border-left-color: rgba(255, 123, 102, 0.7); }
+.pf-bar [role=radio]:disabled { opacity: 0.4; cursor: default; }
+
+/* DMA: the path a byte takes, the buffer it lands in, and the flags raised on the way. */
+.dm-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 16px 6px; }
+.dm-box { display: flex; flex-direction: column; gap: 3px; min-width: 128px; padding: 8px 12px; font: 600 12px var(--sans); color: var(--dbg-dim); border: 1px solid var(--dbg-line); border-radius: 8px; }
+.dm-box b { font: 600 14px var(--mono); color: var(--dbg-text); white-space: nowrap; }
+.dm-arrow { flex: 0 0 28px; height: 2px; background: var(--dbg-line); position: relative; transition: background-color 160ms ease-out; }
+.dm-arrow::after { content: ''; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left: 7px solid var(--dbg-line); border-right: 0; transition: border-color 160ms ease-out; }
+.dm-arrow.on { background: var(--ch1); } .dm-arrow.on::after { border-left-color: var(--ch1); }
+.dm-arrow.off { background: #ff7b66; } .dm-arrow.off::after { border-left-color: #ff7b66; }
+.dm-buf { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; padding: 12px 16px; }
+.dm-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; border: 1px solid var(--dbg-line); border-radius: 8px; transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+.dm-cell small { font: 10px var(--mono); color: var(--dbg-dim); }
+.dm-cell b { font: 700 18px var(--mono); color: var(--dbg-dim); }
+.dm-cell.full { background: var(--dbg-panel); }
+.dm-cell.full b { color: var(--dbg-text); }
+.dm-cell.cur { border-color: var(--ch1); box-shadow: 0 0 0 1px var(--ch1); }
+.dm-log { min-height: 112px; margin: 0; padding: 4px 16px 10px; list-style: none; font: 13px/1.7 var(--mono); color: var(--dbg-text); }
+.dm-log .ht { color: #6cc4ec; } .dm-log .tc { color: #5fd0a4; } .dm-log .bad { color: #ff7b66; } .dm-log .idle { color: var(--dbg-dim); }
+
+/* The ADC's result register, filled in one bit per comparison. */
+.ad-reg { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 12px 16px 0; }
+.ad-name { width: 92px; font: 600 13px var(--mono); color: var(--dbg-dim); }
+.ad-bit { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ad-bit b { display: grid; place-items: center; width: 26px; height: 28px; font: 600 14px var(--mono); color: var(--dbg-dim); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 6px; transition: background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out; }
+.ad-bit small { font: 10px var(--mono); color: var(--dbg-dim); }
+.ad-bit.one b { color: #10151b; background: #5fd0a4; border-color: #5fd0a4; }
+.ad-bit.zero b { color: var(--dbg-text); }
+.ad-bit.cur b { box-shadow: 0 0 0 2px var(--ch1); }
+
+/* GPIO: the pin's circuit on the left, what it reads on the right. */
+.gp-body { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 8px 20px; align-items: center; padding: 14px 16px; }
+.gp-svg { display: block; width: 100%; height: auto; max-height: 340px; margin: 0 auto; }
+.gp-svg line, .gp-svg polyline { fill: none; stroke: #4d6472; stroke-width: 2; stroke-linecap: round; transition: stroke 160ms ease-out, opacity 160ms ease-out; }
+/* A switch's terminals are solid dots in the same color as its wires and lever. */
+.gp-svg circle { fill: #4d6472; stroke: none; transition: fill 160ms ease-out, opacity 160ms ease-out; }
+.gp-svg .on { stroke: #8aa0ac; } .gp-svg circle.on { fill: #8aa0ac; }
+.gp-svg .hot { stroke: var(--ch1); } .gp-svg circle.hot { fill: var(--ch1); }
+.gp-svg .bad { stroke: #ff7b66; } .gp-svg circle.bad { fill: #ff7b66; }
+.gp-svg .float { stroke: #8aa0ac; stroke-dasharray: 4 5; }
+.gp-svg .gone { opacity: 0.25; }
+.gp-svg .box { fill: none; stroke: #2e4350; stroke-dasharray: 3 4; }
+.gp-svg .buf { fill: var(--screen); stroke: #8aa0ac; stroke-width: 2; }
+.gp-svg .pad { fill: #3a4a55; stroke: #8aa0ac; stroke-width: 2; transition: fill 160ms ease-out; }
+.gp-svg .pad.high { fill: #5fd0a4; }
+.gp-svg .pad.low { fill: #2b6f8f; }
+.gp-svg .pad.short { fill: #ff7b66; }
+.gp-svg .t { font: 600 13px var(--mono); fill: #dbe6ec; }
+.gp-svg .t.dim, .gp-svg .t.rail { fill: #8aa0ac; font-weight: 400; }
+.gp-svg .t.lit { fill: var(--ch1); }
+.gp-svg .t.big { font-size: 18px; fill: var(--ch1); }
+.gp-read { display: grid; gap: 10px; margin: 0; font: 13px var(--mono); }
+.gp-read > div { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: baseline; }
+.gp-read dt { font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--dbg-dim); }
+.gp-read dd { margin: 0; color: var(--dbg-text); }
+.gp-read dd.bad { color: #ff7b66; }
+.gp-read b { color: var(--dbg-text); font-weight: 600; }
+.gp-read .regs dd { display: grid; grid-template-columns: repeat(2, max-content); gap: 2px 14px; color: var(--dbg-dim); }
+.gp-read .lv dd { font: 700 17px var(--sans); }
+.gp-read .lv.high dd { color: #5fd0a4; }
+.gp-read .lv.low dd { color: #6cc4ec; }
+.gp-read .lv.float dd { color: #8aa0ac; }
+.gp-read .lv.short dd { color: #ff7b66; }
+
+@media (max-width: 760px) {
+  .gp-body { grid-template-columns: minmax(0, 1fr); }
+  .gp-read { grid-template-columns: 1fr 1fr; }
+  .gp-read .regs { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .wv { --wv-label: 72px; padding: 6px 12px 0 10px; }
+  .wv-over { left: calc(10px + var(--wv-label)); right: 12px; }
+  .wv-label b { font-size: 12px; }
+  .wv-label small { display: none; }
+  .pf-bar .dbg-controls { margin-left: 0; }
+  .ad-name { width: 100%; }
+  .ad-reg { gap: 3px; flex-wrap: nowrap; padding: 12px 10px 0; } .ad-reg .ad-name { display: none; }
+  .ad-bit b { width: 20px; height: 26px; font-size: 13px; }
+  .gp-read > div { grid-template-columns: 1fr; gap: 2px; }
+  .dm-buf { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dm-box { min-width: 0; flex: 1 1 100%; }
+  .dm-arrow { flex-basis: 100%; height: 0; background: none; } .dm-arrow::after { display: none; }
+  .dm-log { min-height: 176px; font-size: 12px; }
+  .wv-ruler small { display: none; }
+  .gp-body { padding: 10px 8px; }
+  .gp-svg .t { font-size: 17px; }
+  .gp-svg .t.big { font-size: 22px; }
+}
 
 /* ===== Motion and interaction ===== */
 
