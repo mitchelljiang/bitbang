@@ -5,10 +5,11 @@ The text of every page, exported from the site for editing. The `source:` field 
 > **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the `source:` files. Re-running `npm run export-text` regenerates these notes from `src` and overwrites them, so pull your edits in first.
 
 ## Bits and bytes
-- [[binary-and-hexadecimal|Binary and hexadecimal]] — Start here
-- [[two-s-complement|Two’s complement]] — Start here
-- [[fixed-point|Fixed point]] — Start here
-- [[ieee-754-floating-point|IEEE 754 floating point]] — Start here
+- [[bits-and-bytes|Bits and bytes]] — Start here
+- [[binary-and-hexadecimal|Binary and hexadecimal]] — Representing numbers
+- [[two-s-complement|Two’s complement]] — Representing numbers
+- [[fixed-point|Fixed point]] — Representing numbers
+- [[ieee-754-floating-point|IEEE 754 floating point]] — Representing numbers
 - [[and-or-xor-and-not|AND, OR, XOR and NOT]] — Bitwise operations
 - [[shifts-and-rotates|Shifts and rotates]] — Bitwise operations
 - [[masks|Masks]] — Bitwise operations
@@ -42,9 +43,11 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[swd|SWD]] — Debug & programming
 
 ## Architecture
+- [[architecture|Architecture]] — Start here
 - [[instructions|Instructions]] — Instruction set
 
 ## Memory
+- [[memory|Memory]] — Start here
 - [[memory-map|Memory map]] — The address space
 - [[memory-mapped-i-o|Memory-mapped I/O]] — The address space
 - [[buses-and-the-bus-matrix|Buses and the bus matrix]] — The address space
@@ -63,6 +66,7 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[mpu-and-mmu|MPU and MMU]] — Virtual memory
 
 ## Peripherals
+- [[peripherals|Peripherals]] — Start here
 - [[gpio|GPIO]] — Pins
 - [[debouncing|Debouncing]] — Pins
 - [[timers|Timers]] — Time

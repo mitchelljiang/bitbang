@@ -2,7 +2,7 @@
 id: binary
 title: "Binary and hexadecimal"
 section: Bits and bytes
-group: Start here
+group: Representing numbers
 source: src/topics/numbers.ts
 url: ?p=binary
 ---

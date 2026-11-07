@@ -3,9 +3,15 @@ import type { Category } from './catalog';
 /** Bits and bytes topics, grouped for the section sidebar. Each has an interactive page in src/topics. */
 export const bitTopics: Category[] = [
   {
+    id: 'start',
+    name: 'Bits and bytes',
+    heading: 'Start here',
+    blurb: 'The route through the section.',
+    entries: [{ id: 'bits-start', name: 'Overview', blurb: 'What this section covers, what to read first, and the words it uses.' }],
+  },
+  {
     id: 'representation',
     name: 'Representing numbers',
-    heading: 'Start here',
     blurb: 'How a pattern of bits stands for a number.',
     entries: [
       { id: 'binary', name: 'Binary and hexadecimal', blurb: 'Place values in base 2, and why each hex digit is four bits.' },

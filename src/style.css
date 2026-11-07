@@ -2292,3 +2292,42 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .tr-btn[data-act='play'] { min-width: 67px; }
 #play { min-width: 86px; }
 
+
+/* ===== Start here: a section's overview ===== */
+
+.intro .ov-go { margin: 18px 0 0; }
+.ov-go a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  font: 600 15px var(--sans);
+  color: var(--accent-ink);
+  text-decoration: none;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: filter var(--ease);
+}
+.ov-go a:hover { filter: brightness(1.1); }
+/* The route: one numbered stop per sidebar group, joined by a line, with its pages under it. */
+.ov-route { margin-top: 28px; padding: 22px 24px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.ov-route > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.ov-route > header h2 { margin: 0; font: 700 20px var(--sans); }
+.ov-route > header span { font-size: 14px; color: var(--faint); }
+.ov-route ol { margin: 0; padding: 0; list-style: none; }
+.ov-stop { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 16px; padding-bottom: 18px; }
+.ov-stop:not(:last-child)::before { content: ''; position: absolute; top: 34px; bottom: 2px; left: 15px; width: 2px; background: var(--line); }
+.ov-num { display: grid; place-items: center; width: 32px; height: 32px; font: 600 14px var(--sans); color: var(--accent); background: var(--sel); border-radius: 50%; }
+.ov-stop h3 { margin: 4px 0 2px; font: 600 17px var(--sans); color: var(--ink); }
+.ov-stop > div > p { margin: 0 0 8px; font-size: 15px; color: var(--muted); }
+.ov-stop ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.ov-stop li a, .ov-stop li > div { display: grid; gap: 1px; height: 100%; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; text-decoration: none; }
+.ov-stop li a { transition: background var(--ease); }
+.ov-stop li a:hover { background: var(--sel); }
+.ov-stop li b { font: 600 15px var(--sans); color: var(--ink); }
+.ov-stop li a:hover b { color: var(--accent); }
+.ov-stop li span { font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.ov-stop li.soon b { color: var(--faint); }
+.ov-stop li.soon b::after { content: 'soon'; margin-left: 8px; font: 500 12px/1 var(--sans); color: var(--faint); }
+.ov-stop li.soon span { color: var(--faint); }
+@media (max-width: 600px) { .ov-route { padding: 18px 16px 4px; } .ov-stop { gap: 12px; } .ov-stop ul { grid-template-columns: minmax(0, 1fr); } }

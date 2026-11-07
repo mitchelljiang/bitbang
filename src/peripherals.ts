@@ -3,6 +3,13 @@ import type { Category } from './catalog';
 /** Peripheral topics, grouped for the section sidebar. Pages with an interactive page are registered in src/topics. */
 export const peripheralTopics: Category[] = [
   {
+    id: 'start',
+    name: 'Peripherals',
+    heading: 'Start here',
+    blurb: 'The route through the section.',
+    entries: [{ id: 'peripherals-start', name: 'Overview', blurb: 'What this section covers, what to read first, and the words it uses.' }],
+  },
+  {
     id: 'pins',
     name: 'Pins',
     blurb: 'How a pin drives a wire, and how it reads one.',

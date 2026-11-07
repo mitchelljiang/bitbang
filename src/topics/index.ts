@@ -51,4 +51,8 @@ export const topics: Record<string, () => Promise<Mount>> = {
   dac: () => import('./dac').then((m) => m.mountDac),
   dma: () => import('./dma').then((m) => m.mountDma),
   instructions: () => import('./instructions').then((m) => m.mountInstructions),
+  'bits-start': () => import('./overview').then((m) => m.overview('bits')),
+  'architecture-start': () => import('./overview').then((m) => m.overview('architecture')),
+  'memory-start': () => import('./overview').then((m) => m.overview('memory')),
+  'peripherals-start': () => import('./overview').then((m) => m.overview('peripherals')),
 };

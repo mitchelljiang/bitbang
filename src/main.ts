@@ -670,8 +670,12 @@ document.addEventListener('click', (e) => {
   history.pushState(null, '', a.href);
   current = -1;
   zoom = 'fit';
-  window.scrollTo(0, 0);
-  route();
+  // A new page starts at the top, at once: the smooth scroll the stylesheet sets would still be running from the
+  // bottom of a long page when the new one swaps in, and could stop partway. Again once it is built, since a topic
+  // page's code may arrive after the old page has moved; a link to a heading scrolls there instead.
+  const top = () => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  top();
+  route().then(() => { if (!location.hash) top(); });
 });
 window.addEventListener('popstate', () => {
   clearTimeout(scrollSave);

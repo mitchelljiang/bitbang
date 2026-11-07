@@ -3,6 +3,13 @@ import type { Category } from './catalog';
 /** Memory topics, grouped for the section sidebar. Pages with an interactive page are registered in src/topics. */
 export const memoryTopics: Category[] = [
   {
+    id: 'start',
+    name: 'Memory',
+    heading: 'Start here',
+    blurb: 'The route through the section.',
+    entries: [{ id: 'memory-start', name: 'Overview', blurb: 'What this section covers, what to read first, and the words it uses.' }],
+  },
+  {
     id: 'space',
     name: 'The address space',
     blurb: 'Where code, data and hardware live, each at its own range of addresses.',

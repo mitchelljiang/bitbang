@@ -38,7 +38,7 @@ function cardsHtml() {
         <p>${esc(s.blurb)}</p>
         <p class="card-meta">${ready ? `${ready} interactive page${ready === 1 ? '' : 's'}` : 'In progress'}</p>
         <p class="card-links">
-          <a href="?p=${pages[0].id}" data-nav>Start with ${esc(pages[0].name)}</a>
+          <a href="?p=${pages[0].id}" data-nav>${pages[0].name === 'Overview' ? 'Start here' : `Start with ${esc(pages[0].name)}`}</a>
         </p>
       </article>`;
   }).join('');

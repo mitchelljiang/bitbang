@@ -231,7 +231,7 @@ section('1d. Internal links point to real pages');
   let count = 0;
   const broken: string[] = [];
   for (const [where, text] of sources) {
-    for (const m of text.matchAll(/\?p=([a-z0-9]+)/g)) {
+    for (const m of text.matchAll(/\?p=([a-z0-9-]+)/g)) {
       count++;
       if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
     }
