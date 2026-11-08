@@ -20,6 +20,7 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[checksums-and-crc|Checksums and CRC]] — Arithmetic and error checking
 
 ## Protocols
+- [[protocols|Protocols]] — Start here
 - [[uart|UART]] — Asynchronous serial
 - [[rs-232|RS-232]] — Asynchronous serial
 - [[rs-485|RS-485]] — Asynchronous serial
@@ -77,7 +78,8 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[dma|DMA]] — Data
 
 ## Concurrency
-- [[parts-and-terms|Parts and terms]] — Start here
+- [[concurrency|Concurrency]] — Start here
+- [[parts-and-terms|Parts and terms]] — The chip
 - [[interrupts|Interrupts]] — Interrupting the program
 - [[priorities-and-nesting|Priorities and nesting]] — Interrupting the program
 - [[context-switching|Context switching]] — Running many tasks

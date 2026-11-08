@@ -22,6 +22,18 @@ export interface Category {
   entries: Entry[];
 }
 
+/** The Protocols section's Start here group: its overview and the guide every protocol page links into. */
+export const protocolStart: Category = {
+  id: 'start',
+  name: 'Protocols',
+  heading: 'Start here',
+  blurb: 'The route through the section.',
+  entries: [
+    { id: 'protocols-start', name: 'Overview', blurb: 'What this section covers, what to read first, and the words it uses.' },
+    { id: 'basics', name: 'How protocols work', blurb: 'The questions every protocol answers: how the receiver keeps time, how bits are signalled, who drives the line, and how a message is framed and checked.' },
+  ],
+};
+
 export const catalog: Category[] = [
   {
     id: 'asynchronous',

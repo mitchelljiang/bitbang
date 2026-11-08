@@ -2321,7 +2321,7 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .ov-stop h3 { margin: 4px 0 2px; font: 600 17px var(--sans); color: var(--ink); }
 .ov-stop > div > p { margin: 0 0 8px; font-size: 15px; color: var(--muted); }
 .ov-stop ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
-.ov-stop li a, .ov-stop li > div { display: grid; gap: 1px; height: 100%; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; text-decoration: none; }
+.ov-stop li a, .ov-stop li > div { display: grid; align-content: start; gap: 1px; height: 100%; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; text-decoration: none; }
 .ov-stop li a { transition: background var(--ease); }
 .ov-stop li a:hover { background: var(--sel); }
 .ov-stop li b { font: 600 15px var(--sans); color: var(--ink); }
@@ -2330,4 +2330,6 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .ov-stop li.soon b { color: var(--faint); }
 .ov-stop li.soon b::after { content: 'soon'; margin-left: 8px; font: 500 12px/1 var(--sans); color: var(--faint); }
 .ov-stop li.soon span { color: var(--faint); }
+.ov-stop li.wip b { color: var(--muted); }
+.ov-stop li.wip b::after { content: 'in progress'; margin-left: 8px; font: 500 12px/1 var(--sans); color: var(--faint); }
 @media (max-width: 600px) { .ov-route { padding: 18px 16px 4px; } .ov-stop { gap: 12px; } .ov-stop ul { grid-template-columns: minmax(0, 1fr); } }

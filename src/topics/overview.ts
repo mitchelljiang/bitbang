@@ -18,6 +18,54 @@ interface Overview {
 }
 
 export const OVERVIEWS: Record<string, Overview> = {
+  protocols: {
+    intro: `A protocol is the agreement two chips share about what the voltages on a few wires mean: when to read the
+      line, which bit comes first, how a message starts and ends, and who may talk next. This section draws each one
+      as an oscilloscope would see it, from a single UART wire to the lanes of PCI Express, with every bit labelled.`,
+    before: [
+      { page: 'basics', why: 'the questions every protocol answers, which each page’s spec sheet links back to' },
+      { page: 'binary', why: 'the data on the wire is written in hex' },
+      { page: 'crc', why: 'most frames end with a check value' },
+    ],
+    read: `Every protocol page is an oscilloscope: time runs left to right, with one trace per wire. Click any bit, or
+      use the arrow keys, to step through the frame and read what each part means. The controls under the scope change
+      the data and the settings, and the spec sheet below it links each property to How protocols work.`,
+    terms: [
+      { term: 'Bit rate', def: 'How many bits are sent each second. A UART at 115200 baud sends 115,200 bits a second.', page: 'uart' },
+      { term: 'Asynchronous', def: 'No clock wire: both sides agree on the bit rate in advance and time the bits themselves.', page: 'uart' },
+      { term: 'Synchronous', def: 'A clock wire marks the moment each bit is read.', page: 'spi' },
+      { term: 'Frame', def: 'One complete unit on the wire: a start, the data, any check, and an end.', page: 'uart' },
+      { term: 'Open-drain', def: 'Outputs that can only pull a line low, with a resistor pulling it high, so many devices can share it.', page: 'i2c' },
+      { term: 'Acknowledge', def: 'The receiver’s signal that it got the data, such as I²C’s ACK bit.', page: 'i2c' },
+      { term: 'Differential', def: 'A signal on a pair of wires driven opposite ways and read as their difference, which cancels noise.', page: 'rs485' },
+      { term: 'Line code', def: 'A mapping from bits to levels that keeps the line changing, so the receiver can recover the clock.', page: 'basics' },
+    ],
+  },
+  concurrency: {
+    intro: `A microcontroller has one CPU, but firmware has many things to do at once: answer a button, keep a motor’s
+      timing, send a packet. This section shows how that one CPU is shared: interrupts that break into the program, an
+      RTOS that switches between tasks, and the bugs that appear when two of them touch the same data, with the tools
+      that prevent them.`,
+    before: [
+      { page: 'stack', why: 'the processor saves its place on the stack when it is interrupted' },
+      { page: 'rmw', why: 'an interrupted read-modify-write is the classic race' },
+      { page: 'timers', why: 'a timer’s interrupt is the heartbeat of an RTOS' },
+    ],
+    read: `The pages draw time left to right, like a logic analyzer. Each lane is one thread of execution: the main loop,
+      an interrupt handler, or a task. A bright bar means that lane holds the CPU; a hatched bar is the processor saving
+      or restoring registers; a dashed outline is a task that is ready but waiting, and a coral one is a task blocked on
+      a lock. A small arrow above a lane is an event arriving, and the gold line is the current moment.`,
+    terms: [
+      { term: 'Interrupt', def: 'A hardware signal that makes the CPU pause the program and run a handler.', page: 'interrupts' },
+      { term: 'Handler', def: 'The function that runs when an interrupt fires. It is also called an ISR.', page: 'interrupts' },
+      { term: 'Priority', def: 'Which interrupt wins when two are pending, and which can interrupt another.', page: 'priorities' },
+      { term: 'Task', def: 'An independent thread of execution under an RTOS, with its own stack.', page: 'context' },
+      { term: 'Context switch', def: 'Saving one task’s registers and restoring another’s, so the CPU picks up where that task left off.', page: 'context' },
+      { term: 'Race condition', def: 'A bug where the result depends on which of two threads gets there first.', page: 'races' },
+      { term: 'Atomic', def: 'An operation that nothing else can interrupt halfway through.', page: 'atomics' },
+      { term: 'Mutex', def: 'A lock that lets only one task at a time into a piece of code.', page: 'locks' },
+    ],
+  },
   bits: {
     intro: `Everything a microcontroller handles, from a sensor reading to an instruction, is stored as bits. This
       section shows how a pattern of bits becomes a number, whole or fractional, signed or not; how firmware changes a
@@ -117,6 +165,8 @@ export const OVERVIEWS: Record<string, Overview> = {
 const allSections = areas.flatMap((a) => a.sections);
 const entry = (id: string) => allSections.flatMap((s) => s.categories.flatMap((c) => c.entries)).find((e) => e.id === id);
 const live = (id: string) => statusOf.get(id) === 'live';
+/** A page with something to open: built, or in progress with a page saying so. */
+const open = (id: string) => statusOf.get(id) !== 'soon';
 const link = (id: string, text = entry(id)?.name ?? id) => (live(id) ? `<a href="?p=${id}" data-nav>${esc(text)}</a>` : esc(text));
 
 /** The section's groups in order, skipping its own Start here group. */
@@ -127,15 +177,17 @@ export const overview = (id: string) => (root: HTMLElement) => {
   const groups = routeOf(id);
   const pages = groups.flatMap((g) => g.entries);
   const ready = pages.filter((e) => live(e.id));
+  // The first page to read: another Start here page if the section has one (Protocols' guide), else the route's first.
+  const first = s.categories.find((c) => !groups.includes(c))!.entries.find((e) => e.id !== `${id}-start` && live(e.id)) ?? ready[0];
   const next = allSections[allSections.indexOf(s) + 1];
-  const nextFirst = next && (next.lead[0]?.id ?? next.categories.flatMap((c) => c.entries.map((e) => e.id)).find(live));
+  const nextFirst = next?.categories.flatMap((c) => c.entries.map((e) => e.id)).find(live);
 
   root.innerHTML = `
     <section class="intro">
       <p class="crumbs">Start here</p>
       <h1>${esc(s.name)}</h1>
       <p>${o.intro}</p>
-      ${ready[0] ? `<p class="ov-go"><a href="?p=${ready[0].id}" data-nav>Start with ${esc(ready[0].name)} →</a></p>` : ''}
+      ${first ? `<p class="ov-go"><a href="?p=${first.id}" data-nav>Start with ${esc(first.name)} →</a></p>` : ''}
     </section>
     <section class="ov-route" aria-label="The pages in this section, in reading order">
       <header><h2>The route</h2><span>${ready.length} of ${pages.length} page${pages.length === 1 ? '' : 's'} ready</span></header>
@@ -146,7 +198,7 @@ export const overview = (id: string) => (root: HTMLElement) => {
             <h3>${esc(g.name)}</h3>
             <p>${esc(g.blurb)}</p>
             <ul>${g.entries.map((e) => `
-              <li class="${live(e.id) ? '' : 'soon'}">${live(e.id)
+              <li class="${live(e.id) ? '' : open(e.id) ? 'wip' : 'soon'}">${open(e.id)
                 ? `<a href="?p=${e.id}" data-nav><b>${esc(e.name)}</b><span>${esc(e.blurb)}</span></a>`
                 : `<div><b>${esc(e.name)}</b><span>${esc(e.blurb)}</span></div>`}</li>`).join('')}
             </ul>

@@ -158,7 +158,7 @@ export function mountMcu(root: HTMLElement) {
 
   root.innerHTML = `
     <section class="intro">
-      <p class="crumbs">Start here</p>
+      <p class="crumbs">The chip</p>
       <h1>Parts and terms</h1>
       <p>The pages in this section talk about TIM2, SysTick, the NVIC, stacking and tasks. They are all parts of one chip,
         doing one job each. Step through below to meet every part in place, by following a single timer interrupt from the
@@ -207,11 +207,6 @@ export function mountMcu(root: HTMLElement) {
       <p class="tr-status" aria-live="polite"></p>
     </section>
     <section class="prose pm-glossary">
-      <h2>How to read the Concurrency diagrams</h2>
-      <p>The other pages draw time left to right, like a logic analyzer. Each row, or lane, is one thread of execution: the
-        main loop, an interrupt handler, or a task. A bright bar means that lane holds the CPU; a hatched bar is the
-        processor saving or restoring registers; a dashed outline is a task that is ready but waiting, and a coral one is a
-        task blocked on a lock. A small arrow above a lane is an event arriving, and the gold line is the current moment.</p>
       ${TERMS.map((g) => `
       <h2>${esc(g.group)}</h2>
       <ul class="pm-terms">${g.terms.map((t) =>

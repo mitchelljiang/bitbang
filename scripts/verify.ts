@@ -28,7 +28,7 @@ import { CONTROL, FOUR_B_FIVE_B, mlt3, scrambler } from '../src/protocols/fast';
 import { crc5, crc16 } from '../src/protocols/usb';
 import { PAM5 } from '../src/protocols/gigt';
 import { CHANGELOG_TEXT } from '../src/changelog';
-import { catalog } from '../src/catalog';
+import { catalog, protocolStart } from '../src/catalog';
 import { bitTopics } from '../src/bits';
 import { memoryTopics } from '../src/memory';
 import { concurrencyTopics } from '../src/concurrency';
@@ -236,8 +236,8 @@ section('1d. Internal links point to real pages');
       if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
     }
   }
-  const ids = [...index.map((e) => e.id), 'basics', 'about', 'changelog'];
-  check('page ids are unique across protocols, Bits and bytes topics and other pages', new Set(ids).size === ids.length);
+  const ids = [...index.map((e) => e.id), 'about', 'changelog'];
+  check('page ids are unique across every section and the other pages', new Set(ids).size === ids.length, ids.filter((x, i) => ids.indexOf(x) !== i).join(', '));
   const badRes = Object.entries(RESOURCES).flatMap(([id, list]) => [
     ...(pages.has(id) ? [] : [`${id} is not a page`]),
     ...list.filter((r) => !/^https:\/\//.test(r.url) || !r.title.trim()).map((r) => `${id}: ${r.title || '(no title)'} needs a title and an https link`),
@@ -1171,7 +1171,7 @@ section('3n. Shared helpers and site structure');
     && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
 
   // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
-  const entries = [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((c) => c.entries.map((e) => e.id));
+  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));

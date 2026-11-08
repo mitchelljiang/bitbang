@@ -2,7 +2,7 @@
 id: mcu
 title: "Parts and terms"
 section: Concurrency
-group: Start here
+group: The chip
 source: src/topics/mcu.ts
 url: ?p=mcu
 ---
@@ -10,10 +10,6 @@ url: ?p=mcu
 
 ## Intro
 The pages in this section talk about TIM2, SysTick, the NVIC, stacking and tasks. They are all parts of one chip, doing one job each. Step through below to meet every part in place, by following a single timer interrupt from the moment it fires to the moment the program carries on. Each step gives the plain idea first, then what happens underneath. Click any part to jump to it.
-
-## How to read the Concurrency diagrams
-
-The other pages draw time left to right, like a logic analyzer. Each row, or lane, is one thread of execution: the main loop, an interrupt handler, or a task. A bright bar means that lane holds the CPU; a hatched bar is the processor saving or restoring registers; a dashed outline is a task that is ready but waiting, and a coral one is a task blocked on a lock. A small arrow above a lane is an event arriving, and the gold line is the current moment.
 
 ## The hardware
 

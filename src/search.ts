@@ -3,7 +3,7 @@ import { concurrencyTopics } from './concurrency';
 import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
 import { memoryTopics } from './memory';
-import { catalog } from './catalog';
+import { catalog, protocolStart } from './catalog';
 import { esc } from './core/render';
 import { protocols } from './protocols';
 import { topics } from './topics';
@@ -27,7 +27,7 @@ const tokens = (text: string) =>
   text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
 
 /** Every page and planned page on the site, with the words a search can match: names, description, group and tags. */
-export const index: SearchEntry[] = [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((cat) =>
+export const index: SearchEntry[] = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((cat) =>
   cat.entries.map((e) => {
     const p = byId.get(e.id);
     const tags = p?.tags ?? [];
@@ -37,7 +37,7 @@ export const index: SearchEntry[] = [...catalog, ...bitTopics, ...memoryTopics, 
       group: cat.name,
       blurb: e.blurb,
       tags,
-      status: p || topics[e.id] ? 'live' : e.wip ? 'wip' : 'soon',
+      status: p || topics[e.id] || e.id === 'basics' ? 'live' : e.wip ? 'wip' : 'soon',
       // Include the id and a plain-digit spelling, so "i2c" finds I²C.
       words: tokens([e.id, e.name, e.name.replace('²', '2').replace('³', '3'), e.full, e.blurb, cat.name, p?.fullName, ...tags]
         .filter(Boolean).join(' ')),

@@ -3,7 +3,7 @@ import { concurrencyTopics } from './concurrency';
 import { memoryTopics } from './memory';
 import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
-import { catalog, type Category } from './catalog';
+import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
 
@@ -12,8 +12,6 @@ interface Section {
   name: string;
   /** One or two sentences for the section's card on the home page. */
   blurb: string;
-  /** Pages listed before the categories, such as the protocol guide. */
-  lead: { id: string; name: string }[];
   categories: Category[];
 }
 
@@ -22,37 +20,37 @@ export const sections: Section[] = [
   {
     id: 'protocols', name: 'Protocols',
     blurb: 'How chips and devices talk to each other over wires, from UART and SPI to USB and PCI Express, with the timing of every edge.',
-    lead: [{ id: 'basics', name: 'How protocols work' }], categories: catalog,
+    categories: [protocolStart, ...catalog],
   },
   {
     id: 'bits', name: 'Bits and bytes',
     blurb: 'How numbers are stored, changed and checked inside a computer: binary, two’s complement, floating point, masks and CRCs.',
-    lead: [], categories: bitTopics,
+    categories: bitTopics,
   },
   {
     id: 'memory', name: 'Memory',
     blurb: 'Where code and data live and how they get there: the memory map, the stack, the heap, memory hardware and virtual memory.',
-    lead: [], categories: memoryTopics,
+    categories: memoryTopics,
   },
   {
     id: 'concurrency', name: 'Concurrency',
     blurb: 'How one processor does more than one thing at once: interrupts, tasks and the bugs that come from sharing data.',
-    lead: [], categories: concurrencyTopics,
+    categories: concurrencyTopics,
   },
   {
     id: 'peripherals', name: 'Peripherals',
     blurb: 'The hardware blocks beside the processor: pins, timers, PWM, the ADC and DMA, register by register.',
-    lead: [], categories: peripheralTopics,
+    categories: peripheralTopics,
   },
   {
     id: 'architecture', name: 'Architecture',
     blurb: 'How the processor runs a program: the instructions it reads, the registers it works in, and the pipeline that runs them.',
-    lead: [], categories: architectureTopics,
+    categories: architectureTopics,
   },
 ];
 
 const sectionOf = (id: string) =>
-  sections.find((s) => s.lead.some((l) => l.id === id) || s.categories.some((c) => c.entries.some((e) => e.id === id)));
+  sections.find((s) => s.categories.some((c) => c.entries.some((e) => e.id === id)));
 
 interface Area { id: string; name: string; sections: Section[] }
 const by = (...ids: string[]) => ids.map((id) => sections.find((s) => s.id === id)!);
@@ -65,15 +63,12 @@ export const areas: Area[] = [
 export const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 
 /** The section's pages in reading order, skipping ones without a page yet. */
-export const pagesOf = (s: Section) => [...s.lead, ...s.categories.flatMap((c) => c.entries.filter((e) => statusOf.get(e.id) !== 'soon'))];
+export const pagesOf = (s: Section) => s.categories.flatMap((c) => c.entries.filter((e) => statusOf.get(e.id) !== 'soon'));
 /** An area's pages, section after section. Previous and next walk through these. */
 const areaPages = (a: Area) => a.sections.flatMap(pagesOf);
 
 function groupsHtml(s: Section) {
-  const lead = s.lead.length
-    ? `<div class="side-group"><h3>Start here</h3><ul>${s.lead.map((l) => `<li><a href="?p=${l.id}" data-nav>${esc(l.name)}</a></li>`).join('')}</ul></div>`
-    : '';
-  return lead + s.categories.map((cat) => {
+  return s.categories.map((cat) => {
     const items = cat.entries.map((e) => {
       const status = statusOf.get(e.id);
       const title = `title="${esc(e.blurb)}"`;

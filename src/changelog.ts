@@ -15,7 +15,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Peripherals section: [GPIO](?p=gpio), [debouncing](?p=debounce), [timers](?p=timers), [PWM](?p=pwm), [watchdog](?p=watchdog), [ADC](?p=adc), [DAC](?p=dac), [DMA](?p=dma).'],
       ['new', 'Architecture section, starting with [instruction encoding](?p=instructions) for Arm Thumb, RISC-V and Xtensa, checked against Clang and Capstone.'],
       ['improved', 'Three tabs: Data, Hardware and Software, with their sections in the sidebar.'],
-      ['new', 'Start here pages for [Bits and bytes](?p=bits-start), [Architecture](?p=architecture-start), [Memory](?p=memory-start) and [Peripherals](?p=peripherals-start): the route, what to read first, and the words used.'],
+      ['new', 'Start here page for every section, such as [Architecture](?p=architecture-start): the route, what to read first, and the words used.'],
       ['improved', 'Formulas typeset as equations.'],
       ['improved', 'Phone header matches the desktop one: logo, search and theme on one row, sections below.'],
       ['fixed', 'Previous and Next open the new page at the top.'],

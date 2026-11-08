@@ -4,8 +4,15 @@ import type { Category } from './catalog';
 export const concurrencyTopics: Category[] = [
   {
     id: 'start',
-    name: 'Start here',
-    blurb: 'The parts of a microcontroller and the words the rest of the section uses.',
+    name: 'Concurrency',
+    heading: 'Start here',
+    blurb: 'The route through the section.',
+    entries: [{ id: 'concurrency-start', name: 'Overview', blurb: 'What this section covers, what to read first, and the words it uses.' }],
+  },
+  {
+    id: 'chip',
+    name: 'The chip',
+    blurb: 'The parts of a microcontroller, met by following one interrupt.',
     entries: [
       { id: 'mcu', name: 'Parts and terms', blurb: 'TIM2, SysTick, the NVIC, the vector table and the stack, met in place by following one interrupt, plus a glossary.' },
     ],
