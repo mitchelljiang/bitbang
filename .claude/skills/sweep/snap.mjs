@@ -19,7 +19,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
 function pageIds() {
   const ids = ['', 'basics', 'about', 'changelog'];
-  for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts']) {
+  for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts']) {
     for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
   }
   return [...new Set(ids)];

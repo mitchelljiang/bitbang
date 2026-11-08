@@ -6,6 +6,7 @@ import { concurrencyTopics } from './concurrency';
 import { memoryTopics } from './memory';
 import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
+import { compilerTopics } from './compilers';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountAbout } from './about';
@@ -590,7 +591,7 @@ async function route() {
   const ticket = ++routing;
   const mount = load && topicShown !== id ? await load() : undefined;
   if (ticket !== routing) return;
-  const wipCat = p || load ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const wipCat = p || load ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
   const page = p ? 'viz' : load ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
   const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };

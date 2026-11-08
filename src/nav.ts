@@ -3,9 +3,11 @@ import { concurrencyTopics } from './concurrency';
 import { memoryTopics } from './memory';
 import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
+import { compilerTopics } from './compilers';
 import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
+import { areaGlyph } from './art';
 
 interface Section {
   id: string;
@@ -47,6 +49,11 @@ export const sections: Section[] = [
     blurb: 'How the processor runs a program: the instructions it reads, the registers it works in, and the pipeline that runs them.',
     categories: architectureTopics,
   },
+  {
+    id: 'compilers', name: 'Compilers',
+    blurb: 'How C becomes the instructions in Flash: the preprocessor, compiler, assembler and linker, and what optimization changes.',
+    categories: compilerTopics,
+  },
 ];
 
 const sectionOf = (id: string) =>
@@ -58,7 +65,7 @@ const by = (...ids: string[]) => ids.map((id) => sections.find((s) => s.id === i
 export const areas: Area[] = [
   { id: 'data', name: 'Data', sections: by('bits', 'protocols') },
   { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals') },
-  { id: 'software', name: 'Software', sections: by('concurrency') },
+  { id: 'software', name: 'Software', sections: by('compilers', 'concurrency') },
 ];
 export const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 
@@ -82,7 +89,7 @@ function groupsHtml(s: Section) {
 
 /** The area's sections, each a collapsible list of its groups. */
 function sidebarHtml(a: Area) {
-  return a.sections.map((s) => `
+  return `<p class="side-area">${areaGlyph(a.id)}${esc(a.name)}</p>` + a.sections.map((s) => `
     <details class="side-sec" data-section="${s.id}"><summary>${esc(s.name)}</summary><div class="side-sec-body">${groupsHtml(s)}</div></details>`).join('')
     + (a.sections.some((s) => s.categories.some((c) => c.entries.some((e) => statusOf.get(e.id) === 'wip')))
       ? '<p class="side-key" aria-hidden="true"><i></i>In progress</p>' : '');
@@ -93,7 +100,7 @@ function sidebarHtml(a: Area) {
  * On narrow screens the sidebar collapses behind a button.
  */
 export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElement) {
-  tabs.innerHTML = areas.map((a) => `<a href="?p=${areaPages(a)[0]?.id ?? ''}" data-nav data-area="${a.id}">${esc(a.name)}</a>`).join('');
+  tabs.innerHTML = areas.map((a) => `<a href="?p=${areaPages(a)[0]?.id ?? ''}" data-nav data-area="${a.id}">${areaGlyph(a.id)}${esc(a.name)}</a>`).join('');
   side.innerHTML = `
     <button class="side-toggle" type="button" aria-expanded="false" aria-controls="side-nav"></button>
     <nav class="side-nav" id="side-nav"></nav>`;

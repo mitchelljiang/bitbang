@@ -42,4 +42,4 @@ Signals are drawn on the glass as on an oscilloscope: time runs left to right, a
 
 ## After this section
 
-Carry on to Concurrency: how one processor does more than one thing at once: interrupts, tasks and the bugs that come from sharing data.
+Carry on to Compilers: how C becomes the instructions in Flash: the preprocessor, compiler, assembler and linker, and what optimization changes.

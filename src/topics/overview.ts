@@ -6,6 +6,7 @@
 import { esc } from '../core/render';
 import { areas } from '../nav';
 import { statusOf } from '../search';
+import { sectionArt } from '../art';
 
 interface Term { term: string; def: string; page?: string }
 interface Overview {
@@ -111,6 +112,30 @@ export const OVERVIEWS: Record<string, Overview> = {
       { term: 'Pipeline', def: 'Fetch, decode and execute in overlapping stages, so a new instruction can start every cycle.', page: 'pipeline' },
     ],
   },
+  compilers: {
+    intro: `Between the C you write and the bits in Flash sit four programs: the preprocessor, the compiler, the
+      assembler and the linker. This section follows one small program through each of them, then looks at what the
+      optimizer is allowed to change, and why <code>volatile</code> and undefined behavior matter so much on a
+      microcontroller.`,
+    before: [
+      { page: 'instructions', why: 'the compiler’s output is instructions like these' },
+      { page: 'memmap', why: 'the linker places code and data at real addresses' },
+      { page: 'sections', why: 'startup copies .data and clears .bss, which the linker set up' },
+    ],
+    read: `Most pages put C on the left and what a tool made of it on the right, every line of C and its output in
+      the same color. Click a line on either side to pick it out and read what it does. Everything shown is the
+      real output of Clang, objdump and the LLD linker, building for a Cortex-M0+ (the Raspberry Pi Pico’s core),
+      and the checks rebuild it to make sure it still matches.`,
+    terms: [
+      { term: 'Toolchain', def: 'The compiler, assembler, linker and the tools around them, such as arm-none-eabi-gcc.' },
+      { term: 'Translation unit', def: 'One .c file after the preprocessor has pasted in its #includes. The compiler sees one at a time.', page: 'preprocess' },
+      { term: 'Object file', def: 'The compiler’s output for one translation unit: machine code with some addresses still blank.', page: 'objects' },
+      { term: 'Symbol', def: 'A named function or variable that the linker can find and point to.', page: 'objects' },
+      { term: 'Relocation', def: 'A note in an object file saying which bytes the linker must fill in with an address.', page: 'linking' },
+      { term: 'Linker script', def: 'The file that tells the linker where Flash and SRAM are, and which sections go where.', page: 'linker-script' },
+      { term: 'Optimization', def: 'Rewriting the code to be faster or smaller while keeping what the C standard says it must do.', page: 'optimize' },
+    ],
+  },
   memory: {
     intro: `On a microcontroller the program, its variables and every hardware register share one range of addresses.
       This section maps that range, follows the stack as functions call each other, shows where globals and the heap
@@ -184,6 +209,7 @@ export const overview = (id: string) => (root: HTMLElement) => {
 
   root.innerHTML = `
     <section class="intro">
+      <div class="ov-art">${sectionArt(id)}</div>
       <p class="crumbs">Start here</p>
       <h1>${esc(s.name)}</h1>
       <p>${o.intro}</p>

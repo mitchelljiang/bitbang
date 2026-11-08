@@ -77,6 +77,18 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[dac|DAC]] — Analog
 - [[dma|DMA]] — Data
 
+## Compilers
+- [[compilers|Compilers]] — Start here
+- [[preprocessor|Preprocessor]] — The build
+- [[compiling|Compiling]] — The build
+- [[object-files|Object files]] — The build
+- [[linking|Linking]] — The build
+- [[linker-scripts|Linker scripts]] — The image
+- [[map-files|Map files]] — The image
+- [[optimization-levels|Optimization levels]] — Optimization
+- [[volatile|volatile]] — Optimization
+- [[undefined-behavior|Undefined behavior]] — Optimization
+
 ## Concurrency
 - [[concurrency|Concurrency]] — Start here
 - [[parts-and-terms|Parts and terms]] — The chip

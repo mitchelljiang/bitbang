@@ -14,7 +14,9 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     items: [
       ['new', 'Peripherals section: [GPIO](?p=gpio), [debouncing](?p=debounce), [timers](?p=timers), [PWM](?p=pwm), [watchdog](?p=watchdog), [ADC](?p=adc), [DAC](?p=dac), [DMA](?p=dma).'],
       ['new', 'Architecture section, starting with [instruction encoding](?p=instructions) for Arm Thumb, RISC-V and Xtensa, checked against Clang and Capstone.'],
+      ['new', 'Compilers section: [preprocessor](?p=preprocess), [compiling](?p=compile), [object files](?p=objects), [linking](?p=linking), [linker scripts](?p=linker-script), [map files](?p=mapfile), [optimization levels](?p=optimize), [volatile](?p=volatile), [undefined behavior](?p=ub). Real Clang and LLD output for a Cortex-M0+.'],
       ['improved', 'Three tabs: Data, Hardware and Software, with their sections in the sidebar.'],
+      ['improved', 'Icons on the tabs, and a drawing for each section on the home page.'],
       ['new', 'Start here page for every section, such as [Architecture](?p=architecture-start): the route, what to read first, and the words used.'],
       ['improved', 'Formulas typeset as equations.'],
       ['improved', 'Phone header matches the desktop one: logo, search and theme on one row, sections below.'],

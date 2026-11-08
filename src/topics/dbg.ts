@@ -7,12 +7,12 @@ import { esc } from '../core/render';
 /** C source as HTML: comments, types and keywords, and numbers each get a color. */
 export function highlight(code: string) {
   return code.split('\n').map((line) => {
-    const at = line.indexOf('//');
+    const at = line.search(/\/\/|\/\*/);
     const src = at < 0 ? line : line.slice(0, at);
     const body = esc(src)
-      .replace(/\b(u?int(8|16|32)_t|int|float|void|if|return|volatile|sizeof)\b/g, '<span class="c-type">$1</span>')
+      .replace(/\b(u?int(8|16|32)_t|int|char|float|void|if|else|for|while|do|return|volatile|const|static|extern|unsigned|sizeof)\b/g, '<span class="c-type">$1</span>')
       .replace(/\b(0x[0-9A-Fa-f]+u?|0b[01]+|\d+(\.\d+)?f?u?)\b/g, '<span class="c-num">$1</span>')
-      .replace(/(#include)/g, '<span class="c-type">$1</span>');
+      .replace(/^(\s*#\s*\w+)/, '<span class="c-type">$1</span>');
     return at < 0 ? body : `${body}<span class="c-comment">${esc(line.slice(at))}</span>`;
   }).join('\n');
 }

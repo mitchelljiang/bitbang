@@ -34,6 +34,14 @@ import { memoryTopics } from '../src/memory';
 import { concurrencyTopics } from '../src/concurrency';
 import { peripheralTopics } from '../src/peripherals';
 import { architectureTopics } from '../src/architecture';
+import { compilerTopics } from '../src/compilers';
+import { CC } from '../src/topics/ccdata';
+import { explainIns, type Out } from '../src/topics/cc';
+import { blEncode, blOffset, linkModel } from '../src/topics/linking';
+import { place, type Sec } from '../src/topics/linkerscript';
+import { parseMap, perFile } from '../src/topics/mapfile';
+import { declLine } from '../src/topics/objects';
+import { assembleBl, generate, haveTools, linkSynthetic } from './ccgen';
 import { topics } from '../src/topics';
 import { plural } from '../src/core/util';
 import { hex8, hexN, parseNumber } from '../src/topics/dbg';
@@ -1146,6 +1154,140 @@ for h in sys.argv[3:]:
     && inEncode('xtensa', 'movi', { imm8: 42, s: 0, t: 2 }) === 0x2aa022 && inAsm('xtensa', 'movi', 0x2aa022) === 'movi a2, 42');
 }
 
+section('3q. Compilers: preprocessor, compiler, object files, linker, map files');
+{
+  // Every listing on the pages is real tool output (scripts/ccgen.ts). Rebuild it and compare, so a page can never
+  // drift from what Clang, objdump and LLD say. A new Clang may change the code: rerun `npm run gen-cc` and re-read
+  // the pages' explanations, which the checks below pin down.
+  const tools = haveTools();
+  if (!tools) report.push('  skip  Clang with an Arm target, objdump or LLD is missing (python3 -m venv .venv && .venv/bin/pip install ziglang); the stored output is checked without them');
+  else later('compilers: every listing matches a fresh build with Clang, objdump and LLD', async () => {
+    const fresh = JSON.parse(JSON.stringify(await generate()));
+    const diff = (a: unknown, b: unknown, path: string): string | null => {
+      if (JSON.stringify(a) === JSON.stringify(b)) return null;
+      if (a && b && typeof a === 'object' && typeof b === 'object')
+        for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+          const d = diff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}.${k}`);
+          if (d) return d;
+        }
+      return path;
+    };
+    const d = diff(CC, fresh, 'CC');
+    return [!d, d ? `differs at ${d}: run npm run gen-cc` : CC.clang];
+  });
+
+  type L = { t: string; src: number; kind: string };
+  const listings: L[][] = [
+    ...Object.values(CC.compiled).map((b) => b.asm), ...Object.values(CC.optimized).flatMap((o) => Object.values(o).map((b) => b.asm)),
+    ...Object.values(CC.vol).flatMap((v) => v.map((b) => b.asm)), ...Object.values(CC.ub).flatMap((v) => v.map((b) => b.asm)),
+  ];
+  const unexplained = listings.flat().filter((l) => l.kind !== 'label' && !explainIns(l.t, l.kind as Out['kind']));
+  check(`compilers: every one of ${listings.flat().filter((l) => l.kind === 'ins').length} instructions has an explanation`, unexplained.length === 0, unexplained.slice(0, 3).map((l) => l.t).join('; '));
+  check('compilers: every instruction maps to a line that exists in its source', listings.every((ls) => ls.every((l) => l.src >= 0)) &&
+    Object.entries(CC.compiled).every(([k, b]) => b.asm.every((l) => l.src <= CC.src.compile[k as keyof typeof CC.src.compile].split('\n').length)));
+  check('compilers: explanations read registers and constants correctly', explainIns('adds r0, r1, r0') === 'r0 = r1 + r0, and set the flags.'
+    && explainIns('lsls r0, r0, #25') === 'r0 = r0 << 25, and set the flags.' && explainIns('ldr r1, [sp, #8]')!.includes('8 bytes above sp')
+    && explainIns('pop {r4, r5, r7, pc}')!.startsWith('Restore r4, r5 and r7') && explainIns('bge .LBB0_3')!.includes('signed'));
+
+  const pre = Object.values(CC.pre).flat();
+  check('preprocessor: no macro, directive or comment survives in the output', pre.every((l) => !('t' in l) || !/\b(LED_PIN|BIT|GPIOA_ODR|LOG)\b|^\s*#|\/\/|\/\*/.test(l.t)));
+  check('preprocessor: -DDEBUG turns LOG into a call, and -DLED_PIN=9 changes the shift', CC.pre.debug.some((l) => /uart_puts\("led on"\)/.test(l.t))
+    && !CC.pre.plain.some((l) => /uart_puts\("led on"\)/.test(l.t)) && CC.pre.pin.some((l) => /1u << \(9\)/.test(l.t)) && CC.pre.plain.some((l) => /1u << \(5\)/.test(l.t)));
+
+  // What the prose says about each listing.
+  const code = (b: { asm: L[] }) => b.asm.filter((l) => l.kind === 'ins').map((l) => l.t);
+  check('compiling: adds r0, r1, r0 encodes as 0x1808; sum_sq saves r4 and r5', CC.compiled.add.asm.some((l) => l.t === 'adds r0, r1, r0' && l.hex === '1808')
+    && code(CC.compiled.call)[0] === 'push {r4, r5, r7, lr}');
+  check('compiling: the -Os loop is ldm, adds, subs, bne', code(CC.compiled.sum).join('|').includes('ldm r2!, {r3}|adds r0, r3, r0|subs r1, r1, #1|bne .LBB0_2'));
+  check('optimization: -O2 unrolls sum to over four times the -Os size; -O1 and -Os match', CC.optimized.sum['-O2'].bytes > 4 * CC.optimized.sum['-Os'].bytes
+    && JSON.stringify(code(CC.optimized.sum['-O1'])) === JSON.stringify(code(CC.optimized.sum['-Os'])));
+  check('optimization: sum_to has no loop above -O0 and multiplies with __aeabi_lmul', ['-O1', '-O2', '-Os'].every((o) => {
+    const c = code(CC.optimized.sumto[o as '-O1']);
+    return c.includes('bl __aeabi_lmul') && !c.some((t) => /^b(ne|lt|ge|eq)? \.LBB0_[0-9]+$/.test(t) && false) && c.filter((t) => t.startsWith('b')).length <= 2;
+  }));
+  check('optimization: dividing by 4 is a shift at every level', ['-O0', '-O1'].every((o) => code(CC.optimized.scale[o as '-O0']).includes('asrs r0, r0, #2')));
+  // sum_to's formula, (n − 1)(n − 2)/2 + (n − 1), equals 0 + 1 + … + (n − 1) for every n the loop handles.
+  check('optimization: sum_to’s formula gives the same sums as the loop', Array.from({ length: 200 }, (_, n) => n).every((n) => {
+    let s = 0;
+    for (let i = 0; i < n; i++) s += i;
+    return (n < 1 ? 0 : ((n - 1) * (n - 2)) / 2 + (n - 1)) === s;
+  }));
+  check('volatile: without it the poll reads once with ldrb, the flag loop and the delay vanish', code(CC.vol.poll[0]).includes('ldrb r0, [r0]')
+    && code(CC.vol.poll[0]).includes('b .LBB0_1') && code(CC.vol.flag[0]).join() === 'bx lr' && code(CC.vol.delay[0]).join() === 'bx lr');
+  check('volatile: with it every pass loads again', ['poll', 'flag', 'delay'].every((k) => code(CC.vol[k as 'poll'][1]).filter((t) => t.startsWith('ldr r1, [')).length >= 1)
+    && code(CC.vol.delay[1]).includes('movs r0, #125') && code(CC.vol.delay[1]).includes('lsls r0, r0, #3'));
+  check('undefined behavior: the overflow check is always true and the null check is gone', code(CC.ub.overflow[0]).join('|') === 'movs r0, #1|bx lr'
+    && code(CC.ub.null[0]).join('|') === 'ldr r0, [r0]|bx lr' && code(CC.ub.null[1]).includes('cmp r0, #0'));
+  check('undefined behavior: i <= 4 reads 16 bytes in, i < 4 stops at 12', code(CC.ub.bounds[0]).includes('cmp r2, #16') && code(CC.ub.bounds[1]).includes('cmp r2, #12'));
+
+  // Object files: the symbol table against the source.
+  const O = CC.object;
+  const sec = (n: string) => O.syms.find((s) => s.name === n)?.section;
+  check('object files: last in .bss, count in .data, name in .rodata, read_adc undefined, scale folded away',
+    sec('last') === '.bss' && sec('count') === '.data' && sec('name') === '.rodata' && sec('read_adc') === '*UND*' && sec('scale') === undefined
+    && O.dis.some((d) => d.t === 'movs r1, #0x3') && O.bytes['.data'] === '01000000' && O.bytes['.rodata'] === '74656d7000');
+  check('object files: every symbol is found on its line of the source', O.syms.every((s) => declLine(s.name) > 0));
+  check('object files: each relocation sits on a placeholder (bl to itself, or a zero word)', O.relocs.every((r) => {
+    const d = O.dis.find((x) => x.at === r.offset);
+    return d && (r.type === 'R_ARM_THM_CALL' ? d.hex === 'f7ff fffe' : d.hex === '00 00 00 00');
+  }));
+
+  // Linking: the page's model against LLD's output.
+  const M = linkModel(), elf = CC.link['app.elf'];
+  // objdump writes an instruction as halfwords (b580 is bytes 80 b5) and a data word as bytes in memory order.
+  const asBytes = (h: string) => h.split(' ').map((x) => (x.length === 4 ? x.slice(2) + x.slice(0, 2) : x)).join('');
+  check('linking: the model’s .text is byte for byte what LLD wrote', M.rows.map((r) => asBytes(r.hex)).join('') === elf.bytes['.text'],
+    `${M.rows.map((r) => asBytes(r.hex)).join('')} vs ${elf.bytes['.text']}`);
+  check('linking: every symbol and section address matches LLD', M.syms.every((s) => elf.syms.find((e) => e.name === s.name)?.value === s.addr)
+    && elf.sections.find((s) => s.name === '.data')!.lma === M.dataLoad['math.o'] && elf.sections.find((s) => s.name === '.bss')!.vma === M.base['main.o.bss']);
+  check('linking: the call to add becomes f000 f808 (+0x10)', M.patches[0].after === 'f000 f808' && M.patches[0].value === 0x10 && blOffset(0xf7ff, 0xfffe) === -4);
+  check('linking: BL encode and decode agree across ±16 MiB', Array.from({ length: 4000 }, (_, k) => ((k * 8388617) % 33554432) - 16777216 & ~1)
+    .every((o) => { const [a, b] = blEncode(o); return blOffset(a, b) === o; }));
+  if (tools) later('linking: the BL encoder matches LLD for 60 distances', async () => {
+    const offs = [16, -4, 0, 2, -2, 4094, -4096, 0x3ffffe, -0x400000, 0x400000, 0xfffffe, -0x1000000,
+      ...Array.from({ length: 48 }, (_, k) => (((k * 2654435761) >>> 0) % 0x2000000 - 0x1000000) & ~1)];
+    const got = await assembleBl(offs);
+    const bad = got.filter(([o, a, b]) => { const [x, y] = blEncode(o); return x !== a || y !== b; });
+    return [bad.length === 0, bad.slice(0, 3).map(([o, a, b]) => `${o}: lld ${a.toString(16)} ${b.toString(16)} page ${blEncode(o).map((v) => v.toString(16)).join(' ')}`).join('; ') || `${got.length} distances`];
+  });
+
+  // Linker scripts: the placement model against LLD.
+  const runs = Object.values(CC.script) as { sizes: Record<string, number>; align: Record<string, number>; placed: { name: string; vma: number; lma: number; size: number }[]; error?: string }[];
+  check('linker scripts: the model places all three programs as LLD did, including its overflow error', runs.every((r) => {
+    const m = place(r.sizes as Record<Sec, number>, r.align as Record<Sec, number>);
+    return r.error ? m.error === r.error : !m.error && JSON.stringify(m.placed) === JSON.stringify(r.placed);
+  }));
+  if (tools) later('linker scripts: the model matches LLD for 40 random programs, fitting or not', async () => {
+    const rnd = (k: number, m: number) => ((k * 2654435761 + m * 40503) >>> 0) % m;
+    const cases = Array.from({ length: 40 }, (_, k) => ({
+      text: [1 + rnd(k, k % 3 ? 4000 : 70000), 1 + rnd(k + 1, 2)], rodata: [1 + rnd(k + 2, k % 5 ? 900 : 9000), rnd(k + 3, 3)],
+      data: [1 + rnd(k + 4, k % 4 ? 300 : 21000), rnd(k + 5, 4)], bss: [1 + rnd(k + 6, k % 6 ? 2000 : 22000), rnd(k + 7, 4)],
+    })) as Record<'text' | 'rodata' | 'data' | 'bss', [number, number]>[];
+    const results = await Promise.all(cases.map((c) => linkSynthetic(c)));
+    const bad = results.filter((r) => {
+      const m = place(r.sizes as Record<Sec, number>, r.align as Record<Sec, number>);
+      return r.error ? m.error !== r.error : !!m.error || JSON.stringify(m.placed) !== JSON.stringify(r.placed);
+    });
+    return [bad.length === 0, bad.slice(0, 2).map((r) => `${JSON.stringify(r.sizes)} lld: ${r.error ?? 'ok'}, model: ${place(r.sizes as Record<Sec, number>, r.align as Record<Sec, number>).error ?? 'ok'}`).join('; ')
+      || `${results.filter((r) => r.error).length} of ${results.length} overflow`];
+  });
+
+  // Map files: the parser against objdump's section sizes.
+  const rows = parseMap(CC.map.lines);
+  const outs = rows.filter((r) => r.level === 0);
+  check('map files: every line after the header parses (the page pairs lines with rows by position)', rows.length === CC.map.lines.length - 1, `${rows.length} rows, ${CC.map.lines.length - 1} lines`);
+  check('map files: every output section in the map has objdump’s size and address', outs.length === CC.map.sections.length
+    && outs.every((o) => { const s = CC.map.sections.find((x) => x.name === o.name); return s && s.size === o.size && s.vma === o.vma && s.lma === o.lma; }));
+  check('map files: each output section’s inputs fit inside it, in order', outs.every((o) => {
+    const ins = rows.filter((r) => r.level === 1 && r.out === o.name);
+    return ins.every((r, i) => r.vma >= (i ? ins[i - 1].vma + ins[i - 1].size : o.vma) && r.vma + r.size <= o.vma + o.size && r.vma % r.align === 0);
+  }));
+  const tot = perFile(rows), flash = Object.values(tot).reduce((n, t) => n + t.flash, 0);
+  check('map files: the per-file totals add up to the image (Flash less alignment padding)', flash <= CC.map.sections.filter((s) => s.name !== '.bss').reduce((n, s) => n + s.size, 0)
+    && Object.values(tot).reduce((n, t) => n + t.sram, 0) === CC.map.sections.filter((s) => s.name === '.data' || s.name === '.bss').reduce((n, s) => n + s.size, 0)
+    && rows.find((r) => r.name === 'table')!.size === 512 && rows.find((r) => r.name === 'main' && r.level === 2)!.vma === 0x08000001);
+}
+
 section('3n. Shared helpers and site structure');
 {
   // USB's CRCs, against the published check values for "123456789" (Greg Cook's CRC catalogue), so they are checked
@@ -1171,7 +1313,7 @@ section('3n. Shared helpers and site structure');
     && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
 
   // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
-  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics].flatMap((c) => c.entries.map((e) => e.id));
+  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics].flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));

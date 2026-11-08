@@ -78,7 +78,7 @@ async function tab() {
 
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
 const ids = ['', 'about', 'changelog'];
-for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts']) {
+for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts']) {
   for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
 }
 
@@ -90,9 +90,9 @@ const EXERCISE = `(async () => {
   const height = () => panels.map((p) => Math.round(p.getBoundingClientRect().height));
   const before = height();
   const grew = new Set();
-  const fixed = (p) => p.matches('.debugger.mem, section.trace, .diagram');
+  const fixed = (p) => p.matches('.debugger.mem, section.trace, .diagram, .debugger.cc');
   for (const [i, p] of panels.entries()) {
-    const controls = [...p.querySelectorAll('button:not([disabled]), [role=radio], .bit[data-bit]')];
+    const controls = [...p.querySelectorAll('button:not([disabled]), [role=radio], .bit[data-bit], .cc .ln[data-src]:nth-child(3n), .cc .ln[data-out]:nth-child(4n), .cc tr[data-k], .cc [data-file], .cc [data-line]:nth-child(2n)')];
     for (const c of controls.slice(0, 60)) {
       if (!c.isConnected) continue;
       c.click();
