@@ -74,7 +74,15 @@ export function explainIns(line: string, kind: Out['kind'] = 'ins'): string | nu
       if (a[1].startsWith('.LCPI')) return `Load the 32-bit constant at ${a[1]}, after the code, into ${a[0]}.`;
       if (/^\[\w+, \w+\]$/.test(a[1])) { const [, b, i] = a[1].match(/\[(\w+), (\w+)\]/)!; return `Load the word at the address ${b} + ${i} into ${a[0]}.`; }
       return `Load the 32-bit word from ${mem(a[1])} into ${a[0]}.`;
-    case 'ldrb': return `Load one byte from ${mem(a[1])} into ${a[0]}.`;
+    case 'ldrb': return `Load one byte from ${mem(a[1])} into ${a[0]}, with the upper 24 bits zero.`;
+    case 'ldrh': return `Load two bytes from ${mem(a[1])} into ${a[0]}, with the upper 16 bits zero.`;
+    case 'strb': return `Store the low byte of ${a[0]} to ${mem(a[1])}.`;
+    case 'strh': return `Store the low two bytes of ${a[0]} to ${mem(a[1])}.`;
+    case 'uxtb': return `${a[0]} = the low byte of ${a[1]}, the other 24 bits cleared: the value cut to a uint8_t.`;
+    case 'uxth': return `${a[0]} = the low 16 bits of ${a[1]}, the rest cleared: the value cut to a uint16_t.`;
+    case 'sxtb': return `${a[0]} = the low byte of ${a[1]}, its sign bit copied up: the value cut to an int8_t.`;
+    case 'sxth': return `${a[0]} = the low 16 bits of ${a[1]}, its sign bit copied up: the value cut to an int16_t.`;
+    case 'blx': return `Call the function whose address is in ${a[0]}, with the return address in lr.`;
     case 'str': return `Store ${a[0]} to ${mem(a[1])}.`;
     case 'ldm': {
       const m = rest.match(/^(\w+)!, \{(\w+)\}$/);

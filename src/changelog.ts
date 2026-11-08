@@ -10,6 +10,15 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-11-08',
+    items: [
+      ['new', 'C for embedded section: [storage keywords](?p=keywords), [integer types](?p=integers), [structs and bit fields](?p=structs), [pointers](?p=pointers), [functions](?p=functions). Real Clang output for a Cortex-M0+.'],
+      ['improved', 'Pages ease in when opened.'],
+      ['improved', 'Start here pages: each page in the route is a clear button.'],
+      ['fixed', 'Phone menu no longer fades at its top and bottom edges.'],
+    ],
+  },
+  {
     date: '2026-11-07',
     items: [
       ['new', 'Peripherals section: [GPIO](?p=gpio), [debouncing](?p=debounce), [timers](?p=timers), [PWM](?p=pwm), [watchdog](?p=watchdog), [ADC](?p=adc), [DAC](?p=dac), [DMA](?p=dma).'],

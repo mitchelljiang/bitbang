@@ -42,4 +42,4 @@ Signals are drawn on the glass as on an oscilloscope: time runs left to right, a
 
 ## After this section
 
-Carry on to Compilers: how C becomes the instructions in Flash: the preprocessor, compiler, assembler and linker, and what optimization changes.
+Carry on to C for embedded: the parts of C that matter on a microcontroller: where variables live, integer types, structs and bit fields, pointers and functions.

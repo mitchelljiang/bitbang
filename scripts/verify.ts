@@ -35,13 +35,17 @@ import { concurrencyTopics } from '../src/concurrency';
 import { peripheralTopics } from '../src/peripherals';
 import { architectureTopics } from '../src/architecture';
 import { compilerTopics } from '../src/compilers';
+import { cTopics } from '../src/clang';
+import { C } from '../src/topics/cdata';
+import { whereItLives } from '../src/topics/keywords';
+import { pieces, STRUCT_CASES } from '../src/topics/structs';
 import { CC } from '../src/topics/ccdata';
 import { explainIns, type Out } from '../src/topics/cc';
 import { blEncode, blOffset, linkModel } from '../src/topics/linking';
 import { place, type Sec } from '../src/topics/linkerscript';
 import { parseMap, perFile } from '../src/topics/mapfile';
 import { declLine } from '../src/topics/objects';
-import { assembleBl, generate, haveTools, linkSynthetic } from './ccgen';
+import { assembleBl, generate, generateC, haveTools, linkSynthetic } from './ccgen';
 import { topics } from '../src/topics';
 import { plural } from '../src/core/util';
 import { hex8, hexN, parseNumber } from '../src/topics/dbg';
@@ -1288,6 +1292,60 @@ section('3q. Compilers: preprocessor, compiler, object files, linker, map files'
     && rows.find((r) => r.name === 'table')!.size === 512 && rows.find((r) => r.name === 'main' && r.level === 2)!.vma === 0x08000001);
 }
 
+section('3r. C for embedded: storage, integers, structs, pointers and functions');
+{
+  if (haveTools()) later('C pages: every listing and layout matches a fresh build with Clang', async () => {
+    const fresh = JSON.parse(JSON.stringify(await generateC()));
+    const d = Object.keys(fresh).find((k) => JSON.stringify((C as Record<string, unknown>)[k]) !== JSON.stringify(fresh[k]));
+    return [!d, d ? `C.${d} differs: run npm run gen-cc` : `${Object.keys(fresh).length} groups`];
+  });
+  type L = { t: string; src: number; kind: string };
+  const code = (b: { asm: L[] }) => b.asm.filter((l) => l.kind === 'ins').map((l) => l.t);
+  const all: { asm: L[] }[] = [...Object.values(C.keys), ...Object.values(C.ints).flat(), ...Object.values(C.structs), ...Object.values(C.ptrs), ...Object.values(C.fns).flat()];
+  const unexplained = all.flatMap((b) => b.asm).filter((l) => l.kind !== 'label' && !explainIns(l.t, l.kind as Out['kind']));
+  check(`C pages: every one of ${all.flatMap(code).length} instructions has an explanation`, unexplained.length === 0, unexplained.slice(0, 3).map((l) => l.t).join('; '));
+
+  const sym = (k: keyof typeof C.keys) => C.keys[k].sym;
+  check('keywords: a local has no symbol and folds to movs r0, #6', sym('local') === null && code(C.keys.local)[0] === 'movs r0, #6');
+  check('keywords: global is global in .bss; static is local in .data; static local is local in .bss', sym('global')?.section === '.bss' && sym('global')?.bind === 'global'
+    && sym('static')?.section === '.data' && sym('static')?.bind === 'local' && sym('staticlocal')?.section === '.bss' && sym('staticlocal')?.bind === 'local');
+  check('keywords: const is in .rodata and its value is used directly', sym('const')?.section === '.rodata' && code(C.keys.const).includes('movs r1, #100') && !code(C.keys.const).some((t) => t.startsWith('ldr')));
+  check('keywords: extern is undefined here, with a relocation', sym('extern')?.section === '*UND*' && C.keys.extern.relocs.includes('count'));
+  check('keywords: the page says where each one lives', whereItLives('local') === 'not stored anywhere' && whereItLives('static') === 'in .data, this file only' && whereItLives('global') === 'in .bss, every file');
+
+  const sizes = Object.fromEntries(C.sizes.map((s) => [s.type, s]));
+  check('integers: the AAPCS sizes: int and long and pointers 4, long long and double 8 and aligned to 8', sizes.int.size === 4 && sizes.long.size === 4 && sizes['void *'].size === 4
+    && sizes['long long'].size === 8 && sizes['long long'].align === 8 && sizes.double.align === 8 && sizes.char.size === 1 && sizes.short.size === 2);
+  check('integers: uint8_t needs a uxtb and uint32_t does not', code(C.ints.narrow[0]).some((t) => t.startsWith('uxtb')) && !code(C.ints.narrow[1]).some((t) => t.startsWith('uxtb')));
+  check('integers: 200 + 100 in a uint8_t is 44', ((200 + 100) & 0xff) === 44);
+  check('integers: a mixed compare branches unsigned (blo), a signed one blt', code(C.ints.compare[0]).some((t) => t.startsWith('blo')) && code(C.ints.compare[1]).some((t) => t.startsWith('blt')));
+  check('integers: signed halving adds the sign bit then asrs; unsigned is one lsrs', code(C.ints.divide[0]).join() === 'lsrs r1, r0, #31,adds r0, r0, r1,asrs r0, r0, #1,bx lr' && code(C.ints.divide[1]).join() === 'lsrs r0, r0, #1,bx lr');
+
+  const st = C.structs as unknown as Record<(typeof STRUCT_CASES)[number], { layout: Parameters<typeof pieces>[0]; asm: L[] }>;
+  const pad = (k: (typeof STRUCT_CASES)[number]) => pieces(st[k].layout).parts.filter((p) => p.field < 0).reduce((n, p) => n + p.n, 0);
+  check('structs: sizeof is 12, 8, 6, 4 and 16, with 6, 2, 0, 12 bits and 0 of padding', st.order.layout.size === 12 && st.reorder.layout.size === 8 && st.packed.layout.size === 6 && st.bitfield.layout.size === 4 && st.regmap.layout.size === 16
+    && pad('order') === 6 && pad('reorder') === 2 && pad('packed') === 0 && pad('bitfield') === 12 && pad('regmap') === 0);
+  check('structs: the pieces cover each struct exactly, in order, without overlap', STRUCT_CASES.every((k) => {
+    const p = pieces(st[k].layout);
+    let at = 0;
+    return p.parts.every((x) => { const ok = x.at === at && x.n > 0; at += x.n; return ok; }) && at === p.total;
+  }));
+  check('structs: every field maps to its line of source', STRUCT_CASES.every((k) => st[k].layout.fields.every((f) => C.src.structs[k].split('\n')[f.line - 1]?.includes(f.name))));
+  check('structs: a normal read is 2 instructions, a packed one 11, all byte loads', code(st.order).length === 2 && code(st.order)[0] === 'ldr r0, [r0, #4]' && code(st.packed).length === 11 && code(st.packed).filter((t) => t.startsWith('ldrb')).length === 4 && !code(st.packed).some((t) => t.startsWith('ldr ')));
+  check('structs: setting a bit field is ldr, orrs with 4, str of the whole word', code(st.bitfield).join() === 'ldr r1, [r0],movs r2, #4,orrs r2, r1,str r2, [r0],bx lr');
+  check('structs: enable is bit 2; the register map is at 0, 4, 8, 12; DR is written at +4', st.bitfield.layout.fields[1].bits![0] === 2 && st.regmap.layout.fields.map((f) => f.offset).join() === '0,4,8,12' && code(st.regmap).includes('str r0, [r1, #4]'));
+
+  check('pointers: the register address is a literal, written with one str', C.ptrs.register.asm.some((l) => l.t === '.word 0x48000014') && code(C.ptrs.register).includes('str r1, [r0]') && code(C.ptrs.register).includes('movs r1, #32'));
+  check('pointers: a uint32_t index is scaled by 4, a uint8_t index is not, and p + 1 is offset 4', code(C.ptrs.index).join().includes('lsls r1, r1, #2,ldr r0, [r0, r1]') && code(C.ptrs.index).includes('ldrb r0, [r0, r1]') && code(C.ptrs.index).includes('ldr r0, [r0, #4]'));
+  check('pointers: members are at 0 and 4; the table call checks, scales, loads and blx', code(C.ptrs.member).slice(0, 2).join() === 'ldr r1, [r0],ldr r0, [r0, #4]' && code(C.ptrs.fnptr).join().includes('cmp r0, #2,bhi .LBB0_2,lsls r0, r0, #2') && code(C.ptrs.fnptr).includes('blx r0'));
+
+  check('functions: inlined there is no call, in 9 instructions; not inlined, two bl in 12', !code(C.fns.inline[0]).some((t) => t.startsWith('bl ')) && code(C.fns.inline[0]).length === 9 && code(C.fns.inline[1]).filter((t) => t === 'bl clamp').length === 2 && code(C.fns.inline[1]).length === 12);
+  check('functions: not inlined keeps b and the first result in r4 and r5', code(C.fns.inline[1]).includes('mov r4, r1') && code(C.fns.inline[1]).includes('mov r5, r0'));
+  check('functions: four arguments use no stack; six put two on it', !code(C.fns.args[0]).some((t) => /sp/.test(t)) && code(C.fns.args[1]).includes('sub sp, #8') && code(C.fns.args[1]).includes('str r0, [sp, #4]') && code(C.fns.args[1]).includes('str r0, [sp]'));
+  check('functions: an unused static function is dropped; a global one is kept', C.fns.static[0].asm.some((l) => l.t === 'helper:') && !C.fns.static[1].asm.some((l) => l.t === 'helper:'));
+  check('functions: a small struct by value is in r0 and r1; by pointer is two loads', code(C.fns.struct[0]).join() === 'adds r0, r0, r1,bx lr' && code(C.fns.struct[1]).filter((t) => t.startsWith('ldr')).length === 2);
+}
+
 section('3n. Shared helpers and site structure');
 {
   // USB's CRCs, against the published check values for "123456789" (Greg Cook's CRC catalogue), so they are checked
@@ -1313,7 +1371,7 @@ section('3n. Shared helpers and site structure');
     && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
 
   // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
-  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics].flatMap((c) => c.entries.map((e) => e.id));
+  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics, ...cTopics].flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));

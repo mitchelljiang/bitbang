@@ -77,6 +77,14 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[dac|DAC]] — Analog
 - [[dma|DMA]] — Data
 
+## C for embedded
+- [[c-for-embedded|C for embedded]] — Start here
+- [[storage-keywords|Storage keywords]] — Variables and types
+- [[integer-types|Integer types]] — Variables and types
+- [[structs-and-bit-fields|Structs and bit fields]] — Data in memory
+- [[pointers|Pointers]] — Data in memory
+- [[functions|Functions]] — Functions
+
 ## Compilers
 - [[compilers|Compilers]] — Start here
 - [[preprocessor|Preprocessor]] — The build

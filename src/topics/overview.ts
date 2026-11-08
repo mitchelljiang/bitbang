@@ -112,6 +112,31 @@ export const OVERVIEWS: Record<string, Overview> = {
       { term: 'Pipeline', def: 'Fetch, decode and execute in overlapping stages, so a new instruction can start every cycle.', page: 'pipeline' },
     ],
   },
+  c: {
+    intro: `C on a microcontroller is the same language as anywhere else, but a few parts of it matter far more:
+      where each variable is stored, how big each integer type is, how a struct is laid out in bytes, and what a
+      pointer to a hardware register means. This section shows each of them in the code Clang produces for a
+      Cortex-M0+, so you can see the cost of every choice.`,
+    before: [
+      { page: 'binary', why: 'sizes and addresses are in bytes and hex' },
+      { page: 'alignment', why: 'struct padding comes from alignment' },
+      { page: 'instructions', why: 'every example shows the instructions it becomes' },
+    ],
+    read: `Each page puts C on the left and the assembly Clang made of it on the right, every line of C and its
+      instructions in the same color. Click a line on either side to pick it out and read what it does. The struct
+      page also draws the layout byte by byte, with padding hatched. All of it is real compiler output, rebuilt by
+      the checks.`,
+    terms: [
+      { term: 'Storage duration', def: 'How long a variable lives: for the whole program (globals, static) or for one call (locals).', page: 'keywords' },
+      { term: 'Linkage', def: 'Whether other files can see a name. static gives a global internal linkage: this file only.', page: 'keywords' },
+      { term: 'Integer promotion', def: 'Before arithmetic, C widens anything smaller than int to int.', page: 'integers' },
+      { term: 'Padding', def: 'Unused bytes the compiler adds inside a struct so each field is aligned.', page: 'structs' },
+      { term: 'Bit field', def: 'A struct member a given number of bits wide, packed with its neighbors into one word.', page: 'structs' },
+      { term: 'Pointer', def: 'A variable holding an address. On a 32-bit chip it is 4 bytes.', page: 'pointers' },
+      { term: 'Inlining', def: 'Pasting a function’s body into its caller instead of calling it.', page: 'functions' },
+      { term: 'Calling convention', def: 'The rules for where arguments and results go. On Arm (the AAPCS): r0 to r3, then the stack.', page: 'functions' },
+    ],
+  },
   compilers: {
     intro: `Between the C you write and the bits in Flash sit four programs: the preprocessor, the compiler, the
       assembler and the linker. This section follows one small program through each of them, then looks at what the

@@ -78,7 +78,7 @@ async function tab() {
 
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
 const ids = ['', 'about', 'changelog'];
-for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts']) {
+for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts', 'src/clang.ts']) {
   for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
 }
 

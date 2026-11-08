@@ -546,6 +546,298 @@ export async function assembleBl(offsets: number[]) {
   return offsets.map((o, i): [number, number, number] => [o, le(hex.slice(8 * i, 8 * i + 4)), le(hex.slice(8 * i + 4, 8 * i + 8))]);
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// C for embedded. Each page's C, and what Clang made of it: code, where each variable went, and struct layouts.
+
+const KEY_HEAD = '#include <stdint.h>\n\n';
+/** One variable, declared six ways. */
+export const KEY_SRC: Record<string, string> = {
+  local: `${KEY_HEAD}uint32_t tick(void) {
+  uint32_t count = 5;   // a local variable
+  return ++count;
+}`,
+  global: `${KEY_HEAD}uint32_t count;   // a global: any file can use it
+
+uint32_t tick(void) {
+  return ++count;
+}`,
+  static: `${KEY_HEAD}static uint32_t count = 5;   // only this file can use it
+
+uint32_t tick(void) {
+  return ++count;
+}`,
+  staticlocal: `${KEY_HEAD}uint32_t tick(void) {
+  static uint32_t count;   // keeps its value between calls
+  return ++count;
+}`,
+  const: `${KEY_HEAD}const uint32_t limit = 100;   // read-only
+
+uint32_t room(uint32_t used) {
+  return limit - used;
+}`,
+  extern: `${KEY_HEAD}extern uint32_t count;   // defined in another file
+
+uint32_t tick(void) {
+  return ++count;
+}`,
+};
+/** The variable each example declares. */
+export const KEY_VAR: Record<string, string> = { local: 'count', global: 'count', static: 'count', staticlocal: 'tick.count', const: 'limit', extern: 'count' };
+
+/** Integer examples, each in two versions. */
+export const INT_SRC: Record<string, [string, string]> = {
+  narrow: [`#include <stdint.h>
+
+uint8_t add(uint8_t a, uint8_t b) {
+  return a + b;   // added as int, then cut to 8 bits
+}`, `#include <stdint.h>
+
+uint32_t add(uint32_t a, uint32_t b) {
+  return a + b;   // already 32 bits: nothing to cut
+}`],
+  compare: [`int below(int a, unsigned b) {
+  return a < b;   // a is converted to unsigned first
+}`, `int below(int a, int b) {
+  return a < b;   // both signed
+}`],
+  divide: [`int half(int x) {
+  return x / 2;   // rounds toward zero: -3 / 2 is -1
+}`, `unsigned half(unsigned x) {
+  return x / 2;   // never negative: just a shift
+}`],
+};
+
+/** The types whose size and alignment the integer page lists, measured by Clang. */
+export const C_TYPES = ['char', 'short', 'int', 'long', 'long long', 'float', 'double', 'void *', 'enum mode', '_Bool'];
+
+/** Struct examples: a layout, and a function that uses it. */
+export const STRUCT_SRC: Record<string, string> = {
+  order: `#include <stdint.h>
+
+struct packet {
+  uint8_t  kind;
+  uint32_t value;
+  uint8_t  flags;
+};
+
+uint32_t get(const struct packet *p) {
+  return p->value;
+}`,
+  reorder: `#include <stdint.h>
+
+struct packet {
+  uint32_t value;
+  uint8_t  kind;
+  uint8_t  flags;
+};
+
+uint32_t get(const struct packet *p) {
+  return p->value;
+}`,
+  packed: `#include <stdint.h>
+
+struct packet {
+  uint8_t  kind;
+  uint32_t value;
+  uint8_t  flags;
+} __attribute__((packed));
+
+uint32_t get(const struct packet *p) {
+  return p->value;
+}`,
+  bitfield: `#include <stdint.h>
+
+struct control {
+  uint32_t mode   : 2;
+  uint32_t enable : 1;
+  uint32_t div    : 5;
+  uint32_t count  : 12;
+};
+
+void start(struct control *c) {
+  c->enable = 1;
+}`,
+  regmap: `#include <stdint.h>
+
+typedef struct {
+  volatile uint32_t SR;    // status
+  volatile uint32_t DR;    // data
+  volatile uint32_t BRR;   // baud rate
+  volatile uint32_t CR1;   // control
+} USART_t;
+
+#define USART2 ((USART_t *)0x40004400)
+
+void send(uint8_t c) {
+  while (!(USART2->SR & (1u << 7)))
+    ;
+  USART2->DR = c;
+}`,
+};
+
+/** Pointer examples. */
+export const PTR_SRC: Record<string, string> = {
+  register: `#include <stdint.h>
+
+#define GPIOA_ODR (*(volatile uint32_t *)0x48000014)
+
+void led_on(void) {
+  GPIOA_ODR = 1u << 5;
+}`,
+  index: `#include <stdint.h>
+
+uint32_t at32(const uint32_t *p, int i) {
+  return p[i];       // the address p + 4 × i
+}
+
+uint8_t at8(const uint8_t *p, int i) {
+  return p[i];       // the address p + i
+}
+
+uint32_t next(const uint32_t *p) {
+  return *(p + 1);   // 4 bytes on, not 1
+}`,
+  member: `#include <stdint.h>
+
+struct point { int32_t x, y; };
+
+int32_t sum(const struct point *p) {
+  return p->x + p->y;
+}
+
+void move(struct point *p, int32_t dx) {
+  p->x += dx;
+}`,
+  fnptr: `typedef void (*handler_t)(void);
+
+void start(void);
+void stop(void);
+void reset(void);
+
+static const handler_t table[] = { start, stop, reset };
+
+void run(unsigned cmd) {
+  if (cmd < 3)
+    table[cmd]();
+}`,
+};
+
+/** Function examples, each in two versions. */
+export const FN_SRC: Record<string, [string, string]> = {
+  inline: [`#include <stdint.h>
+
+static inline uint32_t clamp(uint32_t x, uint32_t max) {
+  return x > max ? max : x;
+}
+
+uint32_t level(uint32_t a, uint32_t b) {
+  return clamp(a, 100) + clamp(b, 100);
+}`, `#include <stdint.h>
+
+__attribute__((noinline))
+static uint32_t clamp(uint32_t x, uint32_t max) {
+  return x > max ? max : x;
+}
+
+uint32_t level(uint32_t a, uint32_t b) {
+  return clamp(a, 100) + clamp(b, 100);
+}`],
+  args: [`int mix(int a, int b, int c, int d);
+
+int call(void) {
+  return mix(1, 2, 3, 4);
+}`, `int mix(int a, int b, int c, int d, int e, int f);
+
+int call(void) {
+  return mix(1, 2, 3, 4, 5, 6);
+}`],
+  static: [`int helper(int x) {
+  return x * 3;
+}
+
+int used(int x) {
+  return x + 1;
+}`, `static int helper(int x) {
+  return x * 3;
+}
+
+int used(int x) {
+  return x + 1;
+}`],
+  struct: [`struct point { int x, y; };
+
+int sum(struct point p) {
+  return p.x + p.y;
+}`, `struct point { int x, y; };
+
+int sum(const struct point *p) {
+  return p->x + p->y;
+}`],
+};
+
+export interface Field { name: string; type: string; offset: number; bits?: [number, number]; line: number }
+export interface Layout { name: string; size: number; align: number; fields: Field[] }
+
+/** The first struct in Clang's `-fdump-record-layouts` output: each field's offset (and bits), and the totals. */
+export function recordLayout(dump: string, src: string): Layout {
+  const block = dump.split('*** Dumping AST Record Layout')[1];
+  if (!block) throw new Error(`no record layout for\n${src}`);
+  const lines = block.split('\n').map((l) => l.trimEnd()).filter(Boolean);
+  const name = lines[0].replace(/^\s*0 \|\s*/, '');
+  const fields: Field[] = [];
+  for (const l of lines.slice(1)) {
+    const m = l.match(/^\s*(\d+)(?::(\d+)-(\d+))? \|\s+(.+?)\s+(\w+)$/);
+    if (!m) continue;
+    const line = src.split('\n').findIndex((t) => new RegExp(`\\b${m[5]}\\s*[:;]`).test(t)) + 1;
+    fields.push({ name: m[5], type: m[4], offset: Number(m[1]), ...(m[2] ? { bits: [Number(m[2]), Number(m[3])] as [number, number] } : {}), line });
+  }
+  const t = block.match(/\[sizeof=(\d+), align=(\d+)/);
+  if (!t) throw new Error(`no size in the layout of\n${src}`);
+  return { name, size: Number(t[1]), align: Number(t[2]), fields };
+}
+
+async function layoutOf(src: string) {
+  const b = box();
+  b.write('x.c', src);
+  return recordLayout(await b.run('clang', [...TARGET, '-Os', '-c', '-o', 'x.o', '-Xclang', '-fdump-record-layouts', 'x.c']), src);
+}
+
+/** Builds the C pages' data. */
+export async function generateC() {
+  const each = <T, U>(o: Record<string, T>, f: (v: T) => Promise<U>) =>
+    Promise.all(Object.entries(o).map(async ([k, v]) => [k, await f(v)] as const)).then((e) => Object.fromEntries(e) as Record<string, U>);
+  const keys = each(KEY_SRC, async (src) => {
+    const name = KEY_VAR[Object.keys(KEY_SRC).find((k) => KEY_SRC[k] === src)!];
+    const b = box();
+    b.write('x.c', src);
+    await b.run('clang', [...TARGET, '-Os', '-c', '-o', 'x.o', 'x.c']);
+    const [build, info] = await Promise.all([compile(src, '-Os'), inspect(b, 'x.o')]);
+    const sym = (await b.run('objdump', ['-t', 'x.o'])).split('\n')
+      .map((l) => l.match(/^([0-9a-f]{8}) (.{7}) (\S+)\t([0-9a-f]{8}) (\S+)$/)).find((m) => m?.[5] === name);
+    return {
+      ...build,
+      sym: sym ? { name, section: sym[3], size: parseInt(sym[4], 16), bind: sym[2][0] === 'l' ? 'local' : 'global' } : null,
+      relocs: info.relocs.map((r) => r.sym),
+    };
+  });
+  const ints = each(INT_SRC, (v) => Promise.all(v.map((s) => compile(s, '-Os'))));
+  const sizes = (async () => {
+    const one = async (t: string) => {
+      const head = 'enum mode { OFF, ON };\n';
+      const [a, b] = await Promise.all([layoutOf(`${head}struct s { ${t} x; };\nstruct s v;`), layoutOf(`${head}struct s { char c; ${t} x; };\nstruct s v;`)]);
+      return { type: t, size: a.size, align: b.fields[1].offset };
+    };
+    return Promise.all(C_TYPES.map(one));
+  })();
+  const structs = each(STRUCT_SRC, async (s) => ({ layout: await layoutOf(s), ...(await compile(s, '-Os')) }));
+  const ptrs = each(PTR_SRC, (s) => compile(s, '-Os'));
+  const fns = each(FN_SRC, (v) => Promise.all(v.map((s) => compile(s, '-Os'))));
+  return {
+    src: { keys: KEY_SRC, ints: INT_SRC, structs: STRUCT_SRC, ptrs: PTR_SRC, fns: FN_SRC },
+    keys: await keys, ints: await ints, sizes: await sizes, structs: await structs, ptrs: await ptrs, fns: await fns,
+  };
+}
+
 /** Builds all the data. Throws if a tool is missing or disagrees with itself. */
 export async function generate() {
   {

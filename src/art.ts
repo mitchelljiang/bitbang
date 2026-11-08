@@ -49,6 +49,11 @@ const ART: Record<string, () => string> = {
     .map(([y, runs, c]) => `<path d="M10 ${y + 6}H290" stroke="${C.dim}" stroke-width="1"/>`
       + runs.map(([x, w]) => rect(x, y, w, 12, c, 'fill-opacity="0.85"')).join('')).join('')
     + `<path d="M150 4v64" stroke="${C.gold}" stroke-width="2"/>`,
+  // A struct's twelve bytes: a byte, three of padding, a word, a byte and three more of padding.
+  c: () => ([[0, 1, C.blue], [1, 3, ''], [4, 4, C.gold], [8, 1, C.pink], [9, 3, '']] as const).map(([at, n, col]) =>
+    Array.from({ length: n }, (_, k) => rect(24 + (at + k) * 21.5, 22, 18, 28, col || 'none',
+      col ? 'fill-opacity="0.85"' : `stroke="${C.dim}" stroke-width="1.5" stroke-dasharray="3 3"`)).join('')).join('')
+    + `<path d="M24 60h${4 * 21.5 - 3.5}M110 60h${4 * 21.5 - 3.5}M196 60h${4 * 21.5 - 3.5}" stroke="${C.dim}" stroke-width="2"/>`,
   // C source lines on the left, the assembly they become on the right, one line and its instructions matched.
   compilers: () => [70, 92, 54, 80].map((w, i) => rect(18, 10 + i * 14, w, 7, i === 1 ? C.gold : C.dim)).join('')
     + `<path d="M132 36h28m-6-5 6 5-6 5" stroke="${C.dim}" stroke-width="2" fill="none" stroke-linecap="round"/>`

@@ -4,6 +4,7 @@ import { memoryTopics } from './memory';
 import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
 import { compilerTopics } from './compilers';
+import { cTopics } from './clang';
 import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
@@ -50,6 +51,11 @@ export const sections: Section[] = [
     categories: architectureTopics,
   },
   {
+    id: 'c', name: 'C for embedded',
+    blurb: 'The parts of C that matter on a microcontroller: where variables live, integer types, structs and bit fields, pointers and functions.',
+    categories: cTopics,
+  },
+  {
     id: 'compilers', name: 'Compilers',
     blurb: 'How C becomes the instructions in Flash: the preprocessor, compiler, assembler and linker, and what optimization changes.',
     categories: compilerTopics,
@@ -65,7 +71,7 @@ const by = (...ids: string[]) => ids.map((id) => sections.find((s) => s.id === i
 export const areas: Area[] = [
   { id: 'data', name: 'Data', sections: by('bits', 'protocols') },
   { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals') },
-  { id: 'software', name: 'Software', sections: by('compilers', 'concurrency') },
+  { id: 'software', name: 'Software', sections: by('c', 'compilers', 'concurrency') },
 ];
 export const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 
