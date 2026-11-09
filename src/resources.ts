@@ -37,7 +37,7 @@ const S = {
   m0trm: { kind: 'Datasheet', title: 'Arm Cortex-M0 Technical Reference Manual: instruction timing', url: 'https://support.arm.com/documentation/ddi0432/c/programmers-model/instruction-set-summary' },
   rp2040: { kind: 'Datasheet', title: 'Raspberry Pi RP2040 datasheet', url: RPI + 'rp2040/rp2040-datasheet.pdf' },
   rp2350: { kind: 'Datasheet', title: 'Raspberry Pi RP2350 datasheet', url: RPI + 'rp2350/rp2350-datasheet.pdf' },
-  pico: { kind: 'Datasheet', title: 'Raspberry Pi Pico datasheet', url: RPI + 'pico/pico-datasheet.pdf' },
+  pico2: { kind: 'Datasheet', title: 'Raspberry Pi Pico 2 datasheet', url: RPI + 'pico/pico-2-datasheet.pdf' },
   esp32: { kind: 'Datasheet', title: 'Espressif ESP32 technical reference manual', url: 'https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf' },
   esp32c3: { kind: 'Datasheet', title: 'Espressif ESP32-C3 technical reference manual', url: 'https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf' },
   ws2812: { kind: 'Datasheet', title: 'Worldsemi WS2812 datasheet', url: 'https://cdn-shop.adafruit.com/datasheets/WS2812.pdf' },
@@ -52,7 +52,7 @@ const S = {
   dac7311: { kind: 'Datasheet', title: 'Texas Instruments DAC7311 12-bit DAC datasheet', url: TI + 'ds/symlink/dac7311.pdf' },
   w25q: { kind: 'Datasheet', title: 'Winbond W25Q128JV serial flash datasheet', url: 'https://www.winbond.com/resource-files/w25q128jv%20revf%2003272018%20plus.pdf' },
   keystone: { kind: 'Datasheet', title: 'Texas Instruments SPRUGP1: KeyStone UART user guide', url: TI + 'ug/sprugp1/sprugp1.pdf' },
-  rp2040hw: { kind: 'Application note', title: 'Raspberry Pi: Hardware design with RP2040', url: RPI + 'rp2040/hardware-design-with-rp2040.pdf' },
+  rp2350hw: { kind: 'Application note', title: 'Raspberry Pi: Hardware design with RP2350', url: RPI + 'rp2350/hardware-design-with-rp2350.pdf' },
   rs485: { kind: 'Application note', title: 'Texas Instruments SLLA070: RS-422 and RS-485 overview', url: TI + 'an/slla070d/slla070d.pdf' },
   i2c: { kind: 'Specification', title: 'NXP UM10204: I²C-bus specification', url: 'https://www.nxp.com/docs/en/user-guide/UM10204.pdf' },
   i3c: { kind: 'Specification', title: 'MIPI I3C specification', url: 'https://www.mipi.org/specifications/i3c-sensor-specification' },
@@ -117,7 +117,7 @@ const PAGES: Record<string, Key[]> = {
   'architecture-start': ['cortexDocs', 'riscv'], instructions: ['pm0223', 'esp32c3', 'esp32', 'riscv', 'rp2350'], registers: ['pm0223', 'm0guide', 'aapcs'], addressing: ['m0guide', 'm4trm'], pipeline: ['m4trm', 'm0trm', 'm0guide'], branches: ['m4trm', 'm0trm'],
   'compilers-start': ['clang', 'lld'], preprocess: ['cpp', 'refPre'], compile: ['clang'], objects: ['elf', 'aaelf'], linking: ['aaelf', 'lld'], 'linker-script': ['rm0090', 'ld'], mapfile: ['lld', 'ld'], optimize: ['gccOpt', 'clang'], volatile: ['gccVol', 'refVolatile'], ub: ['c23', 'regehr', 'llvmRef'],
   'c-start': ['c23'], keywords: ['c23', 'refStorage'], integers: ['c23', 'aapcs', 'refInt'], structs: ['aapcs', 'c23', 'refStruct'], pointers: ['c23', 'refPtr'], functions: ['aapcs', 'refFn'],
-  'power-start': ['rp2040', 'rp2040hw'], 'clock-tree': ['rp2040', 'rp2040hw'], 'sleep-modes': ['rp2040', 'pico'], 'battery-life': ['rp2040', 'pico'], brownout: ['rp2040', 'rp2040hw'],
+  'power-start': ['rp2350', 'rp2350hw'], 'clock-tree': ['rp2350', 'rp2350hw'], 'sleep-modes': ['rp2350', 'pico2'], 'battery-life': ['rp2350', 'pico2'], brownout: ['rp2350', 'rp2350hw'],
   'drivers-start': ['rm0090', 'rp2040'], 'register-layer': ['rm0090', 'rp2040', 'gccVol'], hal: ['rp2040', 'picoSdk'], 'ring-buffer': ['rp2040', 'kring'], 'uart-driver': ['rp2040', 'keystone', 'rm0090'], 'dma-driver': ['rm0090', 'rp2040'],
 };
 

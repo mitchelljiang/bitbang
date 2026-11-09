@@ -1,85 +1,98 @@
 /**
- * The sleep modes page: which parts of an RP2040 run in each state, what wakes it, and the DVDD current the datasheet
- * measured (Table 637). Verify checks the numbers and that only the documented sources wake each state.
+ * The sleep modes page: the RP2350's power states, which of its five power domains each keeps on, what wakes it, and
+ * the power the datasheet measured (Tables 507, 1692 and 1693). Verify checks the states and numbers against those tables.
  */
 import { markSeg, oneOf, reservedStatus, seg, syncUrl } from './dbg';
 
-export const MODES = ['run', 'sleep', 'dormant'] as const;
+export const MODES = ['p00', 'p10', 'p13', 'p17'] as const;
 export type Mode = (typeof MODES)[number];
-/** Typical and maximum DVDD current in mA, RP2040 datasheet Table 637. Run is BOOTSEL mode, active. */
-export const CURRENT: Record<Mode, { typ: number; max: number }> = { run: { typ: 9.4, max: 14.7 }, sleep: { typ: 0.39, max: 4.5 }, dormant: { typ: 0.18, max: 4.2 } };
-export const WAKES: Record<Mode, string[]> = { run: [], sleep: ['interrupt'], dormant: ['gpio', 'rtc'] };
-export const SOURCES = [['interrupt', 'Timer interrupt'], ['gpio', 'GPIO edge'], ['rtc', 'RTC alarm']] as const;
+export const DOMAINS = ['AON', 'SWCORE', 'XIP', 'SRAM0', 'SRAM1'] as const;
+export type Domain = (typeof DOMAINS)[number];
+/** The domains each power state keeps on, Table 507. Pc.m: c = 1 turns SWCORE off; m's bits turn off XIP, SRAM0, SRAM1. */
+export const ON: Record<Mode, Domain[]> = {
+  p00: ['AON', 'SWCORE', 'XIP', 'SRAM0', 'SRAM1'],
+  p10: ['AON', 'XIP', 'SRAM0', 'SRAM1'],
+  p13: ['AON', 'XIP'],
+  p17: ['AON'],
+};
+/** Current in µA summed over the 3.3 V supplies, and total power in µW, as the datasheet tabulates them. */
+export const POWER: Record<Mode, { ua: number; uw: number }> = {
+  p00: { ua: 11000 + 212 + 455 + 22 + 1 + 90, uw: 38700 },
+  p10: { ua: 128 + 0.5 + 11 + 22 + 1 + 3.5, uw: 548 },
+  p13: { ua: 26 + 0.5 + 11 + 22 + 1 + 3.5, uw: 204 },
+  p17: { ua: 19 + 0.5 + 11 + 22 + 1 + 3.5, uw: 188 },
+};
+export const WAKE_SOURCES = [['gpio', 'GPIO edge'], ['alarm', 'AON timer alarm'], ['uart', 'UART byte']] as const;
+/** Low-power states wake only on a GPIO event or the timer alarm (6.2.3.2). */
+export const wakes = (m: Mode, k: string) => m !== 'p00' && (k === 'gpio' || k === 'alarm');
 
-const BLOCKS: { name: string; on: Record<Mode, boolean>; say: string }[] = [
-  { name: 'Processors', on: { run: true, sleep: false, dormant: false }, say: 'Stopped by a <code>wfi</code> or <code>wfe</code> instruction.' },
-  { name: 'Bus fabric', on: { run: true, sleep: false, dormant: false }, say: 'Clock-gated in Sleep if its bit in SLEEP_EN is clear.' },
-  { name: 'Peripherals', on: { run: true, sleep: true, dormant: false }, say: 'In Sleep, those left enabled in SLEEP_EN keep running, such as a UART that will wake the chip.' },
-  { name: 'Oscillators', on: { run: true, sleep: true, dormant: false }, say: 'Sleep leaves them running. Dormant stops them, which is why nothing can count time inside the chip.' },
-  { name: 'SRAM contents', on: { run: true, sleep: true, dormant: true }, say: 'System state is retained, so code resumes where it stopped.' },
-];
+const LABEL: Record<Mode, string> = { p00: 'P0.0 Run', p10: 'P1.0', p13: 'P1.3', p17: 'P1.7' };
+const NAME: Record<Domain, string> = { AON: 'Always-on', SWCORE: 'Processors and peripherals', XIP: 'XIP cache, boot RAM', SRAM0: 'SRAM banks 0–3', SRAM1: 'SRAM banks 4–9' };
+const WHAT: Record<Domain, string> = {
+  AON: 'A small amount of logic that stays powered whenever DVDD is present. It controls every other domain and runs the timer that can wake the chip.',
+  SWCORE: 'The switched core: both processors, the bus fabric and the peripherals. Powering it off loses their state.',
+  XIP: 'The flash cache and boot RAM. It must be on whenever the switched core is.',
+  SRAM0: 'The lower half of the large SRAM banks. A powered bank keeps its contents while the core is off.',
+  SRAM1: 'The upper half of the large SRAM banks, and the scratch SRAMs.',
+};
 const SAY: Record<Mode, string> = {
-  run: 'Everything is clocked. The figure is the chip in its USB boot loader with the bus active, 9.4 mA on DVDD.',
-  sleep: 'Both processors have stopped, so their clocks and, optionally, most others are gated off. An interrupt wakes the chip.',
-  dormant: 'All clocks and oscillators are off, so there is no dynamic power at all. Only a GPIO event or the RTC can wake it.',
+  p00: 'Everything is powered. The figure is CoreMark on one core at 150 MHz: 38.7 mW in total.',
+  p10: 'The switched core is off, so the processors have stopped and lost their state. All SRAM stays powered, so data survives.',
+  p13: 'As P1.0, with both large SRAM domains off too. Only the cache and boot RAM keep their contents.',
+  p17: 'Every memory is off and only the always-on domain is left: 188 µW. On waking, the program starts again with nothing retained.',
 };
 
 export function mountSleepModes(root: HTMLElement) {
-  let mode = oneOf('m', MODES, 'run');
+  let mode = oneOf('m', MODES, 'p00');
   let woke = '';
   root.innerHTML = `
     <section class="intro">
       <p class="crumbs">Energy</p>
       <h1>Sleep modes</h1>
-      <p>Most of the current a chip draws goes on switching its clocks, so the way to save power is to stop them. The
-        catch is that something has to start them again. Pick a state of the RP2040 to see what stops, and try what
-        wakes it up.</p>
+      <p>Stopping a clock saves the power a circuit spends switching, but the circuit still leaks. To save more, a chip must cut
+        the power itself, and then whatever that part was storing is gone. The RP2350 divides its core into five power domains
+        so you can choose. Pick a state to see what stays on, and try what wakes it up.</p>
     </section>
-    <section class="debugger slp" aria-label="Sleep modes">
-      <header class="dbg-bar"><span class="dbg-file">RP2040</span><div class="dbg-controls">${seg('m', 'State', [['run', 'Run'], ['sleep', 'Sleep'], ['dormant', 'Dormant']])}</div></header>
+    <section class="debugger slp" aria-label="Power states">
+      <header class="dbg-bar"><span class="dbg-file">RP2350</span><div class="dbg-controls">${seg('m', 'Power state', MODES.map((m) => [m, LABEL[m]]))}</div></header>
       <div class="slp-body">
         <div class="slp-blocks"></div>
         <div class="slp-right">
           <div class="slp-cur"></div>
-          <div class="slp-wake"><small>Try to wake it</small>${SOURCES.map(([k, l]) => `<button type="button" class="dbg-btn" data-w="${k}">${l}</button>`).join('')}</div>
+          <div class="slp-wake"><small>Try to wake it</small>${WAKE_SOURCES.map(([k, l]) => `<button type="button" class="dbg-btn" data-w="${k}">${l}</button>`).join('')}</div>
         </div>
       </div>
       <p class="dbg-status" aria-live="polite"></p>
     </section>
     <section class="prose">
-      <h2>Where the current goes</h2>
-      <p>A CMOS gate draws almost nothing while it holds still and spends energy each time it switches: power is roughly
-        proportional to capacitance, the voltage squared and the frequency. So stopping a clock removes nearly all of a
-        block’s current, even with the power still on. What remains is leakage, which grows quickly with temperature. That is why
-        the datasheet’s maximum for Dormant, measured on the worst silicon at the hot extreme, is 4.2 mA against a typical 0.18 mA.</p>
+      <h2>Reading the names</h2>
+      <p>A state is written Pc.m. If c is 1, the switched core is off. m is three bits, for XIP, SRAM0 and SRAM1, and a 1 means that domain is off.
+        So P1.0 has only the core off, and P1.7 has every memory off too. In P0 states the program is running; P1 states are low-power.</p>
+      <h2>What waking means</h2>
+      <p>P1 states are woken by up to four GPIO events or by the timer alarm in the always-on domain. Nothing else can do it, since the peripherals have no power. The
+        processors were off, so the chip does not carry on from where it stopped: it comes back through the boot path, and anything the program needs afterwards must be in a retained SRAM.</p>
       <h2>Sleep and Dormant</h2>
-      <p><strong>Sleep</strong> is entered when both processors are in <code>wfi</code> or <code>wfe</code> and DMA is idle.
-        The oscillators keep running, so waking is immediate, and SLEEP_EN chooses which clocks stay on. <strong>Dormant</strong>
-        stops every oscillator. It is entered by writing a keyword to the running oscillator’s DORMANT register. Waking requires a GPIO
-        event, or the RTC running from an external clock, and then waiting for the oscillator to restart. PLLs are not stopped by
-        Dormant, so software must power them down first and set them up again afterwards.</p>
+      <p>Within a P0 state the chip can also just stop clocks. <strong>Sleep</strong> is entered when both processors have enabled deep sleep and called <code>wfi</code>, with DMA stopped, and <code>SLEEP_EN</code> chooses which clocks stay on. <strong>Dormant</strong> stops the oscillators too. Both keep all state, so code resumes where it stopped, at a higher current than the P1 states. The datasheet does not tabulate their current, so they are not on the chart.</p>
       <h2>Reading the numbers</h2>
-      <p>These are currents into the core supply only. A real board also has its regulator’s quiescent current, flash, sensors and
-        pull-ups, which often dominate at this level. See <a href="?p=battery-life" data-nav>battery life</a> for what that does to a design.</p>
+      <p>These are totals across the chip’s 3.3 V supplies, including flash on its QSPI pins. Notice that going from P1.3 to P1.7 saves little: the supplies outside the core already take most of what remains. A real board adds its regulator’s quiescent current, sensors and pull-ups, which often dominate at this level. See <a href="?p=battery-life" data-nav>battery life</a>.</p>
     </section>`;
   const panel = root.querySelector<HTMLElement>('.slp')!;
-  const wakeSay = (m: Mode, k: string) => m === 'run' ? 'The chip is already awake.' : WAKES[m].includes(k) ? `Awake. ${k === 'interrupt' ? 'The interrupt restarts the processors straight away.' : 'An oscillator restarts, and once it is stable the program carries on from where it stopped.'}` : `Nothing happens: ${m === 'dormant' ? 'no clock is running to deliver an interrupt, so only a GPIO event or the RTC works.' : 'in Sleep, the program is waiting for an interrupt.'}`;
-  const say = reservedStatus(panel, [...Object.values(SAY), ...MODES.flatMap((m) => SOURCES.map(([k]) => wakeSay(m, k))), ...BLOCKS.map((b) => b.say)]);
+  const wakeSay = (m: Mode, k: string) => m === 'p00' ? 'The chip is already awake.' : wakes(m, k) ? `Awake. The always-on domain powers the core back up, and the chip restarts through its boot path.${m === 'p17' ? ' No SRAM survived.' : ''}` : 'Nothing happens. The UART is in the switched core, which has no power. Only a GPIO event or the timer alarm can wake the chip.';
+  const say = reservedStatus(panel, [...Object.values(SAY), ...MODES.flatMap((m) => WAKE_SOURCES.map(([k]) => wakeSay(m, k))), ...Object.values(WHAT)]);
   function draw() {
-    const log = (v: number) => (Math.log10(v / 0.1) / Math.log10(20 / 0.1)) * 100;
-    root.querySelector('.slp-blocks')!.innerHTML = BLOCKS.map((b, i) => `<button type="button" class="slp-b${b.on[mode] ? ' on' : ''}" data-b="${i}"><i></i>${b.name}<small>${b.on[mode] ? (b.name === 'SRAM contents' ? 'kept' : 'running') : 'stopped'}</small></button>`).join('');
-    root.querySelector('.slp-cur')!.innerHTML = MODES.map((m) => `<div class="slp-row${m === mode ? ' on' : ''}"><span>${m[0].toUpperCase()}${m.slice(1)}</span><div><i style="width:${log(CURRENT[m].typ)}%"></i></div><b>${CURRENT[m].typ} mA</b></div>`).join('') + '<small class="slp-note">Typical DVDD current, on a log scale</small>';
+    const scale = (uw: number) => (Math.log10(uw / 100) / Math.log10(100000 / 100)) * 100;
+    const fmt = (uw: number) => (uw >= 1000 ? `${(uw / 1000).toFixed(1)} mW` : `${uw} µW`);
+    root.querySelector('.slp-blocks')!.innerHTML = DOMAINS.map((d) => { const on = ON[mode].includes(d); return `<button type="button" class="slp-b${on ? ' on' : ''}" data-b="${d}"><i></i>${NAME[d]}<small>${on ? 'on' : 'off'}</small></button>`; }).join('');
+    root.querySelector('.slp-cur')!.innerHTML = MODES.map((m) => `<div class="slp-row${m === mode ? ' on' : ''}"><span>${m === 'p00' ? 'P0.0' : LABEL[m]}</span><div><i style="width:${scale(POWER[m].uw)}%"></i></div><b>${fmt(POWER[m].uw)}</b></div>`).join('') + '<small class="slp-note">Total power, on a log scale</small>';
     say(woke ? wakeSay(mode, woke) : SAY[mode]);
     markSeg(root, 'm', mode);
     syncUrl({ m: mode });
   }
   panel.addEventListener('click', (e) => {
     const t = e.target as Element, m = t.closest<HTMLElement>('[data-m]'), w = t.closest<HTMLElement>('[data-w]'), b = t.closest<HTMLElement>('[data-b]');
-    if (m) { mode = m.dataset.m as Mode; woke = ''; }
-    else if (w) { woke = w.dataset.w!; draw(); if (WAKES[mode].includes(woke)) { say(wakeSay(mode, woke)); } return; }
-    else if (b) { say(BLOCKS[Number(b.dataset.b)].say); return; }
-    else return;
-    draw();
+    if (m) { mode = m.dataset.m as Mode; woke = ''; draw(); }
+    else if (w) { woke = w.dataset.w!; draw(); }
+    else if (b) { say(WHAT[b.dataset.b as Domain]); }
   });
   draw();
 }

@@ -21,4 +21,4 @@ Two terms compete. If the device wakes often, the active term is larger and the 
 
 ## What this leaves out
 
-These are the RP2040’s core-supply figures from its datasheet, so a real product will do worse. Add the regulator’s own quiescent current, flash, sensors, a radio and pull-ups. Waking also costs energy: restarting oscillators and the PLL takes time at full current. A coin cell cannot supply large pulses, so bursts often need a capacitor. Measure with a real board before promising a number.
+These are the RP2350’s measured totals from its datasheet, with awake being CoreMark at 150 MHz, so a real product will do worse. Add the regulator’s own quiescent current, sensors, a radio and pull-ups. Waking also costs energy: leaving a P1 state runs the boot path, restarting oscillators and the PLL takes time at full current. A coin cell cannot supply large pulses, so bursts often need a capacitor. Measure with a real board before promising a number.

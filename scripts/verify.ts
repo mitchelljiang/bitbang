@@ -49,9 +49,9 @@ import { declLine } from '../src/topics/objects';
 import { assembleBl, compile as ccCompile, generate, generateC, haveTools, linkSynthetic } from './ccgen';
 import { REG_PROGRAM, REG_SRC, regFrames } from '../src/topics/registers';
 import { pll as clkPll } from '../src/topics/clocktree';
-import { CURRENT as SLEEP_CURRENT, WAKES as SLEEP_WAKES } from '../src/topics/sleepmodes';
+import { ON as SLEEP_ON, POWER as SLEEP_POWER, wakes as sleepWakes } from '../src/topics/sleepmodes';
 import { averageMa as batAverage, lifeHours as batLife } from '../src/topics/batterylife';
-import { bodVolts, dipOutcome } from '../src/topics/brownout';
+import { BOD_DEFAULT, bodVolts, dipOutcome } from '../src/topics/brownout';
 import { RING_C, newRing, ringCount, ringGet, ringPut } from '../src/topics/ringbuffer';
 import { byteUs, maxOffUs, uartRun } from '../src/topics/uartdriver';
 import { dmaRun } from '../src/topics/dmadriver';
@@ -1420,23 +1420,26 @@ section('3t. Power and clocks, Drivers, and sources');
   const firstKind = Object.entries(RESOURCES).filter(([, r]) => r.some((x) => x.kind === 'Datasheet') && r[0].kind !== 'Datasheet' && r[0].kind !== 'Specification').map(([id]) => id);
   check('sources: a page with a datasheet lists a datasheet or specification first', firstKind.length === 0, firstKind.join(' '));
 
-  // Clock tree: the datasheet's own numbers (RP2040 2.18.2).
+  // Clock tree: the datasheet's own numbers (RP2350 8.6.3).
   const P = (refdiv: number, fbdiv: number, pd1: number, pd2: number, max?: number) => clkPll({ refdiv, fbdiv, pd1, pd2 }, 12, max);
   check('clock tree: 12 MHz × 100 ÷ 6 ÷ 2 is the datasheet’s clean 100 MHz', P(1, 100, 6, 2).out === 100 && P(1, 100, 6, 2).vco === 1200 && !P(1, 100, 6, 2).errors.length);
   check('clock tree: 1500 MHz ÷ 6 ÷ 2 and 750 MHz ÷ 6 ÷ 1 are both 125 MHz', P(1, 125, 6, 2).out === 125 && clkPll({ refdiv: 1, fbdiv: 62.5, pd1: 6, pd2: 1 }).out === 125);
+  check('clock tree: 1500 MHz ÷ 5 ÷ 2 is the 150 MHz limit, and legal', P(1, 125, 5, 2).out === 150 && !P(1, 125, 5, 2).errors.length);
   const legal: number[] = []; for (let f = 16; f <= 320; f++) if (!P(1, f, 7, 7).errors.length) legal.push(f);
   check('clock tree: a 12 MHz crystal allows FBDIV 63 to 133 (756 to 1596 MHz VCO)', legal[0] === 63 && legal[legal.length - 1] === 133 && P(1, 63, 7, 7).vco === 756 && P(1, 133, 7, 7).vco === 1596);
-  check('clock tree: a 4 MHz reference is refused, and so is an output above the limit', P(3, 125, 6, 2).errors.some((e) => e.includes('5 MHz')) && P(1, 133, 3, 1).errors.some((e) => e.includes('133 MHz')));
+  check('clock tree: a 4 MHz reference is refused, and so is an output above 150 MHz', P(3, 125, 6, 2).errors.some((e) => e.includes('5 MHz')) && P(1, 133, 3, 1).errors.some((e) => e.includes('150 MHz')));
   check('clock tree: USB is 1200 MHz ÷ 5 ÷ 5 = 48 MHz', P(1, 100, 5, 5, 48).out === 48 && !P(1, 100, 5, 5, 48).errors.length);
 
-  // Sleep modes: Table 637, entered independently here.
-  const t637 = { sleep: [0.39, 4.5], dormant: [0.18, 4.2], run: [9.4, 14.7] } as const;
-  check('sleep modes: currents match RP2040 Table 637', (['run', 'sleep', 'dormant'] as const).every((m) => SLEEP_CURRENT[m].typ === t637[m][0] && SLEEP_CURRENT[m].max === t637[m][1]));
-  check('sleep modes: Sleep wakes by interrupt; Dormant only by GPIO or RTC', SLEEP_WAKES.sleep.join() === 'interrupt' && SLEEP_WAKES.dormant.join() === 'gpio,rtc');
+  // Power states: Tables 507 and 1692, entered independently here.
+  const t507: Record<string, number[]> = { p00: [1, 1, 1, 1, 1], p10: [1, 0, 1, 1, 1], p13: [1, 0, 1, 0, 0], p17: [1, 0, 0, 0, 0] };
+  check('power states: each keeps the domains the Pc.m name and Table 507 say', Object.entries(t507).every(([m, want]) => (['AON', 'SWCORE', 'XIP', 'SRAM0', 'SRAM1'] as const).every((d, i) => SLEEP_ON[m as keyof typeof SLEEP_ON].includes(d) === !!want[i])));
+  check('power states: P1.0, P1.3 and P1.7 draw 166, 64 and 57 µA in total (Table 1692)', SLEEP_POWER.p10.ua === 166 && SLEEP_POWER.p13.ua === 64 && SLEEP_POWER.p17.ua === 57 && SLEEP_POWER.p10.uw === 548 && SLEEP_POWER.p17.uw === 188);
+  check('power states: the tabulated totals agree with current × 3.3 V within 4%', (['p10', 'p13', 'p17'] as const).every((m) => Math.abs(SLEEP_POWER[m].ua * 3.3 - SLEEP_POWER[m].uw) / SLEEP_POWER[m].uw < 0.04), JSON.stringify(SLEEP_POWER));
+  check('power states: P1 wakes on GPIO or the timer alarm, never on a UART', sleepWakes('p17', 'gpio') && sleepWakes('p10', 'alarm') && !sleepWakes('p10', 'uart') && !sleepWakes('p00', 'gpio'));
 
   // Battery life: brute-force integration millisecond by millisecond.
   let batBad = '';
-  for (const [ia, ta, is, tp] of [[9.4, 2, 0.39, 100], [9.4, 10, 0.18, 1000], [9.4, 50, 0.39, 10000], [20, 1, 0.001, 5000]] as const) {
+  for (const [ia, ta, is, tp] of [[11.78, 2, 0.166, 100], [11.78, 10, 0.057, 1000], [11.78, 50, 0.166, 10000], [20, 1, 0.001, 5000]] as const) {
     let sum = 0; for (let t = 0; t < tp; t++) sum += t < ta ? ia : is;
     if (Math.abs(sum / tp - batAverage(ia, ta, is, tp)) > 1e-9) batBad += [ia, ta, is, tp].join() + ' ';
   }
@@ -1444,9 +1447,9 @@ section('3t. Power and clocks, Drivers, and sources');
   check('battery life: 220 mAh at 80% and 1 mA lasts 176 hours', batLife(220, 1) === 176);
 
   // Brown-out: the BOD register's table, typed out from the datasheet.
-  const vsel = [0.473, 0.516, 0.559, 0.602, 0.645, 0.688, 0.731, 0.774, 0.817, 0.860, 0.903, 0.946, 0.989, 1.032, 1.075, 1.118];
-  check('brown-out: all sixteen VSEL thresholds match the BOD register table', vsel.every((v, i) => bodVolts(i) === v));
-  check('brown-out: default is 0.860 V, and a 3 to 10 µs dip is uncertain', bodVolts(9) === 0.86 && dipOutcome(0.75, 5, 9) === 'maybe' && dipOutcome(0.75, 100, 9) === 'reset' && dipOutcome(0.75, 1, 9) === 'none' && dipOutcome(0.9, 100, 9) === 'none');
+  const vsel = [0.473, 0.516, 0.559, 0.602, 0.645, 0.688, 0.731, 0.774, 0.817, 0.860, 0.903, 0.946, 0.989, 1.032, 1.075, 1.118, 1.161, 1.204];
+  check('brown-out: all eighteen VSEL thresholds match the BOD register table', vsel.every((v, i) => bodVolts(i) === v));
+  check('brown-out: the reset value 0x0b is 0.946 V, and a 3 to 10 µs dip is uncertain', BOD_DEFAULT === 0x0b && bodVolts(BOD_DEFAULT) === 0.946 && dipOutcome(0.75, 5, 11) === 'maybe' && dipOutcome(0.75, 100, 11) === 'reset' && dipOutcome(0.75, 1, 11) === 'none' && dipOutcome(1.05, 100, 11) === 'none');
 
   // Drivers: the listings say what the pages say.
   const dasm = (k: keyof typeof C.drv) => C.drv[k].asm.filter((l) => l.kind === 'ins').map((l) => l.t);

@@ -189,16 +189,17 @@ const OVERVIEWS: Record<string, Overview> = {
   power: {
     intro: `Before a program can do anything, something has to supply a clock and a stable voltage. This section starts with where a chip’s
       frequencies come from, then looks at how it saves energy by stopping them, and at what protects it when the supply sags. The
-      pages use the RP2040, and every limit and current comes from its datasheet.`,
+      pages use the RP2350, and every limit and current comes from its datasheet.`,
     before: [
       { page: 'mcu', why: 'the parts of the chip that clocks feed' },
       { page: 'timers', why: 'a timer counts the clocks this section produces' },
     ],
-    read: `Each page has one diagram with a small set of controls. A value in red has gone out of range. Readouts under the diagram give the numbers, and currents are typical figures from the datasheet.`,
+    read: `Each page has one diagram with a small set of controls. A value in red has gone out of range. Readouts under the diagram give the numbers, and power figures are typical values from the datasheet.`,
     terms: [
       { term: 'PLL', def: 'A phase-locked loop: a circuit that multiplies a reference frequency.', page: 'clock-tree' },
       { term: 'VCO', def: 'The fast oscillator inside a PLL, whose speed is steered by a control voltage.', page: 'clock-tree' },
       { term: 'Clock gating', def: 'Stopping a block’s clock to save the power it spends switching.', page: 'sleep-modes' },
+      { term: 'Power domain', def: 'A part of the chip whose supply can be switched off on its own.', page: 'sleep-modes' },
       { term: 'Duty cycle', def: 'The fraction of the time a device is awake.', page: 'battery-life' },
       { term: 'Brown-out', def: 'A supply voltage that sags below what the chip needs, without going fully off.', page: 'brownout' },
     ],

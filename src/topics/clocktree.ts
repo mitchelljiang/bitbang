@@ -1,5 +1,5 @@
 /**
- * The clock tree page: the RP2040's PLL, from the crystal through the dividers to the system clock. `pll` holds the
+ * The clock tree page: the RP2350's PLL, from the crystal through the dividers to the system clock. `pll` holds the
  * datasheet's rules; verify checks it against the datasheet's own worked examples and limits.
  */
 import { markSeg, reservedStatus, seg, syncUrl } from './dbg';
@@ -7,8 +7,8 @@ import { markSeg, reservedStatus, seg, syncUrl } from './dbg';
 export const XOSC_MHZ = 12;
 export interface PllSet { refdiv: number; fbdiv: number; pd1: number; pd2: number }
 
-/** RP2040 datasheet 2.18.2: the frequencies a PLL setting gives, and every limit it breaks. `max` is that output's limit. */
-export function pll(s: PllSet, xosc = XOSC_MHZ, max = 133) {
+/** RP2350 datasheet 8.6.3: the frequencies a PLL setting gives, and every limit it breaks. `max` is that output's limit. */
+export function pll(s: PllSet, xosc = XOSC_MHZ, max = 150) {
   const ref = xosc / s.refdiv, vco = ref * s.fbdiv, out = vco / (s.pd1 * s.pd2);
   const errors: string[] = [];
   if (ref < 5) errors.push(`The reference is ${ref} MHz; the PLL needs at least 5 MHz.`);
@@ -22,7 +22,7 @@ export function pll(s: PllSet, xosc = XOSC_MHZ, max = 133) {
 }
 
 const PRESETS: Record<string, { label: string; set: PllSet; say: string }> = {
-  sys: { label: '125 MHz', set: { refdiv: 1, fbdiv: 125, pd1: 6, pd2: 2 }, say: 'The VCO runs at 1500 MHz and is divided by 12. A high VCO gives the least jitter, and costs the most power.' },
+  sys: { label: '150 MHz', set: { refdiv: 1, fbdiv: 125, pd1: 5, pd2: 2 }, say: 'The VCO runs at 1500 MHz and is divided by 10. A high VCO gives the least jitter, and costs the most power.' },
   low: { label: '126, low power', set: { refdiv: 1, fbdiv: 63, pd1: 6, pd2: 1 }, say: 'A 756 MHz VCO, the lowest a 12 MHz crystal allows, gives 126 MHz. A slower VCO uses less power, at the price of more jitter.' },
   usb: { label: 'USB 48 MHz', set: { refdiv: 1, fbdiv: 100, pd1: 5, pd2: 5 }, say: 'USB needs exactly 48 MHz: 1200 MHz divided by 25.' },
   hi: { label: 'Too fast', set: { refdiv: 1, fbdiv: 133, pd1: 3, pd2: 1 }, say: 'The VCO is legal, but the system clock would be 532 MHz.' },
@@ -40,7 +40,7 @@ export function mountClockTree(root: HTMLElement) {
       <h1>Clock tree</h1>
       <p>A crystal is stable but slow; a processor wants to be fast. A phase-locked loop bridges the two: it multiplies
         the crystal’s frequency, and dividers then bring it down to what each part of the chip needs. These are the real
-        limits of the RP2040’s PLL. Change the dividers and watch which stage goes out of range.</p>
+        limits of the RP2350’s PLL. Change the dividers and watch which stage goes out of range.</p>
     </section>
     <section class="debugger clk" aria-label="Clock tree">
       <header class="dbg-bar"><span class="dbg-file">pll_sys</span><div class="dbg-controls">${seg('p', 'Preset', KEYS.map((k) => [k, PRESETS[k].label]))}</div></header>
@@ -58,14 +58,14 @@ export function mountClockTree(root: HTMLElement) {
         clock; running it low saves power. With a 12 MHz crystal, the VCO’s 750 to 1600 MHz range means FBDIV must be
         between 63 and 133.</p>
       <h2>Branches of the tree</h2>
-      <p>The RP2040 has two PLLs: <code>pll_sys</code> for the processors, up to 133 MHz, and <code>pll_usb</code> for a
+      <p>The RP2350 has two PLLs: <code>pll_sys</code> for the processors, up to 150 MHz, and <code>pll_usb</code> for a
         48 MHz USB clock. From there, clock generators with their own dividers and glitchless switches feed the peripherals.
         It boots from an internal ring oscillator and only moves onto a PLL when software has set one up, so a bad setting cannot
         stop it from starting. Everything that counts time, from a <a href="?p=timers" data-nav>timer</a> to a UART’s baud rate,
         is derived from these clocks.</p>
     </section>`;
   const panel = root.querySelector<HTMLElement>('.clk')!;
-  const say = reservedStatus(panel, [...KEYS.map((k) => `${PRESETS[k].say} ${pll(PRESETS[k].set).errors.join(' ')}`), 'The reference is 4 MHz; the PLL needs at least 5 MHz. The VCO is at 560 MHz; it needs at least 750 MHz. The output is 560 MHz, above this clock’s 133 MHz limit.']);
+  const say = reservedStatus(panel, [...KEYS.map((k) => `${PRESETS[k].say} ${pll(PRESETS[k].set).errors.join(' ')}`), 'The reference is 4 MHz; the PLL needs at least 5 MHz. The VCO is at 560 MHz; it needs at least 750 MHz. The output is 560 MHz, above this clock’s 150 MHz limit.']);
   function draw() {
     const p = pll(set);
     const bad = (t: string) => p.errors.some((e) => e.includes(t));
