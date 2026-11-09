@@ -87,10 +87,10 @@ export const COND = ['eq', 'ne', 'cs', 'cc', 'mi', 'pl', 'vs', 'vc', 'hi', 'ls',
 const COND_TEXT = ['equal (Z set)', 'not equal (Z clear)', 'carry set, unsigned ≥', 'carry clear, unsigned <', 'negative (N set)', 'positive or zero (N clear)',
   'overflow (V set)', 'no overflow (V clear)', 'unsigned >', 'unsigned ≤', 'signed ≥', 'signed <', 'signed >', 'signed ≤'];
 /** RISC-V's branches by funct3; 010 and 011 are unassigned. */
-export const RV_COND = ['beq', 'bne', null, null, 'blt', 'bge', 'bltu', 'bgeu'];
+const RV_COND = ['beq', 'bne', null, null, 'blt', 'bge', 'bltu', 'bgeu'];
 const RV_TEXT = ['=', '≠', '', '', '< (signed)', '≥ (signed)', '< (unsigned)', '≥ (unsigned)'];
 /** Xtensa's branches by the r field. BBCI and BBSI use r's low bit as the top bit of a 5-bit bit number. */
-export const XT_COND = ['bnone', 'beq', 'blt', 'bltu', 'ball', 'bbc', 'bbci', 'bbci', 'bany', 'bne', 'bge', 'bgeu', 'bnall', 'bbs', 'bbsi', 'bbsi'];
+const XT_COND = ['bnone', 'beq', 'blt', 'bltu', 'ball', 'bbc', 'bbci', 'bbci', 'bany', 'bne', 'bge', 'bgeu', 'bnall', 'bbs', 'bbsi', 'bbsi'];
 
 const width = (f: Field) => f.hi - f.lo + 1;
 const fieldVal = (w: number, f: Field) => (w >>> f.lo) & ((1 << width(f)) - 1);
@@ -107,7 +107,7 @@ export const decode = (isa: IsaId, id: string, w: number) => Object.fromEntries(
 export const opcodeOk = (isa: IsaId, id: string, w: number) => ((w ^ formOf(isa, id).fixed) & opMask(formOf(isa, id))) === 0;
 
 /** The immediate, put together from its fields and sign-extended, before scaling. */
-export function rawImm(form: FormDef, w: number) {
+function rawImm(form: FormDef, w: number) {
   if (!form.imm) return 0;
   const v = form.fields.filter((f) => f.kind === 'imm').reduce((a, f) => a + fieldVal(w, f) * 2 ** (f.at ?? 0), 0);
   return form.imm.signed && v >= 2 ** (form.imm.bits - 1) ? v - 2 ** form.imm.bits : v;

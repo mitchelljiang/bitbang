@@ -246,6 +246,10 @@ export function parseNumber(s: string): number | null {
 export const hexN = (v: number, width: number) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(width / 4, '0');
 /** A 32-bit address or word: 0x2001FFF8. */
 export const hex8 = (v: number) => hexN(v, 32);
+/** A 12-bit address: 0x3FC. */
+export const hex3 = (v: number) => hexN(v, 12);
+/** A 32-bit address as the linker prints it, in lower case: 0x20000004. */
+export const h8 = (v: number) => `0x${(v >>> 0).toString(16).padStart(8, '0')}`;
 export const binN = (v: number, width: number) => ((v >>> 0).toString(2).padStart(width, '0').match(/.{4}/g) ?? []).join(' ');
 
 /** Back / Step / Play / Restart: the controls every stepped walkthrough shares, drawn in the panel's button class. */

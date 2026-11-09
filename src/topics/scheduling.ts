@@ -22,8 +22,8 @@ export const TASKS: Task[] = [
 export const HORIZON = 20;
 
 export interface Run { task: TaskId | 'idle'; t0: number; t1: number }
-export interface Job { task: TaskId; release: number; deadline: number; left: number; done: number | null }
-export interface Schedule { runs: Run[]; jobs: Job[]; ready: { task: TaskId; t0: number; t1: number }[] }
+interface Job { task: TaskId; release: number; deadline: number; left: number; done: number | null }
+interface Schedule { runs: Run[]; jobs: Job[]; ready: { task: TaskId; t0: number; t1: number }[] }
 
 /** Utilization, the fraction of the CPU the tasks need, and the Liu and Layland bound n(2^(1/n) − 1). */
 export const utilization = (tasks: Task[]) => tasks.reduce((u, t) => u + t.c / t.period, 0);

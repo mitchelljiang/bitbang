@@ -93,12 +93,46 @@ export function cursor(root: HTMLElement, t: number, end: number) {
   if (track && head) head.style.left = `${track.offsetLeft + (t / end) * track.offsetWidth}px`;
 }
 
-export interface Stepper {
+interface Stepper {
   /** Shows step `i`. */
   go(i: number): void;
   /** Swaps in a new trace and its steps (after a setting changes) and shows step `i`. */
   load(t: Trace, steps: Step[], i?: number): void;
   readonly at: number;
+}
+
+/**
+ * Back / Step / Play / Restart for a trace panel. Play pauses on each step long enough to read it (a base time plus
+ * reading time for the text, up to `maxWait` ms) and stops at the last step or once the panel is gone.
+ */
+export function transport(panel: Element, o: { count: () => number; at: () => number; go: (i: number) => void; note: () => string; maxWait: number }) {
+  let timer: number | undefined;
+  const label = (text: string) => { panel.querySelector('[data-act="play"]')!.textContent = text; };
+  const last = () => o.at() >= o.count() - 1;
+  const dwell = () => Math.min(o.maxWait, 1600 + o.note().replace(/<[^>]+>/g, '').length * 42);
+  const stop = () => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+    label('Play');
+  };
+  const tick = () => {
+    if (last() || !panel.isConnected) return stop();
+    o.go(o.at() + 1);
+    timer = window.setTimeout(tick, dwell());
+  };
+  const press = (act?: string) => {
+    if (act === 'step') { stop(); o.go(o.at() + 1); }
+    else if (act === 'back') { stop(); o.go(o.at() - 1); }
+    else if (act === 'restart') { stop(); o.go(0); }
+    else if (act === 'play') {
+      if (timer !== undefined) return stop();
+      if (last()) o.go(0);
+      label('Pause');
+      timer = window.setTimeout(tick, dwell());
+    }
+  };
+  return { stop, press };
 }
 
 /**
@@ -110,7 +144,6 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
   let steps: Step[] = [];
   let widths: number[] = [];
   let at = 0;
-  let timer: number | undefined;
   const btn = (a: string) => root.querySelector<HTMLButtonElement>(`.trace [data-act="${a}"]`);
 
   function draw() {
@@ -126,22 +159,9 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
     onStep?.(s, at);
   }
 
-  // Play pauses on each step long enough to read it: a base time plus reading time for the text.
-  const dwell = () => Math.min(8000, 1600 + steps[at].note.replace(/<[^>]+>/g, '').length * 42);
-  const stop = () => {
-    if (timer === undefined) return;
-    clearTimeout(timer);
-    timer = undefined;
-    btn('play')!.textContent = 'Play';
-  };
   const panel = root.querySelector('.trace')!;
-  const tick = () => {
-    // The reader may have moved to another page while playing; stop once this panel is gone.
-    if (at >= steps.length - 1 || !panel.isConnected) return stop();
-    go(at + 1);
-    timer = window.setTimeout(tick, dwell());
-  };
   const go = (i: number) => { at = Math.max(0, Math.min(steps.length - 1, i)); draw(); };
+  const { stop, press } = transport(panel, { count: () => steps.length, at: () => at, go, note: () => steps[at].note, maxWait: 8000 });
 
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
@@ -151,16 +171,7 @@ export function stepper(root: HTMLElement, onStep?: (s: Step, i: number) => void
       if (i >= 0) { stop(); go(i); }
       return;
     }
-    const act = t.closest<HTMLElement>('.trace [data-act]')?.dataset.act;
-    if (act === 'step') { stop(); go(at + 1); }
-    else if (act === 'back') { stop(); go(at - 1); }
-    else if (act === 'restart') { stop(); go(0); }
-    else if (act === 'play') {
-      if (timer !== undefined) return stop();
-      if (at === steps.length - 1) go(0);
-      btn('play')!.textContent = 'Pause';
-      timer = window.setTimeout(tick, dwell());
-    }
+    press(t.closest<HTMLElement>('.trace [data-act]')?.dataset.act);
   });
   root.querySelector('.trace')!.addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key;

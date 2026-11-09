@@ -1,6 +1,6 @@
 import type { Bit, Field, Kind, Note, Protocol, TourStop } from '../core/types';
 import { TraceBuilder, hex } from '../core/util';
-import { FRAME_PARAMS, buildFrame } from './ethcommon';
+import { FRAME_PARAMS, buildFrame, placeSections } from './ethcommon';
 import { encode8b10b } from './pcie';
 
 const K = (x: number, y: number) => (y << 5) | x;
@@ -133,12 +133,7 @@ export const gigabitX: Protocol = {
     fields.push({ lane: 1, t0: 1, t1: s, label: 'Idle', kind: 'dummy' }, { lane: 1, t0: s, t1: s + 10, label: '/S/', kind: 'start' });
     let at = s + 10;
     const spans: Record<string, [number, number]> = {};
-    f.sections.forEach((sec, k) => {
-      const n = (k === 0 ? sec.bytes.length - 1 : sec.bytes.length) * 10;
-      if (n) fields.push({ lane: 1, t0: at, t1: at + n, label: k === 0 ? 'Preamble (6 × 0x55)' : sec.label, kind: sec.kind });
-      spans[sec.id] = [at, at + n];
-      at += n;
-    });
+    at = placeSections(f, at, fields, spans);
     const endAt = at;
     const endGroups = groups.filter((g) => g.kind === 'stop').length;
     fields.push({ lane: 1, t0: at, t1: at + endGroups * 10, label: '/T/ /R/', kind: 'stop' });

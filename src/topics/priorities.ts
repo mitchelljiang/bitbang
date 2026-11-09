@@ -19,7 +19,7 @@ export const END = 60;
 const MAIN = 256;
 const STACK = 1;
 
-export interface PSeg {
+interface PSeg {
   lane: Irq | 'main';
   t0: number;
   t1: number;
@@ -29,7 +29,7 @@ export interface PSeg {
   note: string;
 }
 
-export interface PTrace { segs: PSeg[]; pending: { id: Irq; t0: number; t1: number }[] }
+interface PTrace { segs: PSeg[]; pending: { id: Irq; t0: number; t1: number }[] }
 
 /**
  * One CPU with an NVIC. An interrupt preempts only if its priority number is strictly lower than the running one's.

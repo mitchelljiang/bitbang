@@ -1,6 +1,6 @@
 import { esc } from '../core/render';
 import { hex } from '../core/util';
-import { binN, bit, code, highlight, readHex, syncUrl } from './dbg';
+import { binN, bit, code, hex2, highlight, readHex, syncUrl } from './dbg';
 
 export type Op = 'and' | 'or' | 'xor' | 'not';
 const OPS: Op[] = ['and', 'or', 'xor', 'not'];
@@ -160,7 +160,6 @@ export function mountBitwise(root: HTMLElement) {
     root.querySelector('[data-code="uses"] code')!.innerHTML = highlight(IDIOMS[state.op]);
     last = vals;
 
-    const hex2 = (v: number) => v.toString(16).toUpperCase().padStart(2, '0');
     syncUrl({ a: hex2(state.a), b: hex2(state.b), op: state.op });
   }
 

@@ -7,7 +7,7 @@
  */
 import { markSeg, seg, status, syncUrl } from './dbg';
 import { eq } from './math';
-import { waveHtml, type WaveLane, type WaveMark } from './wave';
+import { waveHtml, waveScreen, type WaveLane, type WaveMark } from './wave';
 
 export interface TimerRun {
   /** The counter during each timer-clock cycle. */
@@ -44,10 +44,10 @@ export const updateHz = (clk: number, psc: number, arr: number) => clk / ((psc +
 export const CLK = 16e6; // the STM32F4's internal 16 MHz oscillator, its clock out of reset
 const PSCS = [0, 1, 2, 3];
 const ARRS = [3, 5, 7, 11];
-export const WINDOW = 48;
+const WINDOW = 48;
 
 /** A time the way a datasheet writes it. */
-export const secs = (t: number) => t >= 1 ? `${+t.toFixed(3)} s` : t >= 1e-3 ? `${+(t * 1e3).toFixed(3)} ms` : t >= 1e-6 ? `${+(t * 1e6).toFixed(3)} µs` : `${+(t * 1e9).toFixed(1)} ns`;
+const secs = (t: number) => t >= 1 ? `${+t.toFixed(3)} s` : t >= 1e-3 ? `${+(t * 1e3).toFixed(3)} ms` : t >= 1e-6 ? `${+(t * 1e6).toFixed(3)} µs` : `${+(t * 1e9).toFixed(1)} ns`;
 
 /** A frequency the way a datasheet writes it. */
 export const hz = (f: number) => f >= 1e6 ? `${+(f / 1e6).toFixed(3)} MHz` : f >= 1e3 ? `${+(f / 1e3).toFixed(2)} kHz` : `${+f.toFixed(2)} Hz`;
@@ -88,11 +88,7 @@ export function mountTimers(root: HTMLElement) {
           <div class="pf-ctl"><span>ARR</span>${seg('arr', 'Auto-reload', ARRS.map((v) => [String(v), String(v)]))}</div>
         </div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen()}
     </section>
     <section class="prose">
       <h2>Two dividers in a row</h2>

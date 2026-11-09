@@ -7,13 +7,13 @@
  */
 import { markSeg, seg, status, syncUrl } from './dbg';
 import { eq } from './math';
-import { waveHtml, type WaveLane, type WaveMark } from './wave';
+import { waveHtml, waveScreen, type WaveLane, type WaveMark } from './wave';
 
 /** The pin, as (time in ms, level) edges. It idles high on a pull-up; pressing connects it to ground. */
-export const PRESS: [number, number][] = [[0, 1], [7.6, 0], [8.2, 1], [8.4, 0], [9.7, 1], [11.6, 0], [12.1, 1], [12.3, 0]];
-export const RELEASE: [number, number][] = [[38.0, 1], [38.3, 0], [38.9, 1], [39.6, 0], [40.4, 1]];
+const PRESS: [number, number][] = [[0, 1], [7.6, 0], [8.2, 1], [8.4, 0], [9.7, 1], [11.6, 0], [12.1, 1], [12.3, 0]];
+const RELEASE: [number, number][] = [[38.0, 1], [38.3, 0], [38.9, 1], [39.6, 0], [40.4, 1]];
 /** A brief spike while the button is held, such as a nearby motor switching. */
-export const SPIKE: [number, number][] = [[25.2, 1], [25.5, 0]];
+const SPIKE: [number, number][] = [[25.2, 1], [25.5, 0]];
 export const END = 50;
 
 export const raw = (noise: boolean) => [...PRESS, ...(noise ? SPIKE : []), ...RELEASE];
@@ -80,11 +80,7 @@ export function mountDebounce(root: HTMLElement) {
           <div class="pf-ctl"><span>Noise</span>${seg('noise', 'Noise spike', [['0', 'Off'], ['1', 'On']])}</div>
         </div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen()}
     </section>
     <section class="prose">
       <h2>Why contacts bounce</h2>

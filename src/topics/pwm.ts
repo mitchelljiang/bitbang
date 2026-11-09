@@ -7,7 +7,7 @@
 import { markSeg, seg, status, syncUrl } from './dbg';
 import { eq } from './math';
 import { CLK, hz, timer, timerLanes } from './timers';
-import { waveHtml } from './wave';
+import { waveHtml, waveScreen } from './wave';
 
 export type PwmMode = 1 | 2;
 
@@ -48,11 +48,7 @@ export function mountPwm(root: HTMLElement) {
           <div class="pf-ctl"><span>Mode</span>${seg('mode', 'PWM mode', [['1', 'PWM 1'], ['2', 'PWM 2']])}</div>
         </div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen()}
     </section>
     <section class="prose">
       <h2>Compare, then switch</h2>

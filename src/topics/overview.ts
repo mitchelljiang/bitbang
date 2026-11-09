@@ -18,7 +18,7 @@ interface Overview {
   terms: Term[];
 }
 
-export const OVERVIEWS: Record<string, Overview> = {
+const OVERVIEWS: Record<string, Overview> = {
   protocols: {
     intro: `A protocol is the agreement two chips share about what the voltages on a few wires mean: when to read the
       line, which bit comes first, how a message starts and ends, and who may talk next. This section draws each one
@@ -220,7 +220,7 @@ const open = (id: string) => statusOf.get(id) !== 'soon';
 const link = (id: string, text = entry(id)?.name ?? id) => (live(id) ? `<a href="?p=${id}" data-nav>${esc(text)}</a>` : esc(text));
 
 /** The section's groups in order, skipping its own Start here group. */
-export const routeOf = (id: string) => allSections.find((s) => s.id === id)!.categories.filter((c) => !c.entries.some((e) => e.id === `${id}-start`));
+const routeOf = (id: string) => allSections.find((s) => s.id === id)!.categories.filter((c) => !c.entries.some((e) => e.id === `${id}-start`));
 
 export const overview = (id: string) => (root: HTMLElement) => {
   const o = OVERVIEWS[id], s = allSections.find((x) => x.id === id)!;

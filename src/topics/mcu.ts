@@ -9,6 +9,7 @@ import { esc } from '../core/render';
 import { concurrencyTopics } from '../concurrency';
 import { memoryTopics } from '../memory';
 import { IRQS } from './priorities';
+import { transport } from './timeline';
 
 export type Part = 'chip' | 'cpu' | 'nvic' | 'systick' | 'flash' | 'vectors' | 'sram' | 'stack' | 'periph' | 'tim2' | 'usart2' | 'adc' | 'gpio';
 
@@ -215,7 +216,6 @@ export function mountMcu(root: HTMLElement) {
     </section>`;
 
   let at = 0;
-  let timer: number | undefined;
   const panel = root.querySelector('.trace')!;
   const btn = (a: string) => root.querySelector<HTMLButtonElement>(`[data-act="${a}"]`)!;
 
@@ -230,34 +230,13 @@ export function mountMcu(root: HTMLElement) {
     btn('step').disabled = at === STEPS.length - 1;
   }
   const go = (i: number) => { at = Math.max(0, Math.min(STEPS.length - 1, i)); draw(); };
-  const stop = () => {
-    if (timer === undefined) return;
-    clearTimeout(timer);
-    timer = undefined;
-    btn('play').textContent = 'Play';
-  };
-  // The same pacing as the trace pages: a base time plus reading time for the text.
-  const dwell = () => Math.min(9000, 1600 + STEPS[at].note.replace(/<[^>]+>/g, '').length * 42);
-  const tick = () => {
-    if (at >= STEPS.length - 1 || !panel.isConnected) return stop();
-    go(at + 1);
-    timer = window.setTimeout(tick, dwell());
-  };
+  const { stop, press } = transport(panel, { count: () => STEPS.length, at: () => at, go, note: () => STEPS[at].note, maxWait: 9000 });
 
   root.addEventListener('click', (e) => {
     const t = e.target as Element;
     const p = t.closest<HTMLElement>('.pm-part')?.dataset.part as Part | undefined;
     if (p) { stop(); go(firstStep(p)); return; }
-    const act = t.closest<HTMLElement>('.trace [data-act]')?.dataset.act;
-    if (act === 'step') { stop(); go(at + 1); }
-    else if (act === 'back') { stop(); go(at - 1); }
-    else if (act === 'restart') { stop(); go(0); }
-    else if (act === 'play') {
-      if (timer !== undefined) return stop();
-      if (at === STEPS.length - 1) go(0);
-      btn('play').textContent = 'Pause';
-      timer = window.setTimeout(tick, dwell());
-    }
+    press(t.closest<HTMLElement>('.trace [data-act]')?.dataset.act);
   });
   panel.addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key;

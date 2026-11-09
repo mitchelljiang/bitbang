@@ -73,7 +73,7 @@ export const areas: Area[] = [
   { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals') },
   { id: 'software', name: 'Software', sections: by('c', 'compilers', 'concurrency') },
 ];
-export const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
+const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 
 /** The section's pages in reading order, skipping ones without a page yet. */
 export const pagesOf = (s: Section) => s.categories.flatMap((c) => c.entries.filter((e) => statusOf.get(e.id) !== 'soon'));

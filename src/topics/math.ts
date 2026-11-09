@@ -14,7 +14,7 @@ const SPACE: Record<string, string> = { ',': '0.17em', ';': '0.28em', ' ': '0.33
 const OPS = '+-=()[]/,<>|!';
 
 /** Converts the LaTeX subset to MathML (the inner content of a <math> element). */
-export function mathml(src: string): string {
+function mathml(src: string): string {
   let i = 0;
   const group = (): string => {
     // A braced group, or a single atom when there are no braces.

@@ -7,7 +7,7 @@
  */
 import { markSeg, seg, status, stepButtons, syncUrl, walkthrough } from './dbg';
 import { eq } from './math';
-import { waveHtml, type WaveLane } from './wave';
+import { waveHtml, waveScreen, type WaveLane } from './wave';
 
 export interface SarStep { bit: number; trial: number; volts: number; keep: boolean }
 
@@ -57,12 +57,7 @@ export function mountAdc(root: HTMLElement) {
         </div>
         <div class="dbg-controls">${stepButtons()}</div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-        <div class="ad-reg"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen('<div class="ad-reg"></div>')}
     </section>
     <section class="prose">
       <h2>A binary search in hardware</h2>

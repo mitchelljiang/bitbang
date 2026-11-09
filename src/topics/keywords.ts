@@ -6,7 +6,7 @@ import { C } from './cdata';
 import { asOut, explorer, explorerHtml, maxRows, sizeNote } from './cc';
 import { markSeg, oneOf, seg, syncUrl } from './dbg';
 
-export const KEY_CASES = ['local', 'global', 'static', 'staticlocal', 'const', 'extern'] as const;
+const KEY_CASES = ['local', 'global', 'static', 'staticlocal', 'const', 'extern'] as const;
 type Case = (typeof KEY_CASES)[number];
 const NAMES: Record<Case, string> = { local: 'Local', global: 'Global', static: 'static', staticlocal: 'static local', const: 'const', extern: 'extern' };
 

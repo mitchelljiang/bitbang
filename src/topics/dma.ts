@@ -9,7 +9,7 @@ import { esc } from '../core/render';
 import { hexN, markSeg, seg, status, stepButtons, syncUrl, walkthrough } from './dbg';
 import { eq } from './math';
 
-export interface Xfer {
+interface Xfer {
   /** Which byte of the stream this was. */
   byte: number;
   /** The buffer index it was written to, or null if the stream was off and it was lost. */
@@ -36,7 +36,7 @@ export function dma(bytes: number, size: number, circular: boolean): Xfer[] {
   return out;
 }
 
-export const SIZE = 8;
+const SIZE = 8;
 const BASE = 0x2000_0100;
 const TEXT = 'HELLO WORLD!';
 

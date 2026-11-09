@@ -10,7 +10,7 @@ import { markSeg, oneOf, seg, syncUrl } from './dbg';
 const DEBUG = ['off', 'on'] as const;
 const PIN = ['5', '9'] as const;
 /** The variant the generator built for these flags. */
-export const preVariant = (debug: string, pin: string) =>
+const preVariant = (debug: string, pin: string) =>
   debug === 'on' ? (pin === '9' ? 'both' : 'debug') : pin === '9' ? 'pin' : 'plain';
 
 const PRE_SRC = CC.src.pre;

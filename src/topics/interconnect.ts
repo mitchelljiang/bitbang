@@ -6,7 +6,7 @@
 import { status, syncUrl } from './dbg';
 
 export interface Master { id: string; name: string; note: string }
-export interface Slave { id: string; name: string; short?: string; addr: string }
+interface Slave { id: string; name: string; short?: string; addr: string }
 
 /** The bus masters, in arbitration priority order (highest first): the core wins a tie, then DMA2, then DMA1. */
 export const MASTERS: Master[] = [
@@ -23,7 +23,7 @@ const SLAVES: Slave[] = [
   { id: 'periph', name: 'Peripherals', short: 'Periph', addr: '0x40000000' },
 ];
 
-export type Grant = 'go' | 'wait';
+type Grant = 'go' | 'wait';
 
 /**
  * The arbiter's decision for one cycle. A master proceeds unless a higher-priority master wants the same slave; then it

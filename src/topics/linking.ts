@@ -4,14 +4,13 @@
  */
 import { esc } from '../core/render';
 import { CC } from './ccdata';
-import { stepButtons, walkthrough, syncUrl } from './dbg';
+import { h8, stepButtons, walkthrough, syncUrl } from './dbg';
 
 const L = CC.link;
 export const FLASH = 0x08000000, SRAM = 0x20000000;
 const FILES = ['main.o', 'math.o'] as const;
 type File = (typeof FILES)[number];
 const align = (v: number, a: number) => Math.ceil(v / a) * a;
-const h8 = (v: number) => `0x${(v >>> 0).toString(16).padStart(8, '0')}`;
 
 /** A BL's offset from its two halfwords (Thumb-2 encoding T1: S, J1, J2, imm10, imm11). */
 export function blOffset(hw1: number, hw2: number) {
@@ -30,7 +29,7 @@ const word = (h: string) => { const b = h.split(' ').map((x) => parseInt(x, 16))
 const wordHex = (v: number) => [0, 8, 16, 24].map((k) => ((v >>> k) & 0xff).toString(16).padStart(2, '0')).join(' ');
 const hwHex = (a: number[]) => a.map((x) => x.toString(16).padStart(4, '0')).join(' ');
 
-export interface Patch { file: File; at: number; P: number; type: string; sym: string; S: number; A: number; value: number; before: string; after: string }
+interface Patch { file: File; at: number; P: number; type: string; sym: string; S: number; A: number; value: number; before: string; after: string }
 
 /**
  * The link, as LLD does it with the page's linker script: .text from each file in order in Flash, .data in SRAM with

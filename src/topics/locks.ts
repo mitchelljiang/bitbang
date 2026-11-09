@@ -10,7 +10,7 @@ export type Mode = 'plain' | 'inherit' | 'signal';
 export const MODES: Mode[] = ['plain', 'inherit', 'signal'];
 type Obj = 'm' | 's';
 type Op = { run: number } | { take: Obj } | { give: Obj } | { loop: number };
-export interface TaskDef { id: string; name: string; prio: number; releases: number[]; ops: Op[]; color: string; sub: string }
+interface TaskDef { id: string; name: string; prio: number; releases: number[]; ops: Op[]; color: string; sub: string }
 
 /** In FreeRTOS a higher number is a higher priority, the opposite of the NVIC. */
 const MUTEX_TASKS: TaskDef[] = [
@@ -25,7 +25,7 @@ const SIGNAL_TASKS: TaskDef[] = [
 ];
 export const END = 22;
 
-export interface Tick { run: string | null; hold: boolean; eff: number; state: Record<string, 'run' | 'ready' | 'blocked' | 'off'> }
+interface Tick { run: string | null; hold: boolean; eff: number; state: Record<string, 'run' | 'ready' | 'blocked' | 'off'> }
 export interface Sim { tasks: TaskDef[]; ticks: Tick[]; events: { t: number; text: string }[]; owner: (string | null)[] }
 
 /** Runs the scenario for `mode` one 1 ms tick at a time. */

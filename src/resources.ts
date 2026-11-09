@@ -10,7 +10,7 @@
  *     { kind: 'Datasheet', title: 'TI: KeyStone UART user guide', url: 'https://…', note: 'Frame format and timing' },
  *   ],
  */
-export type ResourceKind = 'Specification' | 'Datasheet' | 'Application note' | 'Video' | 'Article' | 'Book' | 'Tool';
+type ResourceKind = 'Specification' | 'Datasheet' | 'Application note' | 'Video' | 'Article' | 'Book' | 'Tool';
 
 export interface Resource {
   kind: ResourceKind;

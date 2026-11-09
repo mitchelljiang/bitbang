@@ -9,7 +9,7 @@ import { hexN } from './dbg';
 import { stepper, traceHtml, type Bar, type Lane, type Step } from './timeline';
 
 type Who = 'A' | 'B' | 'handler';
-export interface CtxState {
+interface CtxState {
   mode: 'Thread' | 'Handler';
   /** The live register values: who R0–R3, R12, LR, PC, xPSR belong to, and who R4–R11 belong to. */
   lo: Who;

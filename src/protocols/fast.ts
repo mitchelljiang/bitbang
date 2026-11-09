@@ -1,6 +1,6 @@
 import type { Bit, Field, Kind, Note, Protocol, TourStop } from '../core/types';
 import { TraceBuilder, hex } from '../core/util';
-import { FRAME_PARAMS, buildFrame } from './ethcommon';
+import { FRAME_PARAMS, buildFrame, placeSections } from './ethcommon';
 
 /** 4B5B: each 4-bit nibble becomes a 5-bit code group with at least two 1s, so the line never stays still for long. */
 export const FOUR_B_FIVE_B = ['11110', '01001', '10100', '10101', '01010', '01011', '01110', '01111',
@@ -160,12 +160,7 @@ export const fastEthernet: Protocol = {
     fields.push({ lane: 1, t0: at, t1: at + 10, label: 'J K', kind: 'start' });
     spans.jk = [at, at + 10];
     at += 10;
-    f.sections.forEach((sec, k) => {
-      const n = (k === 0 ? sec.bytes.length - 1 : sec.bytes.length) * 10;
-      if (n) fields.push({ lane: 1, t0: at, t1: at + n, label: k === 0 ? 'Preamble (6 × 0x55)' : sec.label, kind: sec.kind });
-      spans[sec.id] = [at, at + n];
-      at += n;
-    });
+    at = placeSections(f, at, fields, spans);
     fields.push({ lane: 1, t0: at, t1: at + 10, label: 'T R', kind: 'stop' });
     spans.tr = [at, at + 10];
     notes.push({ lane: 1, t: spans.jk[0], text: 'J K: start of stream' }, { lane: 1, t: spans.tr[0], text: 'T R: end of stream' });

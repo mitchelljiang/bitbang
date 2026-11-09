@@ -18,7 +18,7 @@ export const REGIONS: Region[] = [
 
 export type Op = 'read' | 'write' | 'exec';
 export type Mode = 'priv' | 'unpriv';
-export interface AccessResult { region: number; allowed: boolean; reason: string }
+interface AccessResult { region: number; allowed: boolean; reason: string }
 
 /** Check an access against the regions: the highest-numbered region that contains the address decides. */
 export function checkAccess(regions: Region[], addr: number, op: Op, mode: Mode): AccessResult {

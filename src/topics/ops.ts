@@ -264,7 +264,7 @@ reg = (reg &amp; ~(0x7u &lt;&lt; 4)) | ((val &amp; 0x7u) &lt;&lt; 4);  // write 
 /** Where the debugger is paused: before a line of led_on() runs, after it returns, or inside the interrupt handler. */
 type At = 'read' | 'modify' | 'write' | 'end' | 'isr';
 
-export interface RmwState {
+interface RmwState {
   at: At;
   /** The register, and the local copy (null before it exists). */
   odr: number;

@@ -15,7 +15,7 @@ export const PROCS: Proc[] = [
   { id: 'b', name: 'Process B', table: [4, 2, 6, -1] },
 ];
 
-export interface Xlate { vpage: number; offset: number; frame: number; paddr: number; fault: boolean }
+interface Xlate { vpage: number; offset: number; frame: number; paddr: number; fault: boolean }
 
 /** Translate a virtual address for a process: virtual page → physical frame, offset carried through unchanged. */
 export function translate(proc: Proc, vaddr: number): Xlate {

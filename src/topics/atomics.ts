@@ -24,7 +24,7 @@ export const PROGRAM: Record<Mode, { c: string[]; asm: Ins[] }> = {
 };
 export const ISR = { c: ['void USART2_IRQHandler(void) {', '  count++;', '}'], asm: [LDR, ADDS, STR] };
 
-export interface ASeg {
+interface ASeg {
   lane: 'main' | 'isr';
   t0: number;
   t1: number;
@@ -38,7 +38,7 @@ export interface ASeg {
   primask: number;
   monitor: 'open' | 'exclusive';
 }
-export interface ARun { segs: ASeg[]; pending: [number, number] | null; mem: number; strexFails: number; end: number }
+interface ARun { segs: ASeg[]; pending: [number, number] | null; mem: number; strexFails: number; end: number }
 
 /** Runs main() and the interrupt for one protection mode. The interrupt fires as main() finishes its first load. */
 export function atomicRun(mode: Mode): ARun {

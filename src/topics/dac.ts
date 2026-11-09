@@ -7,7 +7,7 @@
 import { markSeg, seg, status, syncUrl } from './dbg';
 import { eq } from './math';
 import { hz } from './timers';
-import { waveHtml, type WaveLane } from './wave';
+import { waveHtml, waveScreen, type WaveLane } from './wave';
 
 export const VREF = 3.3;
 /** The output for a code at n bits: the reference times code / 2^n (RM0090: DAC_OUT = VREF+ × DOR / 4096 at 12 bits). */
@@ -34,7 +34,7 @@ export function rc(levels: number[], dt: number, tau: number, sub = 8, y0 = leve
   return out;
 }
 
-export const F_TRIG = 100_000; // the timer triggers a conversion every 10 µs
+const F_TRIG = 100_000; // the timer triggers a conversion every 10 µs
 const DT = 1e6 / F_TRIG; // µs per sample
 const BITS = ['3', '6', '12'];
 const SAMPLES = ['8', '16', '32'];
@@ -66,11 +66,7 @@ export function mountDac(root: HTMLElement) {
           <div class="pf-ctl"><span>RC filter</span>${seg('rc', 'Output filter', [['0', 'Off'], ['1', 'On']])}</div>
         </div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen()}
     </section>
     <section class="prose">
       <h2>A code becomes a fraction of the reference</h2>

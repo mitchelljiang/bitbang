@@ -11,7 +11,7 @@ export type T = 'A' | 'B';
 export const ASM = ['ldr  r0, [r1]', 'adds r0, r0, #1', 'str  r0, [r1]'];
 const OP = ['LDR', 'ADDS', 'STR'];
 
-export interface RaceState { mem: number; r0: Record<T, number | null>; pc: Record<T, number>; loadedAt: Record<T, number>; storeLog: { who: T; v: number; t: number }[] }
+interface RaceState { mem: number; r0: Record<T, number | null>; pc: Record<T, number>; loadedAt: Record<T, number>; storeLog: { who: T; v: number; t: number }[] }
 
 /** Runs an interleaving such as "AABBAB" and returns the final state. Each task's r0 is its own, saved on a switch. */
 export function runOrder(order: string): RaceState {

@@ -5,7 +5,7 @@
  */
 import { esc } from '../core/render';
 import { CC } from './ccdata';
-import { markSeg, oneOf, seg, syncUrl } from './dbg';
+import { h8, markSeg, oneOf, seg, syncUrl } from './dbg';
 
 export const REGIONS = { FLASH: { origin: 0x08000000, length: 64 * 1024 }, SRAM: { origin: 0x20000000, length: 20 * 1024 } };
 export type Sec = '.text' | '.rodata' | '.data' | '.bss';
@@ -66,7 +66,6 @@ const LINE_SAYS: [RegExp, string][] = [
 ];
 const SEC_OF: [RegExp, Sec | 'FLASH' | 'SRAM'][] = [[/FLASH \(rx\)/, 'FLASH'], [/SRAM\s+\(rwx\)/, 'SRAM'], [/\.text\s+:/, '.text'], [/\.rodata\s+:/, '.rodata'], [/\.data\s+:/, '.data'], [/\.bss\s+:/, '.bss']];
 const kib = (n: number) => (n >= 1024 ? `${(n / 1024).toFixed(n % 1024 ? 1 : 0)} KiB` : `${n} B`);
-const h8 = (v: number) => `0x${v.toString(16).padStart(8, '0')}`;
 
 export function mountLinkerScript(root: HTMLElement) {
   let prog = oneOf('prog', PROGS, 'blink');

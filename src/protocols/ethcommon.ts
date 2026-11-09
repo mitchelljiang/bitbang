@@ -2,7 +2,7 @@
  * The Ethernet frame (the IEEE 802.3 MAC frame), shared by every Ethernet page. Each physical layer page sends exactly
  * these bytes, so switching between them shows the same frame on very different wires.
  */
-import type { Kind, Param } from '../core/types';
+import type { Field, Kind, Param } from '../core/types';
 import { parseBytes, parseHex } from '../core/util';
 
 const MIN_PAYLOAD = 46;
@@ -77,3 +77,17 @@ export function buildFrame(p: Record<string, string>) {
 }
 
 export type Frame = ReturnType<typeof buildFrame>;
+
+/**
+ * Lays a frame's sections out from `at`, ten line bits per byte, and returns where they end. The start delimiter has
+ * already replaced the first preamble byte.
+ */
+export function placeSections(f: Frame, at: number, fields: Field[], spans: Record<string, [number, number]>) {
+  f.sections.forEach((sec, k) => {
+    const n = (k === 0 ? sec.bytes.length - 1 : sec.bytes.length) * 10;
+    if (n) fields.push({ lane: 1, t0: at, t1: at + n, label: k === 0 ? 'Preamble (6 × 0x55)' : sec.label, kind: sec.kind });
+    spans[sec.id] = [at, at + n];
+    at += n;
+  });
+  return at;
+}

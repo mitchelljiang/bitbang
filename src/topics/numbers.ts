@@ -16,7 +16,7 @@ export const toInt8 = (v: number) => (v & 0x80 ? (v & 0xff) - 256 : v & 0xff);
 /** An unsigned fixed-point value: the raw integer divided by 2 to the number of fraction bits. */
 export const fixedValue = (raw: number, frac: number) => raw / 2 ** frac;
 
-export interface Float32Parts {
+interface Float32Parts {
   sign: number;
   exponent: number;
   fraction: number;

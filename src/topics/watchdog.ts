@@ -6,7 +6,7 @@
  */
 import { markSeg, seg, status, syncUrl } from './dbg';
 import { eq } from './math';
-import { waveHtml, type WaveLane, type WaveMark } from './wave';
+import { waveHtml, waveScreen, type WaveLane, type WaveMark } from './wave';
 
 /** The IWDG timeout: the 32 kHz LSI divided by 4 × 2^PR, counted down from RLR to 0 (RM0090, independent watchdog). */
 export const timeoutMs = (pr: number, rlr: number, lsiHz = 32_000) => ((4 * 2 ** pr * (rlr + 1)) / lsiHz) * 1000;
@@ -60,11 +60,7 @@ export function mountWatchdog(root: HTMLElement) {
           <div class="pf-ctl"><span>Loop</span>${seg('hang', 'Main loop', [['0', 'Runs'], ['1', 'Hangs at 70 ms']])}</div>
         </div>
       </header>
-      <div class="pf-screen">
-        <div class="pf-readout"></div>
-        <div class="pf-wave"></div>
-      </div>
-      <p class="dbg-status" aria-live="polite"></p>
+      ${waveScreen()}
     </section>
     <section class="prose">
       <h2>Counting down on its own clock</h2>

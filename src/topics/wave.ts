@@ -6,6 +6,14 @@
  */
 import { esc } from '../core/render';
 
+/** A Peripherals page's glass (readout and waveform) and status line. `extra` goes on the glass under the wave. */
+export const waveScreen = (extra = '') => `
+      <div class="pf-screen">
+        <div class="pf-readout"></div>
+        <div class="pf-wave"></div>${extra}
+      </div>
+      <p class="dbg-status" aria-live="polite"></p>`;
+
 export interface WaveLane {
   name: string;
   /** Small text under the name. */

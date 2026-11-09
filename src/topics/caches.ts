@@ -4,7 +4,7 @@
  * addresses and watch lines fill, hit, and get evicted when two addresses map to the same line. access is exported for
  * the checks.
  */
-import { hexN, status, syncUrl } from './dbg';
+import { hex3, status, syncUrl } from './dbg';
 
 const OFFSET_BITS = 4; // 16-byte lines
 const INDEX_BITS = 2; // 4 lines
@@ -38,7 +38,6 @@ const ACCESSES: { label: string; addr: number }[] = [
   { label: 'c+8', addr: 0x218 }, { label: 'd', addr: 0x300 },
 ];
 
-const hex3 = (v: number) => hexN(v, 12);
 
 export function mountCaches(root: HTMLElement) {
   let lines: Line[] = Array.from({ length: LINES }, () => ({ valid: false, tag: 0 }));
