@@ -1,0 +1,135 @@
+# bitbang text
+
+The text of every page, exported from the site for editing. The `source:` field in each note names the TypeScript it came from.
+
+> **Workflow.** Edit the prose in these notes, then ask Claude to "pull text from obsidian" and it will apply your changes to the `source:` files. Re-running `npm run export-text` regenerates these notes from `src` and overwrites them, so pull your edits in first.
+
+## Bits and bytes
+- [[bits-and-bytes|Bits and bytes]] — Start here
+- [[binary-and-hexadecimal|Binary and hexadecimal]] — Representing numbers
+- [[two-s-complement|Two’s complement]] — Representing numbers
+- [[fixed-point|Fixed point]] — Representing numbers
+- [[ieee-754-floating-point|IEEE 754 floating point]] — Representing numbers
+- [[and-or-xor-and-not|AND, OR, XOR and NOT]] — Bitwise operations
+- [[shifts-and-rotates|Shifts and rotates]] — Bitwise operations
+- [[masks|Masks]] — Bitwise operations
+- [[bit-tricks|Bit tricks]] — Bitwise operations
+- [[read-modify-write|Read-modify-write]] — Bitwise operations
+- [[endianness|Endianness]] — Bitwise operations
+- [[overflow-and-status-flags|Overflow and status flags]] — Arithmetic and error checking
+- [[checksums-and-crc|Checksums and CRC]] — Arithmetic and error checking
+
+## Protocols
+- [[protocols|Protocols]] — Start here
+- [[uart|UART]] — Asynchronous serial
+- [[rs-232|RS-232]] — Asynchronous serial
+- [[rs-485|RS-485]] — Asynchronous serial
+- [[1-wire|1-Wire]] — Asynchronous serial
+- [[ws2812|WS2812]] — Asynchronous serial
+- [[spi|SPI]] — Synchronous buses
+- [[quad-spi|Quad SPI]] — Synchronous buses
+- [[i2c|I²C]] — Synchronous buses
+- [[i3c|I3C]] — Synchronous buses
+- [[pci|PCI]] — Expansion buses
+- [[pcie|PCIe]] — Expansion buses
+- [[usb-2-0|USB 2.0]] — USB
+- [[ethernet-frame|Ethernet frame]] — Ethernet
+- [[10base-t|10BASE-T]] — Ethernet
+- [[100base-tx|100BASE-TX]] — Ethernet
+- [[1000base-t|1000BASE-T]] — Ethernet
+- [[1000base-x|1000BASE-X]] — Ethernet
+- [[mii-and-rmii|MII and RMII]] — Ethernet
+- [[can|CAN]] — Automotive & industrial
+- [[i2s|I²S]] — Audio
+- [[jtag|JTAG]] — Debug & programming
+- [[swd|SWD]] — Debug & programming
+
+## Architecture
+- [[architecture|Architecture]] — Start here
+- [[instructions|Instructions]] — Instruction set
+- [[registers|Registers]] — Instruction set
+- [[addressing|Addressing]] — Instruction set
+- [[pipeline|Pipeline]] — Execution
+- [[branches|Branches]] — Execution
+
+## Memory
+- [[memory|Memory]] — Start here
+- [[memory-map|Memory map]] — The address space
+- [[memory-mapped-i-o|Memory-mapped I/O]] — The address space
+- [[buses-and-the-bus-matrix|Buses and the bus matrix]] — The address space
+- [[alignment|Alignment]] — The address space
+- [[the-stack|The stack]] — The call stack
+- [[stack-frames|Stack frames]] — The call stack
+- [[function-calls|Function calls]] — The call stack
+- [[buffer-overflow|Buffer overflow]] — The call stack
+- [[stack-overflow|Stack overflow]] — The call stack
+- [[the-heap|The heap]] — Where data lives
+- [[sections-and-startup|Sections and startup]] — Where data lives
+- [[sram-dram-and-flash|SRAM, DRAM and Flash]] — Memory hardware
+- [[caches|Caches]] — Memory hardware
+- [[virtual-and-physical-addresses|Virtual and physical addresses]] — Virtual memory
+- [[page-tables-and-the-tlb|Page tables and the TLB]] — Virtual memory
+- [[mpu-and-mmu|MPU and MMU]] — Virtual memory
+
+## Peripherals
+- [[peripherals|Peripherals]] — Start here
+- [[gpio|GPIO]] — Pins
+- [[debouncing|Debouncing]] — Pins
+- [[timers|Timers]] — Time
+- [[pwm|PWM]] — Time
+- [[watchdog|Watchdog]] — Time
+- [[adc|ADC]] — Analog
+- [[dac|DAC]] — Analog
+- [[dma|DMA]] — Data
+
+## Power and clocks
+- [[power-and-clocks|Power and clocks]] — Start here
+- [[clock-tree|Clock tree]] — Clocks
+- [[sleep-modes|Sleep modes]] — Energy
+- [[battery-life|Battery life]] — Energy
+- [[brown-out|Brown-out]] — Energy
+
+## C for embedded
+- [[c-for-embedded|C for embedded]] — Start here
+- [[storage-keywords|Storage keywords]] — Variables and types
+- [[integer-types|Integer types]] — Variables and types
+- [[structs-and-bit-fields|Structs and bit fields]] — Data in memory
+- [[pointers|Pointers]] — Data in memory
+- [[functions|Functions]] — Functions
+
+## Compilers
+- [[compilers|Compilers]] — Start here
+- [[preprocessor|Preprocessor]] — The build
+- [[compiling|Compiling]] — The build
+- [[object-files|Object files]] — The build
+- [[linking|Linking]] — The build
+- [[linker-scripts|Linker scripts]] — The image
+- [[map-files|Map files]] — The image
+- [[optimization-levels|Optimization levels]] — Optimization
+- [[volatile|volatile]] — Optimization
+- [[undefined-behavior|Undefined behavior]] — Optimization
+
+## Concurrency
+- [[concurrency|Concurrency]] — Start here
+- [[parts-and-terms|Parts and terms]] — The chip
+- [[interrupts|Interrupts]] — Interrupting the program
+- [[priorities-and-nesting|Priorities and nesting]] — Interrupting the program
+- [[context-switching|Context switching]] — Running many tasks
+- [[scheduling|Scheduling]] — Running many tasks
+- [[race-conditions|Race conditions]] — Sharing data safely
+- [[atomics-and-critical-sections|Atomics and critical sections]] — Sharing data safely
+- [[memory-ordering-and-barriers|Memory ordering and barriers]] — Sharing data safely
+- [[mutexes-and-semaphores|Mutexes and semaphores]] — Sharing data safely
+
+## Drivers
+- [[drivers|Drivers]] — Start here
+- [[register-access|Register access]] — Talking to hardware
+- [[hal-design|HAL design]] — Talking to hardware
+- [[ring-buffers|Ring buffers]] — Moving data
+- [[interrupt-driven-uart|Interrupt-driven UART]] — Moving data
+- [[dma-drivers|DMA drivers]] — Moving data
+
+## Other pages
+- [[how-protocols-work|How protocols work]]
+- [[about-me|About me]]
+- [[embedded-systems-one-bit-at-a-time|Embedded systems, one bit at a time.]]
