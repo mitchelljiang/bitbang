@@ -65,7 +65,7 @@ export function mountVolatile(root: HTMLElement) {
         also tell the compiler what it may not move.</p>
     </section>`;
 
-  const views = CASES.flatMap((k) => [0, 1].map((v) => ({ src: CC.src.vol[k][v], out: CC.vol[k][v].asm })));
+  const views = CASES.flatMap((k) => [0, 1].map((v) => ({ src: CC.src.vol[k][v], out: CC.vol[k][v].asm, say: SAY[k][v] })));
   const { draw } = explorer(root, maxRows(views), () => {
     const v = vol === 'on' ? 1 : 0;
     const b = CC.vol[c][v];

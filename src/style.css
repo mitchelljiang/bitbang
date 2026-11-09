@@ -2361,6 +2361,7 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .cc-pane { min-width: 0; display: flex; flex-direction: column; }
 .cc-pane + .cc-pane { border-left: 1px solid var(--dbg-line); }
 .cc-head { margin: 0; padding: 8px 16px 0; font: 500 12px var(--mono); color: var(--dbg-dim); }
+.cc-out-head { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .cc .dbg-code { flex: 1; border: 0; padding: 8px 0 14px; font-size: 13.5px; }
 .cc.sized .dbg-code.cc-src, .cc.sized .dbg-code.cc-out { position: relative; flex: none; height: calc(var(--rows, 8) * 1.75em + 22px); overflow-y: auto; overscroll-behavior: contain; }
 .cc .dbg-code .gutter { width: 36px; padding-right: 12px; }
@@ -2381,6 +2382,21 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .cc-dim { color: var(--dbg-dim); font-weight: 400; }
 .cc-cmd { font: 12px var(--mono); color: var(--dbg-dim); }
 .cc-status { min-height: 110px; }
+.cc-status.reserved { display: grid; }
+.cc-status.reserved > span { grid-area: 1 / 1; min-width: 0; }
+.cc-ghost { visibility: hidden; pointer-events: none; }
+/* Labels that change with the example, stacked so the button is as wide as the widest. */
+.cc-labs { display: inline-grid; justify-items: center; }
+.cc-labs > span { grid-area: 1 / 1; visibility: hidden; }
+.cc-labs > span.on { visibility: visible; }
+/* Options never break inside a label; a long list wraps between them. */
+.cc .dbg-seg button { white-space: nowrap; }
+.cc .dbg-seg { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .cc .dbg-seg { display: flex; }
+  .cc .dbg-seg button { flex: 1 1 auto; padding: 0 10px; }
+  .kw .dbg-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; box-sizing: border-box; }
+}
 .cc-status code { font: 13.5px var(--mono); color: var(--dbg-pc); }
 
 /* Tables of sections, symbols and rows (object files, linking, linker scripts, map files). */
@@ -2400,6 +2416,8 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .cc-rich td b { color: var(--dbg-pc); font-weight: 600; }
 .cc-empty { color: var(--dbg-dim); font: 14px var(--sans); }
 .lnk .ln { cursor: default; }
+.lnk-out { display: grid; }
+.lnk-out > div { grid-area: 1 / 1; min-width: 0; }
 
 /* Linker scripts: each region as a bar, sections drawn to scale. */
 .lds .cc-src .ln.on { background: rgba(242, 194, 48, 0.16); }
@@ -2412,7 +2430,7 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .lds-key { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 2px; vertical-align: 0; }
 .lds-region.over .lds-bar { border-color: #ff7b66; }
 .lds-end { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff7b66; }
-.lds-err, .lds-ok { box-sizing: border-box; min-height: calc(3em + 16px); margin: 10px 0 0; padding: 8px 10px; border-radius: 6px; white-space: normal; }
+.lds-err, .lds-ok { box-sizing: border-box; min-height: calc(6em + 16px); margin: 10px 0 0; padding: 8px 10px; border-radius: 6px; white-space: normal; }
 .lds-err { color: #ff7b66; background: rgba(255, 123, 102, 0.08); }
 .lds-ok { color: #5fd0a4; background: rgba(95, 208, 164, 0.06); }
 
@@ -2460,11 +2478,8 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .st-key i { width: 9px; height: 9px; border-radius: 2px; }
 .st-key i.c0 { background: var(--cc0); } .st-key i.c1 { background: var(--cc1); } .st-key i.c2 { background: var(--cc2); }
 .st-key i.c3 { background: var(--cc3); } .st-key i.c4 { background: var(--cc4); } .st-key i.c5 { background: var(--cc5); }
-/* On a phone each page reserves room for its longest explanation, so the panel keeps its height. */
 @media (max-width: 600px) {
   .st-cell.fit span { display: none; }
   .st-strip .cc-head { min-height: calc(2.8em + 18px); }
-  .st .cc-status { min-height: 239px; } .ptr .cc-status { min-height: 191px; }
-  .kw .cc-status, .ints .cc-status { min-height: 167px; } .fn .cc-status { min-height: 143px; }
 }
 .c-sizes { max-width: 420px; }

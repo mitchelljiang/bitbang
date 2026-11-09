@@ -28,6 +28,7 @@ const SAY: Record<Fn, Partial<Record<Level, string>>> = {
   },
 };
 const say = (f: Fn, l: Level) => SAY[f][l] ?? SAY[f]['-O1']!;
+const summary = (f: Fn, l: Level) => `${say(f, l)} <span class="cc-dim">Bytes: ${LEVELS.map((x) => `${x} ${CC.optimized[f][x].bytes}`).join(' · ')}.</span>`;
 
 export function mountOptimize(root: HTMLElement) {
   let fn = oneOf('fn', FNS, 'sum');
@@ -70,15 +71,14 @@ export function mountOptimize(root: HTMLElement) {
         a constant power of two never needs one: it becomes a shift.</p>
     </section>`;
 
-  const views = FNS.flatMap((f) => LEVELS.map((l) => ({ src: CC.src.opt[f], out: CC.optimized[f][l].asm })));
+  const views = FNS.flatMap((f) => LEVELS.map((l) => ({ src: CC.src.opt[f], out: CC.optimized[f][l].asm, say: summary(f, l) })));
   const { draw } = explorer(root, maxRows(views), () => {
     const l = `-${level}` as Level;
     const b = CC.optimized[fn][l];
     markSeg(root, 'fn', fn);
     markSeg(root, 'lvl', level);
     syncUrl({ fn, lvl: level });
-    const others = LEVELS.map((x) => `${x} ${CC.optimized[fn][x].bytes}`).join(' · ');
-    return { src: CC.src.opt[fn], out: asOut(b.asm), head: `opt.s · ${l} · ${sizeNote(b)}`, summary: `${say(fn, l)} <span class="cc-dim">Bytes: ${others}.</span>` };
+    return { src: CC.src.opt[fn], out: asOut(b.asm), head: `opt.s · ${l} · ${sizeNote(b)}`, summary: summary(fn, l) };
   });
 
   root.addEventListener('click', (e) => {

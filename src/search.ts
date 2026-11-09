@@ -1,11 +1,4 @@
-import { bitTopics } from './bits';
-import { concurrencyTopics } from './concurrency';
-import { peripheralTopics } from './peripherals';
-import { architectureTopics } from './architecture';
-import { compilerTopics } from './compilers';
-import { cTopics } from './clang';
-import { memoryTopics } from './memory';
-import { catalog, protocolStart } from './catalog';
+import { allCategories } from './allTopics';
 import { esc } from './core/render';
 import { protocols } from './protocols';
 import { topics } from './topics';
@@ -29,7 +22,7 @@ const tokens = (text: string) =>
   text.toLowerCase().split(/[\s,.;:()/"“”]+/).filter(Boolean).flatMap((t) => (t.includes('-') ? [t, ...t.split('-')] : [t]));
 
 /** Every page and planned page on the site, with the words a search can match: names, description, group and tags. */
-export const index: SearchEntry[] = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics, ...cTopics].flatMap((cat) =>
+export const index: SearchEntry[] = allCategories.flatMap((cat) =>
   cat.entries.map((e) => {
     const p = byId.get(e.id);
     const tags = p?.tags ?? [];

@@ -8,6 +8,7 @@
  * grown too large.
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { SECTION_FILES } from '../../../scripts/sections.mjs';
 
 const read = (f) => readFileSync(f, 'utf8');
 const filter = process.argv[2]?.toLowerCase();
@@ -31,7 +32,7 @@ function fileOf(id) {
 const panelOf = (src) => /class="debugger mem/.test(src) ? 'memory instrument' : /traceHtml\(|class="trace/.test(src) ? 'logic analyzer'
   : /diagramHtml\(|class="diagram/.test(src) ? 'chip diagram' : /page\(\{|class="debugger/.test(src) ? 'debugger' : /encode\(/.test(src) ? 'oscilloscope' : '';
 
-const sections = [['Protocols', 'src/catalog.ts'], ['Bits and bytes', 'src/bits.ts'], ['Memory', 'src/memory.ts'], ['Concurrency', 'src/concurrency.ts'], ['Peripherals', 'src/peripherals.ts'], ['Architecture', 'src/architecture.ts'], ['Compilers', 'src/compilers.ts'], ['C for embedded', 'src/clang.ts']];
+const sections = SECTION_FILES;
 for (const [title, file] of sections) {
   const rows = [];
   for (const m of read(file).matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:[ \t]*'((?:[^'\\]|\\.)*)'(.*)/g)) {

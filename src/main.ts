@@ -1,13 +1,7 @@
 import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
 import type { Bit, Kind, Protocol, TourStop, Waveform } from './core/types';
 import { defaults, formatTime } from './core/util';
-import { bitTopics } from './bits';
-import { concurrencyTopics } from './concurrency';
-import { memoryTopics } from './memory';
-import { peripheralTopics } from './peripherals';
-import { architectureTopics } from './architecture';
-import { compilerTopics } from './compilers';
-import { cTopics } from './clang';
+import { allCategories } from './allTopics';
 import { catalog, categoryOf } from './catalog';
 import { FACTS } from './facts';
 import { mountAbout } from './about';
@@ -592,7 +586,7 @@ async function route() {
   const ticket = ++routing;
   const mount = load && topicShown !== id ? await load() : undefined;
   if (ticket !== routing) return;
-  const wipCat = p || load ? undefined : [...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics, ...cTopics].find((c) => c.entries.some((e) => e.id === id && e.wip));
+  const wipCat = p || load ? undefined : allCategories.find((c) => c.entries.some((e) => e.id === id && e.wip));
   const wip = wipCat?.entries.find((e) => e.id === id);
   const page = p ? 'viz' : load ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
   const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };
@@ -644,7 +638,7 @@ async function route() {
     buildAll();
   }
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
-  arrive(page === 'topic' ? topicView : views[page], id); // the topic view may have just been replaced
+  arrive(page === 'topic' ? topicView : views[page], id, page); // the topic view may have just been replaced
 }
 
 /**
@@ -655,8 +649,8 @@ async function route() {
  */
 let shownId: string | undefined;
 const still = matchMedia('(prefers-reduced-motion: reduce)');
-function arrive(view: HTMLElement, id: string) {
-  const go = shownId !== undefined && id !== shownId && !!id && !still.matches;
+function arrive(view: HTMLElement, id: string, page: string) {
+  const go = shownId !== undefined && id !== shownId && page !== 'home' && !still.matches;
   shownId = id;
   if (!go) return;
   [...view.children].slice(0, 6).forEach((el, i) => (el as HTMLElement).animate(

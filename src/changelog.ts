@@ -16,6 +16,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['improved', 'Pages ease in when opened.'],
       ['improved', 'Start here pages: each page in the route is a clear button.'],
       ['fixed', 'Phone menu no longer fades at its top and bottom edges.'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
   {

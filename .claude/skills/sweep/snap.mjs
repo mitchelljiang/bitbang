@@ -11,6 +11,7 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { SECTION_FILES } from '../../../scripts/sections.mjs';
 
 const [mode, a, b] = process.argv.slice(2).filter((x) => !x.startsWith('--'));
 const flags = Object.fromEntries(process.argv.slice(2).filter((x) => x.startsWith('--')).map((x) => x.slice(2).split('=')));
@@ -19,7 +20,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
 function pageIds() {
   const ids = ['', 'basics', 'about', 'changelog'];
-  for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts', 'src/clang.ts']) {
+  for (const [, f] of SECTION_FILES) {
     for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
   }
   return [...new Set(ids)];

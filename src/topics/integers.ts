@@ -5,8 +5,7 @@
  */
 import { esc } from '../core/render';
 import { C } from './cdata';
-import { asOut, explorer, explorerHtml, maxRows, sizeNote } from './cc';
-import { markSeg, oneOf, seg, syncUrl } from './dbg';
+import { pairExplorer } from './cc';
 
 const CASES = ['narrow', 'compare', 'divide'] as const;
 type Case = (typeof CASES)[number];
@@ -28,8 +27,10 @@ const SAY: Record<Case, [string, string]> = {
 };
 
 export function mountIntegers(root: HTMLElement) {
-  let c = oneOf('case', CASES, 'narrow');
-  let v = oneOf('type', ['a', 'b'] as const, 'a');
+  const panel = pairExplorer({
+    file: 'types.c', asm: 'types.s', label: 'Integer types', cls: 'ints', formKey: 'type', formLabel: 'Type',
+    cases: CASES, names: NAMES, forms: TYPES, say: SAY, src: C.src.ints, builds: C.ints,
+  });
 
   const sizes = C.sizes.map((s) => `<tr><td><code>${esc(s.type)}</code></td><td>${s.size}</td><td>${s.align}</td></tr>`).join('');
   root.innerHTML = `
@@ -40,11 +41,7 @@ export function mountIntegers(root: HTMLElement) {
         its type to compare the code Clang produces for a Cortex-M0+ at <code>-Os</code>. The status line says what
         changed and why.</p>
     </section>
-    ${explorerHtml({
-      file: 'types.c', label: 'Integer types', cls: 'ints',
-      controls: `${seg('case', 'Example', CASES.map((k) => [k, NAMES[k]]))}
-        ${seg('type', 'Type', [['a', TYPES[c][0]], ['b', TYPES[c][1]]])}`,
-    })}
+    ${panel.html}
     <section class="prose">
       <h2>How big is an int?</h2>
       <p>C only sets minimums: an <code>int</code> is at least 16 bits, a <code>long</code> at least 32. The rest is up
@@ -66,24 +63,5 @@ export function mountIntegers(root: HTMLElement) {
         turn on <code>-Wall -Wextra</code>, which warns about mixing them.</p>
     </section>`;
 
-  const views = CASES.flatMap((k) => [0, 1].map((i) => ({ src: C.src.ints[k][i], out: C.ints[k][i].asm })));
-  const { draw } = explorer(root, maxRows(views), () => {
-    const i = v === 'a' ? 0 : 1;
-    const b = C.ints[c][i];
-    markSeg(root, 'case', c);
-    root.querySelectorAll<HTMLElement>('[data-type]').forEach((btn) => (btn.textContent = TYPES[c][btn.dataset.type === 'a' ? 0 : 1]));
-    markSeg(root, 'type', v);
-    syncUrl({ case: c, type: v });
-    return { src: C.src.ints[c][i], out: asOut(b.asm), head: `types.s · -Os · ${sizeNote(b)}`, summary: SAY[c][i] };
-  });
-
-  root.addEventListener('click', (e) => {
-    const t = e.target as Element;
-    const k = t.closest<HTMLElement>('[data-case]');
-    const o = t.closest<HTMLElement>('[data-type]');
-    if (k) c = k.dataset.case as Case;
-    else if (o) v = o.dataset.type as typeof v;
-    else return;
-    draw(true);
-  });
+  panel.mount(root);
 }

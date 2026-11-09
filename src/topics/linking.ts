@@ -190,10 +190,18 @@ export function mountLinking(root: HTMLElement) {
   }
 
   const walk = walkthrough(root, { count: () => STEPS, at: () => step, go: (i) => { step = i; draw(); } });
+  // The output only grows, and each step says something different: the last output and every explanation sit
+  // invisibly behind the live ones, so stacked on a narrow screen the panel is as tall as it will ever get.
+  const at = <T,>(s: number, f: () => T) => { const was = step; step = s; const r = f(); step = was; return r; };
+  panel.querySelector('.lnk-out')!.innerHTML = `<div class="lnk-now"></div><div class="cc-ghost" aria-hidden="true">${at(STEPS - 1, output)}</div>`;
+  const status = panel.querySelector<HTMLElement>('.cc-status')!;
+  status.classList.add('reserved');
+  status.innerHTML = `<span class="cc-say"></span>${Array.from({ length: STEPS }, (_, s) => `<span class="cc-ghost" aria-hidden="true">${at(s, say)}</span>`).join('')}`;
+
   function draw() {
     panel.querySelector('.lnk-in')!.innerHTML = FILES.map(input).join('');
-    panel.querySelector('.lnk-out')!.innerHTML = output();
-    panel.querySelector('.cc-status')!.innerHTML = say();
+    panel.querySelector('.lnk-now')!.innerHTML = output();
+    status.querySelector('.cc-say')!.innerHTML = say();
     walk.sync();
     syncUrl({ step: String(step) });
   }

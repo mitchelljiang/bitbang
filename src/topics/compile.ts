@@ -52,7 +52,7 @@ export function mountCompile(root: HTMLElement) {
         not reach the object file; in the bytes, a branch holds the distance to its target.</p>
     </section>`;
 
-  const views = FNS.map((f) => ({ src: CC.src.compile[f], out: CC.compiled[f].asm }));
+  const views = FNS.map((f) => ({ src: CC.src.compile[f], out: CC.compiled[f].asm, say: SUMMARY[f] }));
   const { draw } = explorer(root, maxRows(views), () => {
     const b = CC.compiled[fn];
     markSeg(root, 'fn', fn);

@@ -16,6 +16,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
+import { SECTION_FILES } from './sections.mjs';
 
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const TABS = 8;
@@ -78,15 +79,15 @@ async function tab() {
 
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
 const ids = ['', 'about', 'changelog'];
-for (const f of ['src/catalog.ts', 'src/bits.ts', 'src/memory.ts', 'src/concurrency.ts', 'src/peripherals.ts', 'src/architecture.ts', 'src/compilers.ts', 'src/clang.ts']) {
+for (const [, f] of SECTION_FILES) {
   for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
 }
 
 /** In the page: click every control in every panel, type into every box, and report panels that changed height. */
-const EXERCISE = `(async () => {
+const exercise = (only) => `(async () => {
   // Pages redraw synchronously, and measuring forces layout; a zero-delay yield lets any timers they start run.
   const wait = () => new Promise((r) => setTimeout(r));
-  const panels = [...document.querySelectorAll('section.debugger, section.trace, .diagram, .instrument')].filter((p) => p.offsetParent);
+  const panels = [...document.querySelectorAll('${only}')].filter((p) => p.offsetParent);
   const height = () => panels.map((p) => Math.round(p.getBoundingClientRect().height));
   const before = height();
   const grew = new Set();
@@ -126,8 +127,15 @@ await Promise.all(Array.from({ length: TABS }, async () => {
     await t.open(url);
     const shown = await t.ev(`!!document.querySelector('main h1, #content h1, h1')`);
     if (!shown) fail(name, 'no heading rendered');
-    const r = await t.ev(EXERCISE);
+    const r = await t.ev(exercise('section.debugger, section.trace, .diagram, .instrument'));
     if (r?.grew.length && !GROWS.has(id)) fail(name, `panel changed height while used: ${r.grew.join(', ')}`);
+    // The C and Compilers panels hold their height at the widths where their text and controls re-wrap, too.
+    if (await t.ev(`!!document.querySelector('.debugger.cc')`)) for (const w of [1000, 700, 390]) {
+      await t.size(w);
+      await t.ev('new Promise((r) => setTimeout(r, 50))');
+      const rw = await t.ev(exercise('section.debugger.cc'));
+      if (rw?.grew.length) fail(name, `at ${w}px, panel changed height while used: ${rw.grew.join(', ')}`);
+    }
     // The same page, now on a phone: narrowing the viewport relays it out without loading it again.
     await t.size(390);
     const over = await t.ev('new Promise((r) => setTimeout(() => r(document.documentElement.scrollWidth - innerWidth), 50))');

@@ -58,7 +58,7 @@ export function mountPointers(root: HTMLElement) {
         <code>blx</code> reads it to stay in Thumb state, and the entries in the vector table have it too.</p>
     </section>`;
 
-  const views = CASES.map((k) => ({ src: C.src.ptrs[k], out: C.ptrs[k].asm }));
+  const views = CASES.map((k) => ({ src: C.src.ptrs[k], out: C.ptrs[k].asm, say: SAY[k] }));
   const { draw } = explorer(root, maxRows(views), () => {
     const b = C.ptrs[c];
     markSeg(root, 'case', c);

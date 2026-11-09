@@ -29,6 +29,11 @@ Timing: `--glide: cubic-bezier(0.2, 0.7, 0.2, 1)`, 140–220 ms for movement, 16
 Everything is off under `prefers-reduced-motion`, and the first placement on load is instant (no animation on
 arrival). Pages must be idle at rest: no perpetual `requestAnimationFrame` or interval.
 
+**The one arrival animation:** opening a page from inside the site eases its top-level blocks in, staggered
+(`arrive` in `main.ts`: 480 ms each, 70 ms apart, first six blocks; not for home, the first load or reduced motion). The
+owner chose it over shorter versions, which felt abrupt. It is the only motion outside these timings; panels still
+place themselves instantly.
+
 ## Hover and press
 
 The "Motion and interaction" block at the end of `src/style.css` owns every button's `transition`, hover and active

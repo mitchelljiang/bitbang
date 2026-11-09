@@ -802,23 +802,20 @@ async function layoutOf(src: string) {
   return recordLayout(await b.run('clang', [...TARGET, '-Os', '-c', '-o', 'x.o', '-Xclang', '-fdump-record-layouts', 'x.c']), src);
 }
 
+/** Runs `f` on each entry of `o` at once, keeping the keys. */
+const each = <T, U>(o: Record<string, T>, f: (v: T, k: string) => Promise<U>) =>
+  Promise.all(Object.entries(o).map(async ([k, v]) => [k, await f(v, k)] as const)).then((e) => Object.fromEntries(e) as Record<string, U>);
+
 /** Builds the C pages' data. */
 export async function generateC() {
-  const each = <T, U>(o: Record<string, T>, f: (v: T) => Promise<U>) =>
-    Promise.all(Object.entries(o).map(async ([k, v]) => [k, await f(v)] as const)).then((e) => Object.fromEntries(e) as Record<string, U>);
-  const keys = each(KEY_SRC, async (src) => {
-    const name = KEY_VAR[Object.keys(KEY_SRC).find((k) => KEY_SRC[k] === src)!];
+  const keys = each(KEY_SRC, async (src, k) => {
+    const name = KEY_VAR[k];
     const b = box();
     b.write('x.c', src);
     await b.run('clang', [...TARGET, '-Os', '-c', '-o', 'x.o', 'x.c']);
     const [build, info] = await Promise.all([compile(src, '-Os'), inspect(b, 'x.o')]);
-    const sym = (await b.run('objdump', ['-t', 'x.o'])).split('\n')
-      .map((l) => l.match(/^([0-9a-f]{8}) (.{7}) (\S+)\t([0-9a-f]{8}) (\S+)$/)).find((m) => m?.[5] === name);
-    return {
-      ...build,
-      sym: sym ? { name, section: sym[3], size: parseInt(sym[4], 16), bind: sym[2][0] === 'l' ? 'local' : 'global' } : null,
-      relocs: info.relocs.map((r) => r.sym),
-    };
+    const sym = info.syms.find((x) => x.name === name);
+    return { ...build, name, sym: sym ? { name, section: sym.section, size: sym.size, bind: sym.bind } : null, relocs: info.relocs.map((r) => r.sym) };
   });
   const ints = each(INT_SRC, (v) => Promise.all(v.map((s) => compile(s, '-Os'))));
   const sizes = (async () => {
@@ -848,8 +845,6 @@ export async function generate() {
       return Object.fromEntries(await Promise.all(Object.entries(PRE_VARIANTS).map(async ([k, d]) =>
         [k, preLines(await b.run('clang', [...TARGET, ...d, '-E', 'led.c']), 'led.c')] as const)));
     })();
-    const each = <T, U>(o: Record<string, T>, f: (v: T) => Promise<U>) =>
-      Promise.all(Object.entries(o).map(async ([k, v]) => [k, await f(v)] as const)).then((e) => Object.fromEntries(e) as Record<string, U>);
     const compiled = each(COMPILE_SRC, (s) => compile(s, '-Os'));
     const optimized = each(OPT_SRC, (s) => Promise.all(OPT_LEVELS.map((o) => compile(s, o).then((r) => [o, r] as const))).then(Object.fromEntries));
     const vol = each(VOL_SRC, (v) => Promise.all(v.map((s) => compile(s, '-Os'))));

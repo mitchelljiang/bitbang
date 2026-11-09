@@ -3,8 +3,7 @@
  * function nobody calls against a global one, and a struct passed by value against by pointer.
  */
 import { C } from './cdata';
-import { asOut, explorer, explorerHtml, maxRows, sizeNote } from './cc';
-import { markSeg, oneOf, seg, syncUrl } from './dbg';
+import { pairExplorer } from './cc';
 
 const CASES = ['inline', 'args', 'static', 'struct'] as const;
 type Case = (typeof CASES)[number];
@@ -30,8 +29,10 @@ const SAY: Record<Case, [string, string]> = {
 };
 
 export function mountFunctions(root: HTMLElement) {
-  let c = oneOf('case', CASES, 'inline');
-  let v = oneOf('form', ['a', 'b'] as const, 'a');
+  const panel = pairExplorer({
+    file: 'fn.c', asm: 'fn.s', label: 'Functions', cls: 'fn', formKey: 'form', formLabel: 'Form',
+    cases: CASES, names: NAMES, forms: FORMS, say: SAY, src: C.src.fns, builds: C.fns,
+  });
 
   root.innerHTML = `
     <section class="intro">
@@ -41,11 +42,7 @@ export function mountFunctions(root: HTMLElement) {
         and the optimizer may remove the call altogether. Pick an example and switch its form to compare the code
         Clang produces for a Cortex-M0+ at <code>-Os</code>.</p>
     </section>
-    ${explorerHtml({
-      file: 'fn.c', label: 'Functions', cls: 'fn',
-      controls: `${seg('case', 'Example', CASES.map((k) => [k, NAMES[k]]))}
-        ${seg('form', 'Form', [['a', FORMS[c][0]], ['b', FORMS[c][1]]])}`,
-    })}
+    ${panel.html}
     <section class="prose">
       <h2>The calling convention</h2>
       <p>Arm’s procedure call standard (the AAPCS) is what lets separately compiled files call each other. Arguments
@@ -71,24 +68,5 @@ export function mountFunctions(root: HTMLElement) {
         <a href="?p=overflow" data-nav>stack overflow</a> otherwise tends to show up as silent corruption.</p>
     </section>`;
 
-  const views = CASES.flatMap((k) => [0, 1].map((i) => ({ src: C.src.fns[k][i], out: C.fns[k][i].asm })));
-  const { draw } = explorer(root, maxRows(views), () => {
-    const i = v === 'a' ? 0 : 1;
-    const b = C.fns[c][i];
-    markSeg(root, 'case', c);
-    root.querySelectorAll<HTMLElement>('[data-form]').forEach((btn) => (btn.textContent = FORMS[c][btn.dataset.form === 'a' ? 0 : 1]));
-    markSeg(root, 'form', v);
-    syncUrl({ case: c, form: v });
-    return { src: C.src.fns[c][i], out: asOut(b.asm), head: `fn.s · -Os · ${sizeNote(b)}`, summary: SAY[c][i] };
-  });
-
-  root.addEventListener('click', (e) => {
-    const t = e.target as Element;
-    const k = t.closest<HTMLElement>('[data-case]');
-    const o = t.closest<HTMLElement>('[data-form]');
-    if (k) c = k.dataset.case as Case;
-    else if (o) v = o.dataset.form as typeof v;
-    else return;
-    draw(true);
-  });
+  panel.mount(root);
 }

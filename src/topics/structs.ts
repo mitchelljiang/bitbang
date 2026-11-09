@@ -51,6 +51,19 @@ const SAY: Record<Case, string> = {
   regmap: 'A struct laid over a peripheral’s registers: each field a volatile uint32_t, so SR is at offset 0, DR at 4, BRR at 8, CR1 at 12, matching the reference manual. <code>USART2-&gt;DR = c</code> becomes one <code>str</code> to the base address + 4. This is how vendor headers such as CMSIS describe every peripheral.',
 };
 
+function fieldSay(l: Layout, i: number) {
+  const f = l.fields[i];
+  if (f.bits) {
+    const lo = f.offset * 8 + f.bits[0], n = f.bits[1] - f.bits[0] + 1;
+    return `<code>${esc(f.name)}</code>: ${n} bit${n > 1 ? 's' : ''}, bit${n > 1 ? `s ${lo + n - 1} to ${lo}` : ` ${lo}`} of the word. Reading it is a load, a shift and a mask; writing it is a load, a mask, an OR and a store.`;
+  }
+  const size = BYTES[f.type], prev = l.fields[i - 1];
+  const gap = prev ? f.offset - (prev.offset + BYTES[prev.type]) : 0;
+  return `<code>${esc(f.type)} ${esc(f.name)}</code>: ${size} byte${size > 1 ? 's' : ''} at offset ${f.offset}.`
+    + (gap ? ` ${gap} byte${gap > 1 ? 's' : ''} of padding before it, so it starts at a multiple of ${size}.` : '')
+    + (l.align === 1 && size > 1 && f.offset % size ? ` In a packed struct it is misaligned: offset ${f.offset} is not a multiple of ${size}.` : '');
+}
+
 export function mountStructs(root: HTMLElement) {
   let c = oneOf('s', STRUCT_CASES, 'order');
   let field = -1;
@@ -99,21 +112,11 @@ export function mountStructs(root: HTMLElement) {
   panel.querySelector('.cc-body')!.after(strip);
 
   const layout = (): Layout => C.structs[c].layout as Layout;
-  const fieldSay = (l: Layout, i: number) => {
-    const f = l.fields[i];
-    if (f.bits) {
-      const lo = f.offset * 8 + f.bits[0], n = f.bits[1] - f.bits[0] + 1;
-      return `<code>${esc(f.name)}</code>: ${n} bit${n > 1 ? 's' : ''}, bit${n > 1 ? `s ${lo + n - 1} to ${lo}` : ` ${lo}`} of the word. Reading it is a load, a shift and a mask; writing it is a load, a mask, an OR and a store.`;
-    }
-    const size = BYTES[f.type], prev = l.fields[i - 1];
-    const gap = prev ? f.offset - (prev.offset + BYTES[prev.type]) : 0;
-    return `<code>${esc(f.type)} ${esc(f.name)}</code>: ${size} byte${size > 1 ? 's' : ''} at offset ${f.offset}.`
-      + (gap ? ` ${gap} byte${gap > 1 ? 's' : ''} of padding before it, so it starts at a multiple of ${size}.` : '')
-      + (l.align === 1 && size > 1 && f.offset % size ? ` In a packed struct it is misaligned: offset ${f.offset} is not a multiple of ${size}.` : '');
-  };
-
   function drawStrip() {
     const l = layout(), p = pieces(l);
+    // Redrawing replaces the buttons: keep keyboard focus on the same one.
+    const focused = strip.contains(document.activeElement) ? (document.activeElement as HTMLElement) : null;
+    const refocus = focused && `.${focused.classList[0]}[data-field="${focused.dataset.field}"]`;
     const pad = p.parts.filter((x) => x.field < 0).reduce((n, x) => n + x.n, 0);
     // Bytes run left to right from offset 0, to one scale for every struct; bits are drawn as a register is, 31 on the left.
     const scale = p.unit === 'bit' ? 32 : 16;
@@ -126,6 +129,7 @@ export function mountStructs(root: HTMLElement) {
         title="${x.field < 0 ? 'padding' : esc(l.fields[x.field].name)}"><span>${x.field < 0 ? '' : esc(l.fields[x.field].name)}</span></button>`).join('')}</div>
       <div class="st-ticks">${ticks.map((t) => `<span style="left:${((p.unit === 'bit' ? 31.5 - t : t) / scale) * 100}%">${p.unit === 'bit' ? t : `+${t}`}</span>`).join('')}</div>
       <div class="st-legend">${l.fields.map((f, i) => `<button type="button" class="st-key${i === field ? ' on' : ''}" data-field="${i}"><i class="c${i % 6}"></i>${esc(f.name)}</button>`).join('')}</div>`;
+    if (refocus) strip.querySelector<HTMLElement>(refocus)?.focus({ preventScroll: true });
     strip.classList.toggle('st-bits', p.unit === 'bit');
     panel.classList.toggle('has-field', field >= 0);
     if (field >= 0) {
@@ -134,7 +138,10 @@ export function mountStructs(root: HTMLElement) {
     }
   }
 
-  const views = STRUCT_CASES.map((k) => ({ src: C.src.structs[k], out: C.structs[k].asm }));
+  const views = STRUCT_CASES.map((k) => {
+    const l = C.structs[k].layout as Layout;
+    return { src: C.src.structs[k], out: C.structs[k].asm, say: [SAY[k], ...l.fields.map((_, i) => fieldSay(l, i))] };
+  });
   const { draw } = explorer(root, maxRows(views), () => {
     const b = C.structs[c];
     markSeg(root, 's', c);
@@ -150,7 +157,8 @@ export function mountStructs(root: HTMLElement) {
     const t = e.target as Element;
     const k = t.closest<HTMLElement>('[data-s]');
     const f = t.closest<HTMLElement>('[data-field]');
-    const src = t.closest<HTMLElement>('.cc-src [data-src]');
+    // The explorer has already redrawn by now, so this line is detached: no looking for its pane.
+    const src = t.closest<HTMLElement>('[data-src]');
     if (k) { c = k.dataset.s as Case; field = -1; draw(true); return; }
     // A field, picked in the strip or by its line of source.
     const i = f ? Number(f.dataset.field) : src ? layout().fields.findIndex((x) => x.line === Number(src.dataset.src)) : -1;

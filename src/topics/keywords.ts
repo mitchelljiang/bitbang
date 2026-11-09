@@ -59,15 +59,14 @@ export function mountKeywords(root: HTMLElement) {
         but the hardware changes all the time. For that, see <a href="?p=volatile" data-nav>volatile</a>.</p>
     </section>`;
 
-  const views = KEY_CASES.map((k) => ({ src: C.src.keys[k], out: C.keys[k].asm }));
+  const views = KEY_CASES.map((k) => ({ src: C.src.keys[k], out: C.keys[k].asm, say: SAY[k] }));
   const { draw } = explorer(root, maxRows(views), () => {
     const b = C.keys[c];
     markSeg(root, 'decl', c);
     syncUrl({ decl: c });
-    const name = c === 'const' ? 'limit' : c === 'staticlocal' ? 'tick.count' : 'count';
     return {
       src: C.src.keys[c], out: asOut(b.asm),
-      head: `${name} ${whereItLives(c)} · ${sizeNote(b)}`,
+      head: `${b.name} ${whereItLives(c)} · ${sizeNote(b)}`,
       summary: SAY[c],
     };
   });

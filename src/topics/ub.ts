@@ -69,7 +69,7 @@ export function mountUb(root: HTMLElement) {
         <code>-fwrapv</code>, which defines signed overflow to wrap, at a small cost in speed.</p>
     </section>`;
 
-  const views = CASES.flatMap((k) => [0, 1].map((v) => ({ src: CC.src.ub[k][v], out: CC.ub[k][v].asm })));
+  const views = CASES.flatMap((k) => [0, 1].map((v) => ({ src: CC.src.ub[k][v], out: CC.ub[k][v].asm, say: SAY[k][v] })));
   const { draw } = explorer(root, maxRows(views), () => {
     const v = fixed === 'fix' ? 1 : 0;
     const b = CC.ub[c][v];

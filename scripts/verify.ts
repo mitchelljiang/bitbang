@@ -11,7 +11,7 @@
  * Exits non-zero if anything fails.
  */
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Level, Trace, Waveform } from '../src/core/types';
@@ -35,7 +35,7 @@ import { concurrencyTopics } from '../src/concurrency';
 import { peripheralTopics } from '../src/peripherals';
 import { architectureTopics } from '../src/architecture';
 import { compilerTopics } from '../src/compilers';
-import { cTopics } from '../src/clang';
+import { allCategories } from '../src/allTopics';
 import { C } from '../src/topics/cdata';
 import { whereItLives } from '../src/topics/keywords';
 import { pieces, STRUCT_CASES } from '../src/topics/structs';
@@ -1371,7 +1371,12 @@ section('3n. Shared helpers and site structure');
     && hex8(0x20000010) === '0x20000010' && hex8(-1) === '0xFFFFFFFF' && plural(1, 'frame') === '1 frame' && plural(2, 'frame') === '2 frames');
 
   // Every page can be reached: each interactive page and protocol has a sidebar entry, and no id is used twice.
-  const entries = [protocolStart, ...catalog, ...bitTopics, ...memoryTopics, ...concurrencyTopics, ...peripheralTopics, ...architectureTopics, ...compilerTopics, ...cTopics].flatMap((c) => c.entries.map((e) => e.id));
+  check('every section file is in both lists: src/allTopics.ts and scripts/sections.mjs', (() => {
+    const inTs = [...readFileSync('src/allTopics.ts', 'utf8').matchAll(/from '\.\/(\w+)'/g)].map((m) => `src/${m[1]}.ts`).sort();
+    const inTools = [...readFileSync('scripts/sections.mjs', 'utf8').matchAll(/'(src\/\w+\.ts)'/g)].map((m) => m[1]).sort();
+    return inTs.join() === inTools.join() && inTools.length === readFileSync('src/nav.ts', 'utf8').match(/^\s+categories: (?!Category)/gm)!.length;
+  })());
+  const entries = allCategories.flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));
