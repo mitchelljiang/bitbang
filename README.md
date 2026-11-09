@@ -1,70 +1,43 @@
 # bitbang
 
-In-depth, bit-level timing diagrams of communication protocols: **[bitbang.fyi](https://bitbang.fyi)**
+An interactive site for learning embedded systems: **[bitbang.fyi](https://bitbang.fyi)**
 
-Type in some bytes, pick your settings, and see every bit that goes out on the wire. Click any bit to find out what it's doing there, or take the walkthrough for a guided tour of the frame.
+It's for students and early-career engineers who know some C and want to see what the hardware actually does: the bits on a wire, the bytes in memory, the order things run in. Each page answers one question with a diagram you can change, followed by a few paragraphs of explanation.
 
-## Protocols
+## What's covered
 
-| Group | Protocols |
+| Area | Sections |
 |---|---|
-| Synchronous buses | SPI, Quad SPI, I²C, I3C (SDR, HDR-DDR, ENTDAA) |
-| Asynchronous serial | UART, RS-232, RS-485, 1-Wire |
-| Expansion buses | PCI, PCIe Gen1/Gen2 (x1 to x8) |
-| USB | USB 2.0 (low and full speed) |
-| Audio | I²S |
-| Networking | 10BASE-T Ethernet |
-| Debug & programming | JTAG, SWD |
+| **Data** | Bits and bytes, Protocols |
+| **Hardware** | Architecture, Memory, Peripherals, Power and clocks |
+| **Software** | C for embedded, Compilers, Concurrency, Drivers |
 
-USB 3.x and USB4 have under-construction pages, and more protocols are listed in the menu as coming soon.
+Every section starts with an overview that sets out the route through it and what to read first. Settings are kept in the URL, so any view can be shared. Pages list their sources, with datasheets first where there are any.
 
-## What's on each page
+## Status
 
-- **A live timing diagram** drawn from your settings, with sample points, callouts, and lines drawn the way they behave: square edges for push-pull, slow RC rises for open-drain buses like I²C.
-- **Bit-by-bit explanations.** Click a bit, step with ← →, or press Space to play.
-- **A walkthrough** that zooms from one part of the frame to the next, with a short explanation at each stop.
-- **At a glance:** clock, wires, drive, duplex, topology, addressing, flow control, error checking, speed and reach.
-- **Trade-offs and "Going deeper":** what each protocol is good and bad at, and the practical details that trip people up.
-- **Shareable links.** Every setting is in the URL.
+The site is live and under active development. All ten sections are published, and a few protocols are still marked as in progress or coming soon. Recent changes are on the [changelog](https://bitbang.fyi/?p=changelog).
 
-There's also a [How protocols work](https://bitbang.fyi) guide, which is the home page.
+## How it's checked
 
-## How the diagrams are checked
-
-Every waveform is checked two ways:
-
-1. **Bit check:** a script reads each waveform back off the wire at every sample point and confirms it matches what each bit claims to be.
-2. **Independent decoders:** waveforms are exported as VCD files and decoded with [sigrok](https://sigrok.org)'s protocol decoders (UART, SPI, I²C, I²S, 1-Wire, JTAG, SWD, USB and SPI flash), which were written separately from the specs. 10BASE-T frames are checked against Python's `zlib.crc32`, PCIe's 8b/10b encoder against reference codes and the encoding's structural properties, and PCI transactions against the bus handshake rules.
-
-There are no sigrok decoders for I3C, PCI or PCIe, so those are the least independently verified, especially I3C HDR-DDR and ENTDAA. Corrections are welcome.
+Accuracy matters more than coverage here, so page logic is tested against independent references wherever one exists: published specifications and datasheets, real compilers and linkers, and third-party protocol decoders. Listings on the C and Compilers pages are real tool output. A browser test also loads every page and exercises its controls.
 
 ## Develop
 
 ```sh
 npm install
-npm run dev     # http://localhost:5173
-npm run build   # type-check + build to dist/
+npm run dev      # local dev server
+npm run build    # type-check and build to dist/
+npm run verify   # accuracy checks
+npm run smoke    # every page in headless Chrome
 ```
 
-Plain TypeScript and Vite, with no framework. Diagrams are SVG generated in `src/core/render.ts`.
-
-## Adding a protocol
-
-1. Write `src/protocols/<name>.ts` exporting a `Protocol`. Its `encode(params)` turns the user's settings into a `Waveform`:
-   - **traces:** one per wire, as a list of level changes over time (`openDrain` for pulled-up lines)
-   - **bits:** annotated bits (start, data, ACK…) with an explanation and a sample time
-   - **fields:** higher-level groupings, like bytes and addresses
-   - **notes:** optional callouts drawn above a trace
-2. Fill in `fullName`, `summary`, `usedIn`, `facts`, `strengths` and `limits`, and optionally `deepDive`.
-3. Add it to `src/protocols/index.ts`, and give it an entry in `src/catalog.ts` so it shows up in the menu.
-4. Optionally add a walkthrough in `src/tours.ts`.
-
-The renderer, stepper, legend and walkthrough are all protocol-agnostic.
+Plain TypeScript and Vite, with no framework or runtime dependencies. Some checks use external tools such as Clang, Python and sigrok, and are skipped when those aren't installed.
 
 ## Deploy
 
-Pushing to `main` builds and deploys to GitHub Pages through `.github/workflows/deploy.yml`. `public/CNAME` points Pages at `bitbang.fyi`.
+Pushing to `main` builds and deploys to GitHub Pages through `.github/workflows/deploy.yml`.
 
 ## Feedback
 
-Spotted a mistake or want a protocol added? Use the **Send feedback** link at the bottom of the site, or open an issue.
+Spotted a mistake or want something added? Please open an issue.
