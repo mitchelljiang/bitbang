@@ -39,3 +39,7 @@ The pages draw time left to right, like a logic analyzer. Each lane is one threa
 - Race condition: A bug where the result depends on which of two threads gets there first. See Race conditions.
 - Atomic: An operation that nothing else can interrupt halfway through. See Atomics and critical sections.
 - Mutex: A lock that lets only one task at a time into a piece of code. See Mutexes and semaphores.
+
+## After this section
+
+Carry on to Drivers: writing the code that talks to hardware: register access, HAL design, ring buffers, interrupts and DMA.

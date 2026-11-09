@@ -723,6 +723,54 @@ void run(unsigned cmd) {
 };
 
 /** Function examples, each in two versions. */
+const GPIO_T = `typedef struct {
+    volatile uint32_t MODER, OTYPER, OSPEEDR, PUPDR;
+    volatile uint32_t IDR, ODR, BSRR, LCKR;
+} gpio_t;
+#define GPIOA ((gpio_t *)0x40020000)
+`;
+export const DRV_SRC = {
+  raw: `#include <stdint.h>
+#define GPIOA_ODR (*(volatile uint32_t *)0x40020014)
+
+void led_on(void) {
+    GPIOA_ODR |= 1u << 5;
+}
+`,
+  overlay: `#include <stdint.h>
+${GPIO_T}
+void led_on(void) {
+    GPIOA->ODR |= 1u << 5;
+}
+`,
+  setclr: `#include <stdint.h>
+${GPIO_T}
+void led_on(void) {
+    GPIOA->BSRR = 1u << 5;
+}
+`,
+  direct: `#include <stdint.h>
+#define GPIOA_BSRR (*(volatile uint32_t *)0x40020018)
+
+void blink_once(void) {
+    GPIOA_BSRR = 1u << 5;
+}
+`,
+  call: `void gpio_write(int pin, int on);
+
+void blink_once(void) {
+    gpio_write(5, 1);
+}
+`,
+  ops: `struct gpio_ops { void (*write)(int pin, int on); };
+struct led { const struct gpio_ops *ops; int pin; };
+
+void blink_once(struct led *led) {
+    led->ops->write(led->pin, 1);
+}
+`,
+};
+
 export const FN_SRC: Record<string, [string, string]> = {
   inline: [`#include <stdint.h>
 
@@ -829,9 +877,10 @@ export async function generateC() {
   const structs = each(STRUCT_SRC, async (s) => ({ layout: await layoutOf(s), ...(await compile(s, '-Os')) }));
   const ptrs = each(PTR_SRC, (s) => compile(s, '-Os'));
   const fns = each(FN_SRC, (v) => Promise.all(v.map((s) => compile(s, '-Os'))));
+  const drv = each(DRV_SRC, (s) => compile(s, '-Os'));
   return {
-    src: { keys: KEY_SRC, ints: INT_SRC, structs: STRUCT_SRC, ptrs: PTR_SRC, fns: FN_SRC },
-    keys: await keys, ints: await ints, sizes: await sizes, structs: await structs, ptrs: await ptrs, fns: await fns,
+    src: { keys: KEY_SRC, ints: INT_SRC, structs: STRUCT_SRC, ptrs: PTR_SRC, fns: FN_SRC, drv: DRV_SRC },
+    keys: await keys, ints: await ints, sizes: await sizes, structs: await structs, ptrs: await ptrs, fns: await fns, drv: await drv,
   };
 }
 

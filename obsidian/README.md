@@ -46,6 +46,10 @@ The text of every page, exported from the site for editing. The `source:` field 
 ## Architecture
 - [[architecture|Architecture]] — Start here
 - [[instructions|Instructions]] — Instruction set
+- [[registers|Registers]] — Instruction set
+- [[addressing|Addressing]] — Instruction set
+- [[pipeline|Pipeline]] — Execution
+- [[branches|Branches]] — Execution
 
 ## Memory
 - [[memory|Memory]] — Start here
@@ -76,6 +80,13 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[adc|ADC]] — Analog
 - [[dac|DAC]] — Analog
 - [[dma|DMA]] — Data
+
+## Power and clocks
+- [[power-and-clocks|Power and clocks]] — Start here
+- [[clock-tree|Clock tree]] — Clocks
+- [[sleep-modes|Sleep modes]] — Energy
+- [[battery-life|Battery life]] — Energy
+- [[brown-out|Brown-out]] — Energy
 
 ## C for embedded
 - [[c-for-embedded|C for embedded]] — Start here
@@ -108,6 +119,14 @@ The text of every page, exported from the site for editing. The `source:` field 
 - [[atomics-and-critical-sections|Atomics and critical sections]] — Sharing data safely
 - [[memory-ordering-and-barriers|Memory ordering and barriers]] — Sharing data safely
 - [[mutexes-and-semaphores|Mutexes and semaphores]] — Sharing data safely
+
+## Drivers
+- [[drivers|Drivers]] — Start here
+- [[register-access|Register access]] — Talking to hardware
+- [[hal-design|HAL design]] — Talking to hardware
+- [[ring-buffers|Ring buffers]] — Moving data
+- [[interrupt-driven-uart|Interrupt-driven UART]] — Moving data
+- [[dma-drivers|DMA drivers]] — Moving data
 
 ## Other pages
 - [[how-protocols-work|How protocols work]]

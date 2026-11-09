@@ -10,6 +10,16 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-11-09',
+    items: [
+      ['new', 'Architecture: <a href="?p=registers">Registers</a>, <a href="?p=addressing">Addressing</a>, <a href="?p=pipeline">Pipeline</a>, <a href="?p=branches">Branches</a>'],
+      ['new', 'Power and clocks section: <a href="?p=clock-tree">Clock tree</a>, <a href="?p=sleep-modes">Sleep modes</a>, <a href="?p=battery-life">Battery life</a>, <a href="?p=brownout">Brown-out</a>'],
+      ['new', 'Drivers section: <a href="?p=register-layer">Register access</a>, <a href="?p=hal">HAL design</a>, <a href="?p=ring-buffer">Ring buffers</a>, <a href="?p=uart-driver">Interrupt-driven UART</a>, <a href="?p=dma-driver">DMA drivers</a>'],
+      ['new', 'Sources on every page, datasheets first'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-11-08',
     items: [
       ['new', 'C for embedded section: [storage keywords](?p=keywords), [integer types](?p=integers), [structs and bit fields](?p=structs), [pointers](?p=pointers), [functions](?p=functions). Real Clang output for a Cortex-M0+.'],

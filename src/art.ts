@@ -40,6 +40,12 @@ const ART: Record<string, () => string> = {
   memory: () => rect(18, 26, 96, 20, C.blue, 'fill-opacity="0.8"') + rect(118, 26, 64, 20, C.mint, 'fill-opacity="0.8"')
     + rect(186, 26, 96, 20, C.orange, 'fill-opacity="0.7"') + `<path d="M150 16v40" stroke="${C.gold}" stroke-width="2"/>`
     + `<path d="M145 12h10l-5 6z" fill="${C.gold}"/>`,
+  // A slow clock multiplied into a fast one.
+  power: () => wave([1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0], 6, 12, 10, 26, C.cyan)
+    + wave(Array.from({ length: 48 }, (_, i) => (i % 2 ? 0 : 1)), 6, 6, 42, 60, C.gold),
+  // A ring of slots, some filled, with the head marked.
+  drivers: () => Array.from({ length: 12 }, (_, i) => rect(24 + i * 21.5, 26, 18, 20, i >= 3 && i < 8 ? C.mint : 'none', i >= 3 && i < 8 ? 'fill-opacity="0.85"' : `stroke="${C.dim}" stroke-width="1.5"`)).join('')
+    + `<path d="M${24 + 8 * 21.5 + 9} 58v-8m-4 4 4-4 4 4" stroke="${C.gold}" stroke-width="2" fill="none"/>`,
   // A PWM output above an ADC's sampled sine.
   peripherals: () => wave([1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0], 6, 12, 10, 26, C.pink)
     + `<path d="${Array.from({ length: 41 }, (_, i) => `${i ? 'L' : 'M'}${6 + i * 7.2} ${(50 - 12 * Math.sin(i / 40 * Math.PI * 3)).toFixed(1)}`).join('')}" stroke="${C.blue}" fill="none" stroke-width="2"/>`

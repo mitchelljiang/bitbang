@@ -36,6 +36,7 @@ import { peripheralTopics } from '../src/peripherals';
 import { architectureTopics } from '../src/architecture';
 import { compilerTopics } from '../src/compilers';
 import { allCategories } from '../src/allTopics';
+import { statusOf } from '../src/search';
 import { C } from '../src/topics/cdata';
 import { whereItLives } from '../src/topics/keywords';
 import { pieces, STRUCT_CASES } from '../src/topics/structs';
@@ -45,7 +46,18 @@ import { blEncode, blOffset, linkModel } from '../src/topics/linking';
 import { place, type Sec } from '../src/topics/linkerscript';
 import { parseMap, perFile } from '../src/topics/mapfile';
 import { declLine } from '../src/topics/objects';
-import { assembleBl, generate, generateC, haveTools, linkSynthetic } from './ccgen';
+import { assembleBl, compile as ccCompile, generate, generateC, haveTools, linkSynthetic } from './ccgen';
+import { REG_PROGRAM, REG_SRC, regFrames } from '../src/topics/registers';
+import { pll as clkPll } from '../src/topics/clocktree';
+import { CURRENT as SLEEP_CURRENT, WAKES as SLEEP_WAKES } from '../src/topics/sleepmodes';
+import { averageMa as batAverage, lifeHours as batLife } from '../src/topics/batterylife';
+import { bodVolts, dipOutcome } from '../src/topics/brownout';
+import { RING_C, newRing, ringCount, ringGet, ringPut } from '../src/topics/ringbuffer';
+import { byteUs, maxOffUs, uartRun } from '../src/topics/uartdriver';
+import { dmaRun } from '../src/topics/dmadriver';
+import { FORMS as AD_FORMS, encodeLoad, limits as adLimits } from '../src/topics/addressing';
+import { PROGRAMS as PIPE_PROGRAMS, execCycles, simulate as pipeRun, type Ins as PipeIns } from '../src/topics/pipeline';
+import { PATTERNS as BR_PATTERNS, predictAll, runCost } from '../src/topics/branches';
 import { topics } from '../src/topics';
 import { plural } from '../src/core/util';
 import { hex8, hexN, parseNumber } from '../src/topics/dbg';
@@ -1290,6 +1302,196 @@ section('3q. Compilers: preprocessor, compiler, object files, linker, map files'
   check('map files: the per-file totals add up to the image (Flash less alignment padding)', flash <= CC.map.sections.filter((s) => s.name !== '.bss').reduce((n, s) => n + s.size, 0)
     && Object.values(tot).reduce((n, t) => n + t.sram, 0) === CC.map.sections.filter((s) => s.name === '.data' || s.name === '.bss').reduce((n, s) => n + s.size, 0)
     && rows.find((r) => r.name === 'table')!.size === 512 && rows.find((r) => r.name === 'main' && r.level === 2)!.vma === 0x08000001);
+}
+
+section('3s. Architecture: registers, addressing, pipeline and branches');
+{
+  // Registers: the listing is Clang's, and the executor must get what the C itself gets.
+  const fr = regFrames(), end = fr[fr.length - 1].cpu;
+  check('registers: total(5, 2) returns 17, r4 and SP are restored, and it returns to the caller', end.r[0] === 17 && end.r[4] === 0x11 && end.r[13] === 0x20001000 && end.r[15] === 0x08000100, end.r);
+  check('registers: bl stores the return address with the Thumb bit set', fr.find((f) => f.ran?.text === 'bl scale')!.cpu.r[14] === 0x0800000f);
+  const blAt = REG_PROGRAM.find((i) => i.text === 'bl scale')!;
+  const off = 0x08000000 - (blAt.addr + 4);
+  const low = (off >> 1) & 0x7ff;
+  check('registers: the linked bl encoding reaches scale', blAt.enc === `f7ff ${(0xf800 | low).toString(16)}`, blAt.enc);
+  if (haveTools()) later('registers: the listing matches Clang, and the C compiled and run returns 17', async () => {
+    const b = await ccCompile(REG_SRC, '-Os', ['-fno-inline']);
+    const texts = b.asm.filter((l) => l.kind === 'ins').map((l) => l.t);
+    const encs = b.asm.filter((l) => l.kind === 'ins').map((l) => l.hex);
+    const sameText = JSON.stringify(texts) === JSON.stringify(REG_PROGRAM.map((i) => i.text));
+    const sameEnc = REG_PROGRAM.every((i, k) => i.text === 'bl scale' || i.enc === encs[k]);
+    const tmp = mkdtempSync(join(tmpdir(), 'reg-'));
+    const file = join(tmp, 'r.c');
+    writeFileSync(file, REG_SRC + '#include <stdio.h>\nint main(void) { printf("%d", total(5, 2)); return 0; }\n');
+    const out = (await cc(file)).join('');
+    return [sameText && sameEnc && out.trim() === '17', JSON.stringify(texts) + ' ' + out];
+  });
+
+  // Addressing: every offset each form offers, against the real assembler, and the first one past the field.
+  const asmCases: [string, string, string, boolean][] = [];
+  for (const form of AD_FORMS) {
+    const v7 = form === 'scaled' || form === 'pre' || form === 'post';
+    for (const size of form === 'imm' ? (['word', 'half', 'byte'] as const) : (['word'] as const)) {
+      const { step, max, field } = adLimits(form, size);
+      for (let o = 0; o <= max; o += step) { const e = encodeLoad(form, size, o); asmCases.push([v7 ? 'cortex-m4' : 'cortex-m0plus', e.text, e.hex, true]); }
+      if (field !== Infinity) { const e = encodeLoad(form, size, max + step); check(`addressing: ${form} ${size}: ${e.text} is reported as not encodable`, !e.ok); asmCases.push([v7 ? 'cortex-m4' : 'cortex-m0plus', e.text, '', false]); }
+    }
+  }
+  check('addressing: a literal load rounds PC+4 down to a multiple of 4', encodeLoad('pc', 'word', 8).ea === 0x0800010c);
+  check('addressing: pre-index reads the new address, post-index the old, and both write it back', encodeLoad('pre', 'word', 4).ea === 0x20000044 && encodeLoad('post', 'word', 4).ea === 0x20000040 && encodeLoad('post', 'word', 4).after === 0x20000044);
+  check('addressing: the scaled form multiplies the index by 4', encodeLoad('scaled', 'word', 3).ea === 0x2000004c);
+  if (haveTools()) later(`addressing: ${asmCases.length} encodings and limits match Clang's assembler`, async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'addr-'));
+    const target = (cpu: string) => [cpu === 'cortex-m4' ? '--target=thumbv7em-none-eabi' : '--target=thumbv6m-none-eabi', `-mcpu=${cpu}`];
+    const write = (name: string, text: string[]) => { const f = join(tmp, name); writeFileSync(f, ['.syntax unified', '.thumb', ...text].join('\n') + '\n'); return f; };
+    const bad: string[] = [];
+    await Promise.all(['cortex-m0plus', 'cortex-m4'].map(async (cpu) => {
+      const good = asmCases.filter((c) => c[0] === cpu && c[3]);
+      const s = write(`${cpu}.s`, good.map((c) => c[1])), o = `${s}.o`;
+      await sh('clang', [...target(cpu), '-c', s, '-o', o]);
+      const got = (await sh('objdump', ['-d', '--triple=thumbv7em-none-eabi', o])).split('\n')
+        .map((l) => l.match(/^\s*[0-9a-f]+:\s+([0-9a-f]{4}(?: [0-9a-f]{4})?)\s+\S/)?.[1]).filter(Boolean);
+      if (got.length !== good.length) bad.push(`${cpu}: ${got.length} of ${good.length} decoded`);
+      good.forEach((c, k) => { if (got[k] !== c[2]) bad.push(`${c[1]}: Clang ${got[k]}, page ${c[2]}`); });
+    }));
+    await Promise.all(asmCases.filter((c) => !c[3]).map(async (c, k) => {
+      const s = write(`bad${k}.s`, [c[1]]);
+      // Past the field Clang either refuses it or, for post-index, silently wraps #256 to #0; neither encodes the offset.
+      const wanted = c[1].match(/#(\d+)/)![0];
+      const kept = await sh('clang', [...target(c[0]), '-c', s, '-o', `${s}.o`]).then(() => sh('objdump', ['-d', '--triple=thumbv7em-none-eabi', `${s}.o`])).then((d) => new RegExp(`${wanted}\\b`).test(d), () => false);
+      if (kept) bad.push(`${c[1]}: Clang encoded it`);
+    }));
+    return [bad.length === 0, bad.slice(0, 5).join('; ')];
+  });
+  if (haveTools()) later('addressing: the table of C and Clang output is what Clang writes', async () => {
+    const has = async (src: string, want: string[]) => { const t = (await ccCompile(src, '-Os')).asm.map((l) => l.t); return want.every((w) => t.includes(w)); };
+    const all = await Promise.all([
+      has('struct s { int a, b, c; };\nint f(struct s *p) { return p->c; }\n', ['ldr r0, [r0, #8]']),
+      has('int f(int *a, int i) { return a[i]; }\n', ['lsls r1, r1, #2', 'ldr r0, [r0, r1]']),
+      has('char f(char *s, int i) { return s[i]; }\n', ['ldrb r0, [r0, r1]']),
+      has('void use(int *p);\nint f(void) { int x; use(&x); return x; }\n', ['ldr r0, [sp, #4]']),
+      has('int g;\nint f(void) { return g; }\n', ['ldr r0, .LCPI0_0', 'ldr r0, [r0]']),
+    ]);
+    return [all.every(Boolean), all];
+  });
+
+  // Pipeline: the worked examples in the Cortex-M4 TRM 3.3.3, and the M0+ table's counts. Execute cycles = total less the fill.
+  const ld = (rd: number, base: number): PipeIns => ({ t: 'ldr', kind: 'ldr', rd, base });
+  const execTotal = (p: PipeIns[], core: 'm0' | 'm4') => pipeRun(p, core).total - (core === 'm0' ? 1 : 2);
+  check('pipeline: LDR R0,[R1]; LDR R1,[R2] is 3 cycles on an M4 (TRM)', execTotal([ld(0, 1), ld(1, 2)], 'm4') === 3);
+  check('pipeline: LDR R0,[R1,R2]; STR R0,[R3,#20] is 3 cycles on an M4 (TRM)', execTotal([ld(0, 1), { t: 'str', kind: 'str', base: 3 }], 'm4') === 3);
+  check('pipeline: LDR; LDR; LDR is 4 cycles on an M4 (TRM)', execTotal([ld(0, 1), ld(1, 2), ld(2, 3)], 'm4') === 4);
+  check('pipeline: a load whose base was just loaded is not overlapped', execTotal([ld(0, 1), ld(1, 0)], 'm4') === 4);
+  check('pipeline: an eight-register store takes nine cycles (TRM)', execCycles({ t: 'stm', kind: 'push', n: 8 }, undefined, 'm4').cycles === 9);
+  check('pipeline: an address that depends on the last result stalls an M4 for one cycle (TRM)', execCycles({ t: 'ldr', kind: 'ldr', rd: 0, base: 1 }, { t: 'adds', kind: 'alu', rd: 1 }, 'm4').stall === 1);
+  const br = (taken: boolean): PipeIns[] => [{ t: 'b', kind: 'branch', taken, target: 3 }, { t: 'x', kind: 'alu' }, { t: 'y', kind: 'alu' }, { t: 'z', kind: 'alu' }];
+  const cost = (p: PipeIns[], core: 'm0' | 'm4') => { const s = pipeRun(p, core); const first = s.rows[0].cells.lastIndexOf('E'); const next = s.rows.find((r) => !r.flushed && r !== s.rows[0])!.cells.indexOf('E'); return next - first; };
+  check('pipeline: on an M0+ a taken branch is 2 cycles and an untaken one 1 (TRM)', cost(br(true), 'm0') === 2 && cost(br(false), 'm0') === 1);
+  check('pipeline: on an M4 a taken branch is 1 + P with P = 2, within the TRM range 1 to 3', cost(br(true), 'm4') === 3 && cost(br(false), 'm4') === 1);
+  check('pipeline: on an M0+ a load is 2 cycles and a simple instruction 1', execCycles(ld(0, 1), undefined, 'm0').cycles === 2 && execCycles({ t: 'a', kind: 'alu' }, undefined, 'm0').cycles === 1);
+  check('pipeline: at most one instruction is in each stage in every cycle of every program', Object.values(PIPE_PROGRAMS).every((p) => (['m0', 'm4'] as const).every((c) => {
+    const s = pipeRun(p.prog, c);
+    return Array.from({ length: s.total }, (_, k) => k).every((k) => ['F', 'D', 'E'].every((st) => s.rows.filter((r) => r.cells[k] === st).length <= 1));
+  })));
+  check('pipeline: five simple instructions take 5 + 2 cycles on an M4 and 5 + 1 on an M0+', pipeRun(PIPE_PROGRAMS.line.prog, 'm4').total === 7 && pipeRun(PIPE_PROGRAMS.line.prog, 'm0').total === 6);
+  check('pipeline: a taken branch throws away the two instructions behind it on an M4, one on an M0+', pipeRun(PIPE_PROGRAMS.branch.prog, 'm4').rows.filter((r) => r.flushed).length === 2 && pipeRun(PIPE_PROGRAMS.branch.prog, 'm0').rows.filter((r) => r.flushed).length === 1);
+
+  // Branches: an independent 1-bit and 2-bit predictor, over every pattern of up to 10 outcomes.
+  const refOne = (o: boolean[]) => { let last = false, miss = 0; for (const x of o) { if (x !== last) miss++; last = x; } return miss; };
+  const refTwo = (o: boolean[]) => { const table = [['sn', 'wn'], ['sn', 'wt'], ['wn', 'st'], ['wt', 'st']]; const names = ['sn', 'wn', 'wt', 'st']; let s = 'wn', miss = 0; for (const x of o) { const i = names.indexOf(s); if ((i >= 2) !== x) miss++; s = table[i][x ? 1 : 0]; } return miss; };
+  let brBad = '';
+  for (let len = 1; len <= 10 && !brBad; len++) for (let m = 0; m < 1 << len; m++) {
+    const o = Array.from({ length: len }, (_, i) => !!((m >> i) & 1));
+    const miss = (p: 'one' | 'two') => predictAll(p, o, false).filter((g) => !g.hit).length;
+    if (miss('one') !== refOne(o) || miss('two') !== refTwo(o)) { brBad = o.map(Number).join(''); break; }
+  }
+  check('branches: 1-bit and 2-bit predictors match an independent version on all 2046 patterns', !brBad, brBad);
+  const lp = BR_PATTERNS.loop;
+  const wrong = (p: 'none' | 'static' | 'one' | 'two') => predictAll(p, lp.run, lp.backward).filter((g) => !g.hit).length;
+  check('branches: over two loops of 8, 2-bit misses 3 (one to warm up, one per exit), 1-bit misses 4, backward-taken 2, none 14', wrong('two') === 3 && wrong('one') === 4 && wrong('static') === 2 && wrong('none') === 14);
+  check('branches: an alternating branch is wrong every time with 1-bit', predictAll('one', BR_PATTERNS.alt.run, false).filter((g) => !g.hit).length === 16);
+  check('branches: the run costs one cycle per branch and the refill per wrong guess', runCost(predictAll('two', lp.run, true), 2) === 16 + 3 * 2);
+}
+
+section('3t. Power and clocks, Drivers, and sources');
+{
+  const sourced = allCategories.flatMap((c) => c.entries).filter((e) => statusOf.get(e.id) === 'live' && !RESOURCES[e.id]?.length).map((e) => e.id);
+  check('sources: every page in every section lists at least one', sourced.length === 0, sourced.join(' '));
+  const firstKind = Object.entries(RESOURCES).filter(([, r]) => r.some((x) => x.kind === 'Datasheet') && r[0].kind !== 'Datasheet' && r[0].kind !== 'Specification').map(([id]) => id);
+  check('sources: a page with a datasheet lists a datasheet or specification first', firstKind.length === 0, firstKind.join(' '));
+
+  // Clock tree: the datasheet's own numbers (RP2040 2.18.2).
+  const P = (refdiv: number, fbdiv: number, pd1: number, pd2: number, max?: number) => clkPll({ refdiv, fbdiv, pd1, pd2 }, 12, max);
+  check('clock tree: 12 MHz × 100 ÷ 6 ÷ 2 is the datasheet’s clean 100 MHz', P(1, 100, 6, 2).out === 100 && P(1, 100, 6, 2).vco === 1200 && !P(1, 100, 6, 2).errors.length);
+  check('clock tree: 1500 MHz ÷ 6 ÷ 2 and 750 MHz ÷ 6 ÷ 1 are both 125 MHz', P(1, 125, 6, 2).out === 125 && clkPll({ refdiv: 1, fbdiv: 62.5, pd1: 6, pd2: 1 }).out === 125);
+  const legal: number[] = []; for (let f = 16; f <= 320; f++) if (!P(1, f, 7, 7).errors.length) legal.push(f);
+  check('clock tree: a 12 MHz crystal allows FBDIV 63 to 133 (756 to 1596 MHz VCO)', legal[0] === 63 && legal[legal.length - 1] === 133 && P(1, 63, 7, 7).vco === 756 && P(1, 133, 7, 7).vco === 1596);
+  check('clock tree: a 4 MHz reference is refused, and so is an output above the limit', P(3, 125, 6, 2).errors.some((e) => e.includes('5 MHz')) && P(1, 133, 3, 1).errors.some((e) => e.includes('133 MHz')));
+  check('clock tree: USB is 1200 MHz ÷ 5 ÷ 5 = 48 MHz', P(1, 100, 5, 5, 48).out === 48 && !P(1, 100, 5, 5, 48).errors.length);
+
+  // Sleep modes: Table 637, entered independently here.
+  const t637 = { sleep: [0.39, 4.5], dormant: [0.18, 4.2], run: [9.4, 14.7] } as const;
+  check('sleep modes: currents match RP2040 Table 637', (['run', 'sleep', 'dormant'] as const).every((m) => SLEEP_CURRENT[m].typ === t637[m][0] && SLEEP_CURRENT[m].max === t637[m][1]));
+  check('sleep modes: Sleep wakes by interrupt; Dormant only by GPIO or RTC', SLEEP_WAKES.sleep.join() === 'interrupt' && SLEEP_WAKES.dormant.join() === 'gpio,rtc');
+
+  // Battery life: brute-force integration millisecond by millisecond.
+  let batBad = '';
+  for (const [ia, ta, is, tp] of [[9.4, 2, 0.39, 100], [9.4, 10, 0.18, 1000], [9.4, 50, 0.39, 10000], [20, 1, 0.001, 5000]] as const) {
+    let sum = 0; for (let t = 0; t < tp; t++) sum += t < ta ? ia : is;
+    if (Math.abs(sum / tp - batAverage(ia, ta, is, tp)) > 1e-9) batBad += [ia, ta, is, tp].join() + ' ';
+  }
+  check('battery life: the average matches a millisecond-by-millisecond sum', !batBad, batBad);
+  check('battery life: 220 mAh at 80% and 1 mA lasts 176 hours', batLife(220, 1) === 176);
+
+  // Brown-out: the BOD register's table, typed out from the datasheet.
+  const vsel = [0.473, 0.516, 0.559, 0.602, 0.645, 0.688, 0.731, 0.774, 0.817, 0.860, 0.903, 0.946, 0.989, 1.032, 1.075, 1.118];
+  check('brown-out: all sixteen VSEL thresholds match the BOD register table', vsel.every((v, i) => bodVolts(i) === v));
+  check('brown-out: default is 0.860 V, and a 3 to 10 µs dip is uncertain', bodVolts(9) === 0.86 && dipOutcome(0.75, 5, 9) === 'maybe' && dipOutcome(0.75, 100, 9) === 'reset' && dipOutcome(0.75, 1, 9) === 'none' && dipOutcome(0.9, 100, 9) === 'none');
+
+  // Drivers: the listings say what the pages say.
+  const dasm = (k: keyof typeof C.drv) => C.drv[k].asm.filter((l) => l.kind === 'ins').map((l) => l.t);
+  check('register access: |= is a load, an OR and a store', dasm('raw').some((t) => t.startsWith('ldr r1, [r0]')) && dasm('raw').some((t) => t.startsWith('orrs')) && dasm('raw').some((t) => t.startsWith('str')));
+  check('register access: the macro and the struct overlay compile to the same instructions', dasm('raw').join() === dasm('overlay').join());
+  check('register access: a set register is one store and no read', !dasm('setclr').some((t) => /\[r0\]/.test(t) && t.startsWith('ldr r')) && dasm('setclr').filter((t) => t.startsWith('str')).length === 1);
+  check('HAL: direct has no call, the function one bl, the pointer one blx after two loads of the table', !dasm('direct').some((t) => /^bl/.test(t)) && dasm('call').some((t) => t.startsWith('bl ')) && dasm('ops').some((t) => t.startsWith('blx')) && dasm('ops').includes('ldr r0, [r0]') && dasm('ops').includes('ldr r3, [r0]'));
+
+  // Ring buffer: the C on the page, compiled and run with the same operations as the model.
+  const ops: (number | 'g')[] = [];
+  for (let k = 0, seed = 12345; k < 400; k++) { seed = (seed * 1103515 + 12345) & 0x7fffffff; ops.push(seed % 5 < 3 ? (seed >> 8) & 255 : 'g'); }
+  const r = newRing(); const model = ops.map((o) => o === 'g' ? String(ringGet(r) ?? -1) : ringPut(r, o) ? '1' : '0').join(' ');
+  later('ring buffer: the page’s C, compiled and run, matches the model over 400 random operations', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ring-')), file = join(dir, 'r.c');
+    const seq = ops.map((o) => o === 'g' ? 'g();' : 'printf("%d ", put(' + o + '));').join('');
+    writeFileSync(file, '#include <stdint.h>\n#include <stdio.h>\n' + RING_C + '\nstatic void g(void) { uint8_t b; if (get(&b)) printf("%d ", b); else printf("-1 "); }\nint main(void) { ' + seq + ' return 0; }\n');
+    const out = (await cc(file)).join(' ').trim();
+    return [out === model, out.slice(0, 60) + ' vs ' + model.slice(0, 60)];
+  });
+  check('ring buffer: an 8-slot ring holds 7', (() => { const q = newRing(); let n = 0; while (ringPut(q, n)) n++; return n === 7 && ringCount(q) === 7; })());
+
+  // UART: an independent count of arrivals, over a grid.
+  let uBad = '';
+  for (const baud of [9600, 115200, 1000000]) for (const depth of [1, 8, 32]) for (const us of [100, 1000, 10000]) {
+    const T = 10e6 / baud, off = 3 * T + 7, span = off + us + 10 * T;
+    let inWindow = 0; for (let k = 1; k * T <= span; k++) { if (k * T >= off && k * T < off + us) inWindow++; }
+    const got = uartRun(baud, depth, off, us, span).lost, want = Math.max(0, inWindow - depth);
+    if (got !== want) uBad += [baud, depth, us, got, want].join() + ' ';
+  }
+  check('UART: lost bytes match an independent count across 27 settings', !uBad, uBad);
+  check('UART: 115200 baud is 86.8 µs per byte; a 32-entry FIFO covers 2.8 ms', Math.abs(byteUs(115200) - 86.806) < 0.01 && Math.abs(maxOffUs(115200, 32) - 2777.8) < 1);
+
+  // DMA: a byte-at-a-time simulation of overwriting.
+  let dBad = '';
+  for (const n of [64, 256, 1024]) for (const p of [50, 500, 5000]) {
+    const hs = dmaRun(n, 10, p, 8), half = (n / 2) * 10;
+    let free = 0;
+    hs.forEach((h, k) => {
+      const ready = (k + 1) * half; const start = Math.max(free, ready); free = start + p;
+      let write = ready, firstOverwrite = Infinity; for (let b = 0; b < n; b++, write += 10) { const inThisHalf = b >= n / 2; if (inThisHalf) { firstOverwrite = write; break; } }
+      if (h.late !== (free > firstOverwrite)) dBad += [n, p, k].join() + ' ';
+    });
+  }
+  check('DMA: a half is late exactly when DMA reaches it before processing ends', !dBad, dBad);
+  check('DMA: 256 bytes at 1 Mbaud gives a half every 1.28 ms', dmaRun(256, 10, 50, 1)[0].deadline - dmaRun(256, 10, 50, 1)[0].ready === 1280);
 }
 
 section('3r. C for embedded: storage, integers, structs, pointers and functions');

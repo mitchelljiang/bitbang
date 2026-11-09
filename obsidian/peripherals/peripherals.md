@@ -42,4 +42,4 @@ Signals are drawn on the glass as on an oscilloscope: time runs left to right, a
 
 ## After this section
 
-Carry on to C for embedded: the parts of C that matter on a microcontroller: where variables live, integer types, structs and bit fields, pointers and functions.
+Carry on to Power and clocks: where a chip’s clocks come from and how it saves energy: PLLs, sleep modes, battery life and brown-out.

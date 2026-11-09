@@ -186,6 +186,41 @@ const OVERVIEWS: Record<string, Overview> = {
       { term: 'Cache', def: 'A small, fast copy of recently used memory, kept next to the CPU.', page: 'caches' },
     ],
   },
+  power: {
+    intro: `Before a program can do anything, something has to supply a clock and a stable voltage. This section starts with where a chip’s
+      frequencies come from, then looks at how it saves energy by stopping them, and at what protects it when the supply sags. The
+      pages use the RP2040, and every limit and current comes from its datasheet.`,
+    before: [
+      { page: 'mcu', why: 'the parts of the chip that clocks feed' },
+      { page: 'timers', why: 'a timer counts the clocks this section produces' },
+    ],
+    read: `Each page has one diagram with a small set of controls. A value in red has gone out of range. Readouts under the diagram give the numbers, and currents are typical figures from the datasheet.`,
+    terms: [
+      { term: 'PLL', def: 'A phase-locked loop: a circuit that multiplies a reference frequency.', page: 'clock-tree' },
+      { term: 'VCO', def: 'The fast oscillator inside a PLL, whose speed is steered by a control voltage.', page: 'clock-tree' },
+      { term: 'Clock gating', def: 'Stopping a block’s clock to save the power it spends switching.', page: 'sleep-modes' },
+      { term: 'Duty cycle', def: 'The fraction of the time a device is awake.', page: 'battery-life' },
+      { term: 'Brown-out', def: 'A supply voltage that sags below what the chip needs, without going fully off.', page: 'brownout' },
+    ],
+  },
+  drivers: {
+    intro: `A driver is the code between an application and a piece of hardware. It has to reach the registers correctly, get data past interrupts without losing any, and leave the rest of the program with a simple interface.
+      These pages build one up from a single register write to a DMA receive path.`,
+    before: [
+      { page: 'mmio', why: 'a register is an address that talks to hardware' },
+      { page: 'volatile', why: 'register accesses must not be optimized away' },
+      { page: 'interrupts', why: 'drivers do their work in interrupt handlers' },
+      { page: 'dma', why: 'the DMA driver page starts where this one ends' },
+    ],
+    read: `Register access and HAL design show C beside the real instructions. The others are simulations, with controls for buffer sizes and timing; a result in red means data was lost.`,
+    terms: [
+      { term: 'Overlay', def: 'A struct laid over a peripheral’s address, so each member is a register.', page: 'register-layer' },
+      { term: 'HAL', def: 'Hardware abstraction layer: an interface that hides which chip the code runs on.', page: 'hal' },
+      { term: 'Ring buffer', def: 'A fixed array used as a queue, with indexes that wrap around.', page: 'ring-buffer' },
+      { term: 'Overrun', def: 'A byte arrived with nowhere to put it, so data was lost.', page: 'uart-driver' },
+      { term: 'Circular DMA', def: 'A DMA transfer that wraps to the start of its buffer and never stops.', page: 'dma-driver' },
+    ],
+  },
   peripherals: {
     intro: `Peripherals are the hardware blocks beside the processor that deal with the world outside it: pins, timers,
       converters and DMA. Each one is controlled through registers at fixed addresses, and each does its job without

@@ -5,6 +5,8 @@ import { peripheralTopics } from './peripherals';
 import { architectureTopics } from './architecture';
 import { compilerTopics } from './compilers';
 import { cTopics } from './clang';
+import { powerTopics } from './power';
+import { driverTopics } from './drivers';
 import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
@@ -60,6 +62,16 @@ export const sections: Section[] = [
     blurb: 'How C becomes the instructions in Flash: the preprocessor, compiler, assembler and linker, and what optimization changes.',
     categories: compilerTopics,
   },
+  {
+    id: 'power', name: 'Power and clocks',
+    blurb: 'Where a chip’s clocks come from and how it saves energy: PLLs, sleep modes, battery life and brown-out.',
+    categories: powerTopics,
+  },
+  {
+    id: 'drivers', name: 'Drivers',
+    blurb: 'Writing the code that talks to hardware: register access, HAL design, ring buffers, interrupts and DMA.',
+    categories: driverTopics,
+  },
 ];
 
 const sectionOf = (id: string) =>
@@ -70,8 +82,8 @@ const by = (...ids: string[]) => ids.map((id) => sections.find((s) => s.id === i
 /** The header tabs: each groups a few sections, which the sidebar lists in this order. */
 export const areas: Area[] = [
   { id: 'data', name: 'Data', sections: by('bits', 'protocols') },
-  { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals') },
-  { id: 'software', name: 'Software', sections: by('c', 'compilers', 'concurrency') },
+  { id: 'hardware', name: 'Hardware', sections: by('architecture', 'memory', 'peripherals', 'power') },
+  { id: 'software', name: 'Software', sections: by('c', 'compilers', 'concurrency', 'drivers') },
 ];
 const areaOf = (s: Section) => areas.find((a) => a.sections.includes(s))!;
 

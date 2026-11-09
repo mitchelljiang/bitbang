@@ -125,7 +125,7 @@ export interface View {
  * Wires an explorer. `view()` gives what to show now; call the returned `draw()` after a control changes it.
  * `rows` is the most lines any view has on either side, so switching views never changes the panel's height.
  */
-export function explorer(root: HTMLElement, rows: { src: number; out: number; says?: string[] }, view: () => View, describe?: (o: Out) => string | null) {
+export function explorer(root: HTMLElement, rows: { src: number; out: number; srcCh?: number; says?: string[] }, view: () => View, describe?: (o: Out) => string | null) {
   const panel = root.querySelector<HTMLElement>('.cc')!;
   // Side by side, both panes take the taller one's height; stacked on a phone, each keeps its own. Past 24 lines a
   // pane scrolls, so one long listing does not leave every other view mostly empty.
@@ -134,6 +134,9 @@ export function explorer(root: HTMLElement, rows: { src: number; out: number; sa
   panel.style.setProperty('--src-rows', cap(rows.src));
   panel.style.setProperty('--out-rows', cap(rows.out));
   panel.style.setProperty('--rows', cap(Math.max(rows.src, rows.out)));
+  if (rows.srcCh) panel.style.setProperty('--src-ch', String(rows.srcCh));
+  panel.classList.toggle('tall-src', rows.src > 24);
+  panel.classList.toggle('tall-out', rows.out > 24);
   // Every text the status line can show sits invisibly in the same grid cell, so it is always as tall as the longest.
   const status = panel.querySelector<HTMLElement>('.cc-status')!;
   if (rows.says) status.classList.add('reserved');
@@ -218,6 +221,7 @@ export const maxRows = (views: { src: string; out: readonly unknown[]; say?: str
     .map((o) => `<code>${esc(o.t)}</code>: ${esc(explainIns(o.t, o.kind) ?? '')} From line 99.`));
   return {
     src: Math.max(...views.map((v) => v.src.split('\n').length)),
+    srcCh: Math.max(...views.flatMap((v) => v.src.split('\n').map((t) => t.length))),
     out: Math.max(...views.map((v) => v.out.length)),
     says: [...views.flatMap((v) => v.say ?? []), longest(ins),
       `Line 99, <code>${esc(longest(lines))}</code>, became 99 instructions, highlighted. Click one to see what it does.`],

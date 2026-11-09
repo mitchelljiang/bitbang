@@ -199,6 +199,18 @@ export const seg = (key: string, label: string, options: [string, string][]) =>
   `<div class="dbg-seg" role="radiogroup" aria-label="${esc(label)}">${options.map(([v, text]) =>
     `<button type="button" role="radio" data-${key}="${v}">${text}</button>`).join('')}</div>`;
 
+/**
+ * Sets up a panel's status line to be as tall as the longest thing it can say, each text sitting invisibly in the same
+ * grid cell. Returns the function that shows a text.
+ */
+export function reservedStatus(panel: HTMLElement, all: string[]) {
+  const el = panel.querySelector<HTMLElement>('.dbg-status')!;
+  el.classList.add('cc-status', 'reserved');
+  el.innerHTML = `<span class="cc-say"></span>${[...new Set(all)].map((t) => `<span class="cc-ghost" aria-hidden="true">${t}</span>`).join('')}`;
+  const say = el.querySelector<HTMLElement>('.cc-say')!;
+  return (html: string) => { say.innerHTML = html; };
+}
+
 /** Marks the segmented control's current option. */
 export function markSeg(root: HTMLElement, key: string, value: string) {
   root.querySelectorAll<HTMLElement>(`[data-${key}]`).forEach((b) => b.setAttribute('aria-checked', String(b.dataset[key] === value)));

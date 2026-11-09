@@ -91,7 +91,7 @@ const exercise = (only) => `(async () => {
   const height = () => panels.map((p) => Math.round(p.getBoundingClientRect().height));
   const before = height();
   const grew = new Set();
-  const fixed = (p) => p.matches('.debugger.mem, section.trace, .diagram, .debugger.cc');
+  const fixed = (p) => p.matches('.debugger.mem, section.trace, .diagram, .debugger.cc, .debugger.registers, .debugger.addressing, .debugger.pipe, .debugger.brn, .debugger.clk, .debugger.slp, .debugger.bat, .debugger.bod, .debugger.ring, .debugger.uartd, .debugger.dmad');
   for (const [i, p] of panels.entries()) {
     const controls = [...p.querySelectorAll('button:not([disabled]), [role=radio], .bit[data-bit], .cc .ln[data-src]:nth-child(3n), .cc .ln[data-out]:nth-child(4n), .cc tr[data-k], .cc [data-file], .cc [data-line]:nth-child(2n)')];
     for (const c of controls.slice(0, 60)) {
@@ -130,10 +130,10 @@ await Promise.all(Array.from({ length: TABS }, async () => {
     const r = await t.ev(exercise('section.debugger, section.trace, .diagram, .instrument'));
     if (r?.grew.length && !GROWS.has(id)) fail(name, `panel changed height while used: ${r.grew.join(', ')}`);
     // The C and Compilers panels hold their height at the widths where their text and controls re-wrap, too.
-    if (await t.ev(`!!document.querySelector('.debugger.cc')`)) for (const w of [1000, 700, 390]) {
+    if (await t.ev(`!!document.querySelector('.debugger.cc, .debugger.registers, .debugger.addressing, .debugger.pipe, .debugger.brn, .debugger.clk, .debugger.slp, .debugger.bat, .debugger.bod, .debugger.ring, .debugger.uartd, .debugger.dmad')`)) for (const w of [1000, 700, 390]) {
       await t.size(w);
       await t.ev('new Promise((r) => setTimeout(r, 50))');
-      const rw = await t.ev(exercise('section.debugger.cc'));
+      const rw = await t.ev(exercise('section.debugger.cc, section.debugger.registers, section.debugger.addressing, section.debugger.pipe, section.debugger.brn, section.debugger.clk, section.debugger.slp, section.debugger.bat, section.debugger.bod, section.debugger.ring, section.debugger.uartd, section.debugger.dmad'));
       if (rw?.grew.length) fail(name, `at ${w}px, panel changed height while used: ${rw.grew.join(', ')}`);
     }
     // The same page, now on a phone: narrowing the viewport relays it out without loading it again.

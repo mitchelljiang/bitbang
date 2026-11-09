@@ -34,10 +34,10 @@ Instructions are drawn as their bits, split into fields with the field’s name 
 - Opcode: The fixed bits that say which instruction this is. See Instructions.
 - Operand: What an instruction works on: a register, a constant or an address. See Instructions.
 - Immediate: A constant stored inside the instruction itself. See Instructions.
-- Register: One of a small set of 32-bit slots inside the CPU, where values are worked on. A Cortex-M has r0 to r12, SP, LR and PC.
-- PC: The program counter: the address of the instruction being run.
+- Register: One of a small set of 32-bit slots inside the CPU, where values are worked on. A Cortex-M has r0 to r12, SP, LR and PC. See Registers.
+- PC: The program counter: the address of the instruction being run. See Registers.
 - Flags: Status bits (N, Z, C and V on Arm) set by arithmetic and tested by conditional branches. See Overflow and status flags.
-- Pipeline: Fetch, decode and execute in overlapping stages, so a new instruction can start every cycle.
+- Pipeline: Fetch, decode and execute in overlapping stages, so a new instruction can start every cycle. See Pipeline.
 
 ## After this section
 
