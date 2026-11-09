@@ -16,6 +16,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Power and clocks section: <a href="?p=clock-tree">Clock tree</a>, <a href="?p=sleep-modes">Sleep modes</a>, <a href="?p=battery-life">Battery life</a>, <a href="?p=brownout">Brown-out</a>'],
       ['new', 'Drivers section: <a href="?p=register-layer">Register access</a>, <a href="?p=hal">HAL design</a>, <a href="?p=ring-buffer">Ring buffers</a>, <a href="?p=uart-driver">Interrupt-driven UART</a>, <a href="?p=dma-driver">DMA drivers</a>'],
       ['new', 'Sources on every page, datasheets first'],
+      ['new', '<a href="?p=can">CAN</a>'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },

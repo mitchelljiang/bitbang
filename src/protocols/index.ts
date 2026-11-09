@@ -15,6 +15,7 @@ import { pcie } from './pcie';
 import { qspi } from './qspi';
 import { rs232 } from './rs232';
 import { rs485 } from './rs485';
+import { can } from './can';
 import { spi } from './spi';
 import { swd } from './swd';
 import { uart } from './uart';
@@ -22,4 +23,4 @@ import { usb } from './usb';
 import { ws2812 } from './ws2812';
 
 /** To add a protocol, write an encoder and list it here. It shows up in the menu wherever src/catalog.ts puts it. */
-export const protocols: Protocol[] = [uart, spi, i2c, i3c, qspi, onewire, i2s, rs232, rs485, ethframe, ethernet, fastEthernet, gigabitT, gigabitX, mii, jtag, swd, pci, pcie, usb, ws2812];
+export const protocols: Protocol[] = [uart, spi, i2c, i3c, qspi, onewire, i2s, rs232, rs485, can, ethframe, ethernet, fastEthernet, gigabitT, gigabitX, mii, jtag, swd, pci, pcie, usb, ws2812];

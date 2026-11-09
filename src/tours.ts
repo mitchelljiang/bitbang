@@ -121,6 +121,33 @@ export const TOURS: Record<string, (w: Waveform, p: Params) => TourStop[]> = {
     ];
   },
 
+  can(w, p) {
+    const find = (l: string) => w.bits.find((b) => b.label === l)!;
+    const span = (a: Bit, b: Bit): Range => [a.t0, b.t1];
+    const sof = find('SOF');
+    const data = w.bits.filter((b) => b.kind === 'data');
+    const crc = w.bits.filter((b) => b.kind === 'parity');
+    const stuffed = w.bits.find((b) => b.label === 'stuff');
+    const ack = find('ACK');
+    const lastEof = [...w.bits].reverse().find((b) => b.label === 'EOF')!;
+    const idBits = w.bits.filter((b) => b.kind === 'addr');
+    const rival = w.traces[3];
+    const lostT = rival ? w.notes!.find((n) => n.lane === 3)!.t : 0;
+    return [
+      overview(w, 'Overview', `One ${p.format === 'ext' ? 'extended' : 'standard'} ${p.type === 'remote' ? 'remote' : 'data'} frame at ${p.rate} kbit/s. Bus is the logic level, where 0 is dominant; CANH and CANL are the two wires. One bit lasts ${time(w, 1)}.`),
+      stop('Idle', 'With nothing driving it, termination holds both wires at about 2.5 V. This is the recessive state, and it reads as 1.', [0, sof.t0], around(w, [0, sof.t0], 0, 4)),
+      stop('Start of frame', 'A node starts by driving one dominant bit: CANH up and CANL down. Every other node synchronizes on this edge.', span(sof, sof), around(w, span(sof, sof), 1, 6)),
+      ...(rival ? [stop('Arbitration', 'Two nodes started at once. Each sends its identifier and reads the bus. They agree until the first bit where one sends recessive and the other dominant. Dominant wins on the wire, the node that sent recessive notices and stops, and the winner carries on undisturbed.', [lostT - 1, lostT + 1], around(w, [sof.t0, lostT + 1], 0, 2))] : []),
+      stop('Identifier', 'The identifier names the message, and a lower number means higher priority. It is sent most significant bit first, so the highest bits decide arbitration.', span(idBits[0], idBits[idBits.length - 1]), around(w, span(idBits[0], idBits[idBits.length - 1]), 1)),
+      ...(stuffed ? [stop('A stuff bit', 'After five equal bits the transmitter inserts an opposite bit, and receivers drop it. Without a clock wire, these edges are what keep every node in step.', span(stuffed, stuffed), around(w, span(stuffed, stuffed), 6, 3))] : []),
+      stop('Length', 'The four-bit data length code says how many bytes follow.', span(find('DLC3'), find('DLC0')), around(w, span(find('DLC3'), find('DLC0')), 3)),
+      ...(data.length ? [stop('Data', `${plural(data.length / 8, 'byte')}, most significant bit first. Stuff bits may be mixed in.`, span(data[0], data[data.length - 1]), around(w, span(data[0], data[data.length - 1]), 2))] : []),
+      stop('CRC', 'Fifteen check bits cover everything so far. The delimiter after them is always recessive, and stuffing ends there.', span(crc[0], find('CD')), around(w, span(crc[0], find('CD')), 2)),
+      stop('Acknowledge', p.ack === 'yes' ? 'The transmitter leaves this slot recessive, and any node that received the frame correctly drives it dominant.' : 'No other node drove this slot, so it stays recessive. The transmitter reports an error and will retry.', span(ack, ack), around(w, span(ack, ack), 3, 4)),
+      stop('End of frame', 'Seven recessive bits end the frame, and three more of intermission separate it from the next one.', [find('EOF').t0, lastEof.t1 + 3], around(w, [find('EOF').t0, lastEof.t1 + 3], 2, 1)),
+    ];
+  },
+
   rs485(w, p) {
     const base = uartStops(w, p);
     const de = w.traces[1].points;

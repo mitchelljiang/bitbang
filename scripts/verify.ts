@@ -47,6 +47,7 @@ import { place, type Sec } from '../src/topics/linkerscript';
 import { parseMap, perFile } from '../src/topics/mapfile';
 import { declLine } from '../src/topics/objects';
 import { assembleBl, compile as ccCompile, generate, generateC, haveTools, linkSynthetic } from './ccgen';
+import { crc15 as canCrc, stuff as canStuff } from '../src/protocols/can';
 import { REG_PROGRAM, REG_SRC, regFrames } from '../src/topics/registers';
 import { pll as clkPll } from '../src/topics/clocktree';
 import { ON as SLEEP_ON, POWER as SLEEP_POWER, wakes as sleepWakes } from '../src/topics/sleepmodes';
@@ -170,7 +171,7 @@ const CASES: [string, Params][] = [
   ['qspi', { mode: '111' }], ['qspi', { mode: '114' }], ['qspi', { mode: '144' }], ['qspi', { mode: '444' }],
   ['onewire', {}], ['onewire', { read: '' }], ['onewire', { present: 'no' }],
   ['i2s', {}], ['i2s', { bits: '24', format: 'lj', left: '-1', right: '8388607' }],
-  ['rs232', {}], ['rs485', {}],
+  ['rs232', {}], ['rs485', {}], ['can', {}], ['can', { rival: '', data: 'FF FF 00 00 AA 55 12 34' }], ['can', { format: 'ext', id: '18DAF110', rival: '18DAF111' }], ['can', { type: 'remote', rival: '' }], ['can', { ack: 'no', id: '7FF', rival: '', data: '' }],
   ['ethernet', {}], ['ethernet', { format: 'hex', data: '00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF' }],
   ['ethframe', {}], ['100base', {}], ['100base', { scramble: 'on' }], ['1000baset', {}], ['1000basex', {}],
   ['1000basex', { data: 'Hello' }], ['rmii', {}], ['rmii', { iface: 'mii' }],
@@ -1415,6 +1416,36 @@ section('3s. Architecture: registers, addressing, pipeline and branches');
 
 section('3t. Power and clocks, Drivers, and sources');
 {
+  // CAN: stuffing over every short bit pattern, and arbitration against the wired-AND definition.
+  let stuffBad = '';
+  for (let len = 1; len <= 14 && !stuffBad; len++) for (let m = 0; m < 1 << len; m++) {
+    const bits = Array.from({ length: len }, (_, i) => ({ v: ((m >> i) & 1) as 0 | 1, s: false }));
+    const out = canStuff(bits, (v) => ({ v, s: true }));
+    let run = 0, last = -1, ok = true;
+    const back: number[] = [];
+    let drop = false;
+    for (const b of out) {
+      if (drop) { if (b.v === last) ok = false; drop = false; run = 1; last = b.v; continue; }
+      run = b.v === last ? run + 1 : 1; last = b.v; back.push(b.v);
+      if (run === 5) drop = true;
+    }
+    if (!ok || back.join() !== bits.map((b) => b.v).join()) { stuffBad = bits.map((b) => b.v).join(''); break; }
+  }
+  check('CAN: stuffing never leaves six equal bits, and a receiver recovers every pattern up to 14 bits', !stuffBad, stuffBad);
+  const canParam = (o: Params) => Object.fromEntries(protocols.find((x) => x.id === 'can')!.params.map((x) => [x.key, x.default]).concat(Object.entries(o))) as Params;
+  const canEnc = (o: Params) => protocols.find((x) => x.id === 'can')!.encode(canParam(o));
+  const canAt = (tr: Trace, at: number) => [...tr.points].reverse().find((p) => p.t <= at)!.v;
+  const idOf = (w: Waveform) => w.bits.filter((b) => b.kind === 'addr').map((b) => canAt(w.traces[0], b.sample! + 1e-9)).join('');
+  let arbBad = '';
+  for (const [x, y] of [[0x123, 0x125], [0x125, 0x123], [0x400, 0x3ff], [0x001, 0x7ff]] as const) {
+    const w = canEnc({ id: x.toString(16), rival: y.toString(16), data: '' });
+    if (parseInt(idOf(w), 2) !== Math.min(x, y)) arbBad += `${x},${y} `;
+    const lose = w.traces[3], bus = w.traces[0];
+    const stops = lose.points[lose.points.length - 1];
+    if (canAt(lose, stops.t + 1e-9) !== 1 || canAt(bus, stops.t - 0.5) !== canAt(lose, stops.t - 0.5)) arbBad += `loser ${x} `;
+  }
+  check('CAN: the lower identifier always wins, and the loser matches the bus until it stops', !arbBad, arbBad);
+
   const sourced = allCategories.flatMap((c) => c.entries).filter((e) => statusOf.get(e.id) === 'live' && !RESOURCES[e.id]?.length).map((e) => e.id);
   check('sources: every page in every section lists at least one', sourced.length === 0, sourced.join(' '));
   const firstKind = Object.entries(RESOURCES).filter(([, r]) => r.some((x) => x.kind === 'Datasheet') && r[0].kind !== 'Datasheet' && r[0].kind !== 'Specification').map(([id]) => id);
@@ -1835,6 +1866,11 @@ if (sigrok) {
 
   expect('UART 8O2', run(vcd('uart', enc('uart', { parity: 'odd', stop: '2', data: 'Ok' })), ['-P', 'uart:rx=TX:baudrate=9600:parity=odd:stop_bits=2:format=hex', '-A', 'uart=rx-data:rx-warnings'], 100), ['4F', '6B']);
   expect('RS-232 (inverted)', run(vcd('rs232', enc('rs232')), ['-P', 'uart:rx=TxD:baudrate=9600:invert_rx=yes:format=hex', '-A', 'uart=rx-data:rx-warnings'], 100), ['48', '69']);
+  later('CAN: CRC-15 of "123456789" is the published check value 0x059E', async () => [canCrc([...Buffer.from('123456789')].flatMap((b) => Array.from({ length: 8 }, (_, i) => (b >> (7 - i)) & 1))) === 0x059e, '']);
+  expect('CAN standard', run(vcd('CANstandard', enc('can', { rival: '', id: '123', data: 'A5 3C FF 00' })), ['-P', 'can:can_rx=Bus:nominal_bitrate=500000:sample_point=75', '-A', 'can=sof:eof:id:ext-id:full-id:dlc:data:rtr:ack-slot:warnings'], 1), ["291 (0x123)","data frame","0xa5","0x3c","0xff","ACK"], /warning|error/i);
+  expect('CAN extended', run(vcd('CANextended', enc('can', { rival: '', format: 'ext', id: '18DAF110', data: '11 22' })), ['-P', 'can:can_rx=Bus:nominal_bitrate=500000:sample_point=75', '-A', 'can=sof:eof:id:ext-id:full-id:dlc:data:rtr:ack-slot:warnings'], 1), ["417001744 (0x18daf110)","0x11","0x22","ACK"], /warning|error/i);
+  expect('CAN remote', run(vcd('CANremote', enc('can', { rival: '', type: 'remote', id: '7E0', data: '' })), ['-P', 'can:can_rx=Bus:nominal_bitrate=500000:sample_point=75', '-A', 'can=sof:eof:id:ext-id:full-id:dlc:data:rtr:ack-slot:warnings'], 1), ["2016 (0x7e0)","remote frame"], /warning|error/i);
+  expect('CAN with heavy stuffing', run(vcd('CANwithheavystuffing', enc('can', { rival: '', id: '0', data: 'FF FF 00 00 FF FF 00 00' })), ['-P', 'can:can_rx=Bus:nominal_bitrate=500000:sample_point=75', '-A', 'can=sof:eof:id:ext-id:full-id:dlc:data:rtr:ack-slot:warnings'], 1), ["0 (0x0)","0xff","0x00","ACK"], /warning|error/i);
   expect('RS-485', run(vcd('rs485', enc('rs485')), ['-P', 'uart:rx=A:baudrate=9600:format=hex', '-A', 'uart=rx-data:rx-warnings'], 100), ['48', '69']);
   for (const mode of ['0', '3']) {
     const cpol = +mode >> 1;
