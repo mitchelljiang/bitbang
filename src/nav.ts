@@ -118,7 +118,73 @@ function sidebarHtml(a: Area) {
  * On narrow screens the sidebar collapses behind a button.
  */
 export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElement) {
-  tabs.innerHTML = areas.map((a) => `<a href="?p=${areaPages(a)[0]?.id ?? ''}" data-nav data-area="${a.id}">${areaGlyph(a.id)}${esc(a.name)}</a>`).join('');
+  // The tabs, then one shared drop-down holding each area's list of sections. Hovering a tab opens the drop-down
+  // under it; hovering the next tab slides it across and swaps the list, and it stays open over the gaps between tabs.
+  tabs.innerHTML = areas.map((a) => `<a href="?p=${areaPages(a)[0]?.id ?? ''}" data-nav data-area="${a.id}">${areaGlyph(a.id)}${esc(a.name)}</a>`).join('')
+    + `<div class="tab-menu">${areas.map((a) => `<ul class="tab-pane" data-pane="${a.id}" aria-label="${esc(a.name)} sections">${a.sections.map((s) => {
+      const n = pagesOf(s).length;
+      return `<li><a href="?p=${pagesOf(s)[0]?.id ?? ''}" data-nav data-section="${s.id}" tabindex="-1"><b>${esc(s.name)}</b><span>${n} page${n === 1 ? '' : 's'}</span></a></li>`;
+    }).join('')}</ul>`).join('')}</div>`;
+  const menu = tabs.querySelector<HTMLElement>('.tab-menu')!;
+  const canHover = matchMedia('(hover: hover)');
+  let current: string | null = null, closing = 0, quiet = false;
+  const pane = (id: string) => menu.querySelector<HTMLElement>(`[data-pane="${id}"]`)!;
+  const openMenu = (id: string) => {
+    clearTimeout(closing);
+    if (id === current) return;
+    const tab = tabs.querySelector<HTMLElement>(`a[data-area="${id}"]`)!, p = pane(id);
+    const w = p.offsetWidth, h = p.offsetHeight, box = tabs.getBoundingClientRect();
+    // Under the tab, but never past either edge of the window.
+    const x = Math.max(16 - box.left, Math.min(tab.offsetLeft, document.documentElement.clientWidth - 16 - box.left - w));
+    const fresh = current === null;
+    menu.classList.toggle('snap', fresh);  // opening from closed: appear in place; only a switch slides across
+    menu.style.transform = `translateX(${x}px)`;
+    menu.style.width = `${w}px`;
+    menu.style.height = `${h}px`;
+    for (const q of menu.querySelectorAll('.tab-pane')) q.classList.toggle('on', q === p);
+    if (fresh) void menu.offsetWidth;
+    menu.classList.remove('snap');
+    menu.classList.add('open');
+    tabs.classList.add('menu-open');
+    current = id;
+  };
+  const closeMenu = () => {
+    clearTimeout(closing);
+    menu.classList.remove('open');
+    tabs.classList.remove('menu-open');
+    current = null;
+  };
+  tabs.addEventListener('pointerover', (e) => {
+    if (e.pointerType !== 'mouse' && !canHover.matches) return;
+    const a = (e.target as Element).closest<HTMLElement>('a[data-area]');
+    if (a) openMenu(a.dataset.area!);
+    else clearTimeout(closing);  // over a gap or the drop-down: keep showing what was last hovered
+  });
+  tabs.addEventListener('pointerleave', () => { closing = window.setTimeout(closeMenu, 180); });
+  tabs.addEventListener('focusin', (e) => {
+    const a = (e.target as Element).closest<HTMLElement>('a[data-area]');
+    if (a && !quiet) openMenu(a.dataset.area!);
+  });
+  tabs.addEventListener('focusout', (e) => { if (!tabs.contains(e.relatedTarget as Node | null)) closeMenu(); });
+  // Keyboard: Down enters the drop-down, Up and Down move through it, Escape closes it.
+  tabs.addEventListener('keydown', (e) => {
+    if (!current) return;
+    const tab = tabs.querySelector<HTMLElement>(`a[data-area="${current}"]`)!;
+    const links = [...pane(current).querySelectorAll<HTMLElement>('a')];
+    const i = links.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'Escape') { closeMenu(); quiet = true; tab.focus(); quiet = false; }
+    else if (e.key === 'ArrowDown') links[Math.min(links.length - 1, i + 1)]?.focus();
+    else if (e.key === 'ArrowUp') (i > 0 ? links[i - 1] : tab).focus();
+    else return;
+    e.preventDefault();
+  });
+  // A click on any link closes the drop-down, even while the pointer is still over it.
+  tabs.addEventListener('click', (e) => {
+    if (!(e.target as Element).closest('a')) return;
+    closeMenu();
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  addEventListener('resize', closeMenu);
   side.innerHTML = `
     <button class="side-toggle" type="button" aria-expanded="false" aria-controls="side-nav"></button>
     <nav class="side-nav" id="side-nav"></nav>`;
@@ -140,7 +206,8 @@ export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElemen
     show(id: string | null) {
       const s = id ? sectionOf(id) : undefined;
       const area = s && areaOf(s);
-      for (const a of tabs.querySelectorAll('a')) a.toggleAttribute('aria-current', a.dataset.area === area?.id);
+      for (const a of tabs.querySelectorAll<HTMLElement>('a[data-area]')) a.toggleAttribute('aria-current', a.dataset.area === area?.id);
+      for (const a of tabs.querySelectorAll<HTMLElement>('a[data-section]')) a.toggleAttribute('aria-current', a.dataset.section === s?.id);
       side.hidden = !s;
       pager.hidden = !s;
       setOpen(false);

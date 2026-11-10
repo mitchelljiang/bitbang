@@ -206,6 +206,67 @@ main, .top, footer {
 .tabs a:hover { color: var(--ink); background: var(--sel); }
 .tabs a[aria-current] { color: var(--accent); background: var(--sel); font-weight: 600; }
 
+/* The drop-down under the tabs: one panel for all three, holding each area's list of sections. Moving from tab to
+   tab slides it across and resizes it while the lists cross-fade. Only for a pointer that hovers (and keyboard
+   focus); on touch screens a tap goes straight to the area. */
+.tabs { position: relative; }
+.tab-menu {
+  --morph: 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  margin-top: 6px;
+  box-sizing: content-box;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow), 0 24px 48px -24px rgba(29, 24, 40, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 -4px;
+  transition: opacity var(--ease), translate var(--ease), transform var(--morph), width var(--morph), height var(--morph), visibility 0s linear 0.15s;
+}
+.tab-menu.open { opacity: 1; visibility: visible; translate: none; transition-delay: 0s; }
+.tab-menu.snap { transition: none; }
+/* Covers the gap between the tabs and the drop-down, so moving down to it keeps it open. */
+.tabs.menu-open::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }
+.tab-pane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  min-width: 220px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 160ms ease-out, visibility 0s linear 160ms;
+}
+/* Only while the menu is open: a visible child of a hidden parent would still take clicks. */
+.tab-menu.open .tab-pane.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+.tabs .tab-menu a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+.tabs .tab-menu a b { font-weight: 500; color: var(--ink); }
+.tabs .tab-menu a span { font-size: 13px; color: var(--faint); }
+.tabs .tab-menu a[aria-current] { background: var(--sel); }
+.tabs .tab-menu a[aria-current] b { color: var(--accent); font-weight: 600; }
+@media (hover: none) { .tab-menu { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .tab-menu { translate: none; transition: opacity var(--ease), visibility 0s linear 0.15s; }
+}
+
 /* ---- sidebar and page layout ---- */
 
 .shell {

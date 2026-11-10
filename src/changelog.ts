@@ -10,6 +10,13 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-11-10',
+    items: [
+      ['improved', 'Data, Hardware and Software tabs drop down their sections on hover'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
+    ],
+  },
+  {
     date: '2026-11-09',
     items: [
       ['new', 'Architecture: <a href="?p=registers">Registers</a>, <a href="?p=addressing">Addressing</a>, <a href="?p=pipeline">Pipeline</a>, <a href="?p=branches">Branches</a>'],
