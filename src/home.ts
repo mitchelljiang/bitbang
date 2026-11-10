@@ -55,8 +55,8 @@ export function mountHome(root: HTMLElement) {
   root.innerHTML = `
     <section class="hero after">
       <h1>Embedded systems, one bit at a time.</h1>
-      <p>Interactive diagrams for learning how embedded hardware really works: what travels on the wires, and what the
-        bits mean when they arrive.</p>
+      <p>Interactive diagrams for learning how embedded systems really work: the signals on the wires, the chip that
+        sends them, and the code that runs on it.</p>
     </section>
     <section class="demo instrument">
       <div class="readout"></div>
