@@ -139,6 +139,21 @@ main, .top, footer {
 
 /* ---- header ---- */
 
+/* A thin line at the top of the window that fills as the page scrolls (not on the home page). */
+.read-progress { display: none; }
+@supports (animation-timeline: scroll()) {
+  .read-progress {
+    display: block;
+    position: fixed; inset: 0 0 auto; height: 2px; z-index: 50;
+    background: var(--accent);
+    transform-origin: left; transform: scaleX(0);
+    animation: read-progress linear both; animation-timeline: scroll(root);
+    pointer-events: none;
+  }
+  body:has(#home:not([hidden])) .read-progress { display: none; }
+}
+@keyframes read-progress { to { transform: scaleX(1); } }
+
 .top {
   position: relative;
   z-index: 20;
@@ -1937,7 +1952,9 @@ footer a:hover { color: var(--ink); }
 @media (max-width: 600px) { .se-body { grid-template-columns: minmax(0, 1fr); } .se-mid { transform: rotate(90deg); padding: 4px 0; } }
 
 /* Memory cells: a cell diagram and a retention demo on the left, a three-way comparison table on the right. */
-.cells .ce-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+/* The cell's actions sit under it on the screen, so the type switch in the toolbar never moves when they change. */
+.cells .ce-actions { display: flex; gap: 6px; margin-top: 14px; }
+.cells .ce-actions .dbg-btn { padding: 0 9px; white-space: nowrap; }
 .ce-body { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 20px; padding: 16px; align-items: start; }
 .ce-svg { background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; padding: 6px; }
 .ce-svg svg { width: 100%; height: auto; display: block; }
@@ -1951,6 +1968,7 @@ footer a:hover { color: var(--ink); }
 .ce-label.lost { color: #ff9f8c; }
 .ce-wear { margin: 6px 0 0; font: 12px var(--mono); color: var(--dbg-dim); }
 .ce-wear b { color: var(--dbg-text); }
+.ce-wear.off { visibility: hidden; }
 .ce-cmp { width: 100%; border-collapse: collapse; font: 13px var(--sans); }
 .ce-cmp th, .ce-cmp td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--dbg-line); vertical-align: top; }
 .ce-cmp thead th { font: 600 13px var(--sans); color: var(--dbg-text); }
@@ -2096,18 +2114,22 @@ footer a:hover { color: var(--ink); }
 
 /* Toolbar: controls on the light face. Light tokens so the shared .dbg-* controls render dark-on-light here. */
 .debugger.mem .dbg-bar {
-  --dbg-bg: #fff; --dbg-panel: #fff; --dbg-line: var(--line); --dbg-text: var(--ink); --dbg-dim: var(--faint); --dbg-pc: var(--accent);
+  --dbg-bg: var(--paper); --dbg-panel: var(--paper); --dbg-line: var(--line); --dbg-text: var(--ink); --dbg-dim: var(--faint); --dbg-pc: var(--accent);
   background: transparent; border-bottom: 0; padding: 0 2px 11px;
 }
 .debugger.mem .dbg-file { margin: 0; padding: 0; font: 600 12px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); background: transparent; border: 0; }
 .debugger.mem .dbg-state { color: var(--faint); }
 .debugger.mem .dbg-state i { background: var(--ch1); box-shadow: 0 0 7px var(--ch1); }
-.debugger.mem .dbg-seg, .debugger.mem .mseg { background: #fff; border-color: var(--line); }
+.debugger.mem .dbg-seg, .debugger.mem .mseg { background: var(--paper); border-color: var(--line); }
 .debugger.mem .dbg-seg button, .debugger.mem .mseg button, .debugger.mem .dbg-btn { color: var(--muted); }
 .debugger.mem .dbg-seg button:hover, .debugger.mem .mseg button:hover, .debugger.mem .dbg-btn:hover { color: var(--ink); }
-.debugger.mem .dbg-seg button[aria-checked='true'], .debugger.mem .mseg button[aria-checked='true'] { color: #fff; background: var(--ink); }
-.debugger.mem .dbg-bar .dbg-btn { background: #fff; border: 1px solid var(--line); }
-.debugger.mem .dbg-bar .dbg-btn.primary { color: #fff; background: var(--ink); border-color: var(--ink); }
+.debugger.mem .dbg-seg button[aria-checked='true'], .debugger.mem .mseg button[aria-checked='true'] { color: var(--paper); background: var(--ink); }
+.debugger.mem .dbg-bar .dbg-btn { background: var(--paper); border: 1px solid var(--line); }
+/* Buttons drawn on the screen itself (a cell's actions, a row's controls) take the screen's colors, not the face's. */
+.debugger.mem > div .dbg-btn { color: var(--dbg-dim); }
+.debugger.mem > div .dbg-btn:hover { color: var(--dbg-text); }
+.debugger.mem > div .dbg-set :is(input, select) { color: var(--dbg-text); background-color: var(--dbg-bg); border-color: var(--dbg-line); }
+.debugger.mem .dbg-bar .dbg-btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 .debugger.mem .dbg-set { color: var(--faint); }
 /* Text boxes on the face match the protocol settings: same height, type size, corners and colors. */
 .debugger.mem .dbg-set input, .debugger.mem .dbg-set select { height: 42px; padding: 0 12px; font: 15px var(--mono); color: var(--ink); background: var(--paper); border-color: var(--line); border-radius: 8px; }

@@ -77,7 +77,12 @@ export function animatePanels(root: HTMLElement) {
       // Pages rewrite the explain line on every draw; only fade it when the words actually changed.
       if (line && line.textContent !== said) {
         said = line.textContent ?? '';
-        if (!still.matches) line.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+        // Fade the words, not the box: the line is also the bottom of the screen, and fading its opacity would let
+        // the instrument face show through the glass as a pale flash.
+        if (!still.matches) {
+          const ink = getComputedStyle(line).color;
+          line.animate([{ color: `color-mix(in srgb, ${ink} 45%, transparent)` }, { color: ink }], { duration: 160, easing: 'ease-out' });
+        }
       }
       // Bits new to a variable that was already shown: the high bits of a wider type. They come in from the bits
       // already there outward, so the eye sees the value gain places on the left rather than being redrawn.

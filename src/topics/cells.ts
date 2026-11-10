@@ -77,11 +77,10 @@ export function mountCells(root: HTMLElement) {
         <span class="dbg-state"><i aria-hidden="true"></i>storage</span>
         <div class="dbg-controls">
           ${seg('m', 'Memory type', TYPES.map((t) => [t, NAME[t]]))}
-          <span class="ce-actions"></span>
         </div>
       </header>
       <div class="ce-body">
-        <div class="ce-left"><div class="ce-svg"></div><div class="ce-retain"></div></div>
+        <div class="ce-left"><div class="ce-svg"></div><div class="ce-retain"></div><div class="ce-actions"></div></div>
         <table class="ce-cmp"></table>
       </div>
       <p class="dbg-status" aria-live="polite"></p>
@@ -125,7 +124,8 @@ export function mountCells(root: HTMLElement) {
     root.querySelector('.ce-retain')!.innerHTML =
       `<div class="ce-bar"><div class="ce-fill ${barCls}" style="width:${level}%"></div></div>` +
       `<p class="ce-label ${barCls}">${label}</p>` +
-      (type === 'flash' ? `<p class="ce-wear">erase/program cycles: <b>${erases}</b>${erases > 20 ? ' · cell wearing out' : ''}</p>` : '');
+      // The wear line is only meaningful for Flash, but its space is always kept so switching type never resizes the panel.
+      `<p class="ce-wear${type === 'flash' ? '' : ' off'}" ${type === 'flash' ? '' : 'aria-hidden="true"'}>erase/program cycles: <b>${erases}</b>${erases > 20 ? ' · cell wearing out' : ''}</p>`;
 
     // Contextual action buttons.
     const acts = type === 'sram'
