@@ -8,11 +8,18 @@
  * This is a one-way export for editing; applying edits back to src is done by hand, guided by the `source:` field.
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // OBSIDIAN_OUT exports somewhere else, e.g. a scratch folder to diff against the vault (see the pull-text skill).
-const OUT = process.env.OBSIDIAN_OUT || join(process.cwd(), 'obsidian');
+// The export is written to a temporary folder and only replaces the vault once it has finished, so a crash part way
+// through leaves the vault as it was.
+const DEST = process.env.OBSIDIAN_OUT || join(process.cwd(), 'obsidian');
+const OUT = mkdtempSync(join(tmpdir(), 'obsidian-export-'));
+let browser;
+process.on('exit', () => { try { browser?.kill(); } catch { /* already gone */ } rmSync(OUT, { recursive: true, force: true }); });
+for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => process.exit(1));
 const URL = 'http://localhost:4321';
 
 // id -> source file, for the frontmatter.
@@ -27,6 +34,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const slug = (s) => s.toLowerCase().replace(/²/g, '2').replace(/³/g, '3').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 async function connect() {
+  // A browser left over from a crashed export still holds the port and profile; ask it to close first.
+  try {
+    const v = await (await fetch('http://127.0.0.1:9334/json/version')).json();
+    const old = new WebSocket(v.webSocketDebuggerUrl);
+    await new Promise((r) => old.addEventListener('open', r));
+    old.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+    await sleep(1000);
+  } catch { /* none running */ }
   const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     ['--headless=new', '--remote-debugging-port=9334', '--user-data-dir=/tmp/obs-prof', 'about:blank'], { stdio: 'ignore' });
   let ws;
@@ -122,16 +137,15 @@ function toMarkdown(d, meta) {
 }
 
 (async () => {
-  rmSync(OUT, { recursive: true, force: true });
-  mkdirSync(OUT, { recursive: true });
   const { chrome, send, evalJson } = await connect();
+  browser = chrome;
   await send('Page.enable');
   const go = async (q) => { await send('Page.navigate', { url: `${URL}/${q}` }); await sleep(900); };
 
   // Build the page list from the sidebars of each section.
   const sections = [];
   await go('?p=uart');
-  const tabs = await evalJson(`[...document.querySelectorAll('#tabs a')].map((a) => a.getAttribute('href'))`);
+  const tabs = await evalJson(`[...document.querySelectorAll('#tabs a[data-area]')].map((a) => a.getAttribute('href'))`);
   // Each tab's sidebar lists a few sections; each becomes a folder.
   for (const href of tabs) {
     await go(href);
@@ -177,6 +191,8 @@ function toMarkdown(d, meta) {
 
   writeFileSync(join(OUT, 'README.md'), index.join('\n') + '\n');
   chrome.kill();
-  console.log('Exported to', OUT);
+  rmSync(DEST, { recursive: true, force: true });
+  cpSync(OUT, DEST, { recursive: true });
+  console.log('Exported to', DEST);
   process.exit(0);
 })();
