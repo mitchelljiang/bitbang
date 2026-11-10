@@ -13,6 +13,8 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     date: '2026-11-10',
     items: [
       ['improved', 'Data, Hardware and Software tabs drop down their sections on hover'],
+      ['improved', 'Home page: sections grouped under Data, Hardware and Software, each drawing acting out its section on hover, and compact cards on phones'],
+      ['improved', 'Protocol pages: wires, speed and reach at the top, and the settings on the scope’s faceplate'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
