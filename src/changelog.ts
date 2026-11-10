@@ -21,11 +21,11 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-11-09',
     items: [
-      ['new', 'Architecture: <a href="?p=registers">Registers</a>, <a href="?p=addressing">Addressing</a>, <a href="?p=pipeline">Pipeline</a>, <a href="?p=branches">Branches</a>'],
-      ['new', 'Power and clocks section: <a href="?p=clock-tree">Clock tree</a>, <a href="?p=sleep-modes">Sleep modes</a>, <a href="?p=battery-life">Battery life</a>, <a href="?p=brownout">Brown-out</a>'],
-      ['new', 'Drivers section: <a href="?p=register-layer">Register access</a>, <a href="?p=hal">HAL design</a>, <a href="?p=ring-buffer">Ring buffers</a>, <a href="?p=uart-driver">Interrupt-driven UART</a>, <a href="?p=dma-driver">DMA drivers</a>'],
-      ['new', 'Sources on every page, datasheets first'],
-      ['new', '<a href="?p=can">CAN</a>'],
+      ['new', 'Architecture: [Registers](?p=registers), [Addressing](?p=addressing), [Pipeline](?p=pipeline), [Branches](?p=branches)'],
+      ['new', 'Power and clocks section: [Clock tree](?p=clock-tree), [Sleep modes](?p=sleep-modes), [Battery life](?p=battery-life), [Brown-out](?p=brownout)'],
+      ['new', 'Drivers section: [Register access](?p=register-layer), [HAL design](?p=hal), [Ring buffers](?p=ring-buffer), [Interrupt-driven UART](?p=uart-driver), [DMA drivers](?p=dma-driver)'],
+      ['new', 'Sources on every page, datasheets first.'],
+      ['new', '[CAN](?p=can).'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },

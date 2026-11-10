@@ -251,6 +251,9 @@ section('1c. Every setting has an explanation');
 // ---- 1d. Links ----
 section('1d. Internal links point to real pages');
 {
+  // The changelog escapes HTML and links only [text](?p=id), so a raw tag would show as text on the page.
+  const tags = CHANGELOG_TEXT.match(/<[a-z/][^>]*>/gi) ?? [];
+  check('changelog entries use [text](?p=id) links, not HTML', tags.length === 0, tags.slice(0, 3).join(' '));
   const pages = new Set(['basics', 'about', 'changelog', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
   const sources: [string, string][] = [['guide', SECTIONS], ['changelog', CHANGELOG_TEXT]];
   for (const p of protocols) for (const d of p.deepDive ?? []) for (const para of d.body) sources.push([`${p.id}: ${d.title}`, para]);
