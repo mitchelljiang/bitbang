@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Level, Trace, Waveform } from '../src/core/types';
 import { protocols } from '../src/protocols';
+import { QUICK } from '../src/quick';
 import { defaults } from '../src/core/util';
 import { encode8b10b } from '../src/protocols/pcie';
 import { TOURS } from '../src/tours';
@@ -1617,6 +1618,14 @@ section('3n. Shared helpers and site structure');
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
   const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));
   check('every interactive page and protocol is listed in a sidebar', orphans.length === 0, orphans.join(', '));
+}
+
+section('3h2. The wires, speed and reach strip on protocol pages');
+{
+  const missing = protocols.filter((p) => !QUICK[p.id] && p.id !== 'ethframe').map((p) => p.id);
+  check('every protocol with its own physical layer has a wires, speed and reach strip', missing.length === 0, missing.join(', '));
+  const stray = Object.keys(QUICK).filter((id) => !P[id]);
+  check('every strip belongs to a protocol', stray.length === 0, stray.join(', '));
 }
 
 section('3i. Memory: I/O registers, the stack, memory cells, alignment and the heap');

@@ -20,6 +20,7 @@ import { mountEye } from './eye';
 import { TOURS } from './tours';
 import { mountSearch } from './search';
 import { animatePanels } from './topics/motion';
+import { QUICK } from './quick';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -29,6 +30,7 @@ const summary = $('#proto-summary');
 const usedIn = $('#proto-used');
 const fullName = $('#proto-full');
 const tagList = $('#proto-tags');
+const quick = $('#proto-quick');
 const vizView = $('#viz');
 const guideView = $('#guide');
 const wipView = $('#wip');
@@ -257,6 +259,13 @@ function buildAll() {
   linked.clear();
   summary.replaceChildren(...paragraph(proto.summary).childNodes);
   usedIn.textContent = proto.usedIn;
+  const q = QUICK[proto.id];
+  quick.hidden = !q;
+  quick.replaceChildren(...(q ? ([['Wires', q.wires], ['Speed', q.speed], ['Reach', q.reach]] as const) : []).map(([k, v]) => {
+    const cell = document.createElement('div');
+    cell.append(Object.assign(document.createElement('dt'), { textContent: k }), Object.assign(document.createElement('dd'), { textContent: v }));
+    return cell;
+  }));
   // Each tag searches the site for every protocol that shares it.
   tagList.replaceChildren(...proto.tags.map((tag) => {
     const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tag-chip', textContent: tag });
