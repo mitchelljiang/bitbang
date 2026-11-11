@@ -1035,6 +1035,29 @@ table.vars th, table.vars td { padding: 8px 14px 8px 0; text-align: left; vertic
 table.vars th small, table.vars td small { font-size: 12px; color: var(--dbg-dim); }
 table.vars th code { font-weight: 700; }
 table.vars .hex { font-weight: 600; }
+/* Endianness: the value's bytes at each address, little- and big-endian side by side. Each byte keeps its significance
+   color in both rows, so the same colors appear in reverse order. The row for the chosen order is lit. */
+.en-mem { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--dbg-line); }
+.en-mem h3 { margin: 0 0 10px; font: 600 13px var(--sans); color: var(--dbg-text); }
+.en-mem h3 small { margin-left: 6px; font-weight: 400; color: var(--dbg-dim); }
+.en-table { border-collapse: separate; border-spacing: 6px 4px; margin: 0 -6px; font: 13px var(--mono); }
+.en-table th { padding: 0 8px 0 0; text-align: left; font: 500 12px var(--sans); color: var(--dbg-dim); white-space: nowrap; }
+.en-table thead th { font: 12px var(--mono); text-align: center; padding: 0 0 2px; }
+.en-table thead th:first-child { text-align: left; font-family: var(--sans); }
+.en-table td { padding: 0; }
+.en-table tr > * { transition: opacity 150ms ease-out; }
+.en-table tbody tr:not(.on) > * { opacity: 0.45; }
+.en-table tbody tr.on th { color: var(--dbg-text); }
+.en-byte { display: grid; justify-items: center; gap: 2px; min-width: 66px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.en-byte b { font-weight: 700; color: var(--dbg-text); }
+.en-byte small { font: 11px var(--sans); color: var(--c); }
+.en-byte.s3 { --c: #ec5a92; } .en-byte.s2 { --c: #ff9f5a; } .en-byte.s1 { --c: #2bb7e3; } .en-byte.s0 { --c: #5fd0a4; }
+.en-table:has(td:nth-child(3):last-child) .en-byte.s1 { --c: #ec5a92; }
+@media (max-width: 600px) {
+  .en-table { width: calc(100% + 8px); table-layout: fixed; border-spacing: 4px; margin: 0 -4px; }
+  .en-table th:first-child { width: 64px; white-space: normal; }
+  .en-byte { min-width: 0; padding: 5px 2px; }
+}
 /*
  * A row of bits. Each bit is a column (the cell, then its label), so labels always line up. Groups (hex digits, or a
  * float's fields) are separated by space and can be named above or labelled below, in plain text.

@@ -471,7 +471,7 @@ export function mountEndian(root: HTMLElement) {
       ${seg('w', 'Width', [['16', 'uint16_t'], ['32', 'uint32_t']])}
       ${seg('e', 'Byte order', [['le', 'Little-endian'], ['be', 'Big-endian']])}
       <label class="dbg-set">x = <input type="text" spellcheck="false" autocomplete="off" aria-label="Set x"></label>`,
-    body: '<div class="vars-wrap"></div>',
+    body: '<div class="vars-wrap"></div><div class="en-mem"></div>',
     after: `<section class="prose">
       <h2>How the program works</h2>
       <p><code>x_ptr</code> points at x as a whole value. Casting it to <code>uint8_t *</code> keeps the same address but
@@ -512,6 +512,22 @@ export function mountEndian(root: HTMLElement) {
       mem.map((b, k) => row(`byte_ptr[${k}]`, '', `<code class="hex">${hexN(b, 8)}</code> <small>at 0x${(base + k).toString(16).toUpperCase()}</small>`,
         bits(`m${k}`, b, 8, { groups: nibbles(b, 8, true), tip: () => `The byte at address 0x${(base + k).toString(16).toUpperCase()}: the ${significance(k)}.` }))).join(''),
     );
+    // The same value laid out in memory both ways: one column per address, each byte tinted by its significance so the
+    // reversal shows at a glance. The row for the chosen order is the one the program above reads.
+    const addrs = Array.from({ length: n }, (_, k) => `+${k}`);
+    const layout = (le: boolean) => bytesOf(x, width, le).map((b, k) => {
+      const sig = le ? k : n - 1 - k;
+      const tag = sig === n - 1 ? 'MSB' : sig === 0 ? 'LSB' : `byte ${sig}`;
+      return `<td><span class="en-byte s${sig}"><b>${hex2(b)}</b><small>${tag}</small></span></td>`;
+    }).join('');
+    root.querySelector('.en-mem')!.innerHTML = `
+      <h3>x in memory <small>from address 0x${base.toString(16).toUpperCase()}, lowest on the left</small></h3>
+      <table class="en-table">
+        <thead><tr><th scope="col">Address</th>${addrs.map((a) => `<th scope="col">${a}</th>`).join('')}</tr></thead>
+        <tbody>${([true, false] as const).map((le) => `
+          <tr class="${le === little ? 'on' : ''}"><th scope="row">${le ? 'Little-endian' : 'Big-endian'}</th>${layout(le)}</tr>`).join('')}
+        </tbody>
+      </table>`;
     markSeg(root, 'w', String(width));
     markSeg(root, 'e', little ? 'le' : 'be');
     showValue(root, hexN(x, width));

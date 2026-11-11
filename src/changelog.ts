@@ -16,6 +16,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['improved', 'Home page: sections grouped under Data, Hardware and Software, each drawing acting out its section on hover, and compact cards on phones'],
       ['improved', 'Protocol pages: wires, speed and reach at the top, and the settings on the scope’s faceplate'],
       ['improved', 'A thin line at the top of the window shows how far down the page you are'],
+      ['improved', '[Endianness](?p=endianness): a table of x in memory, little- and big-endian byte by byte'],
       ['fixed', 'No pale flash on the diagrams when stepping or changing a setting; Memory controls readable in the dark theme'],
       ['fixed', '[SRAM, DRAM and Flash](?p=cells): the type switch and panel stay put, with each cell’s actions under it'],
       ['improved', 'Minor UI/UX fixes and updates.'],
