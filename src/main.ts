@@ -25,6 +25,7 @@ import { mountCheck } from './check';
 import { PATHS, pathById } from './paths';
 import { activePath, isRead, markRead, onProgress, setActivePath, setLastPage } from './learn';
 import { mountToc } from './toc';
+import { pageId, pageUrl, shortUrl, shortenLinks } from './url';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -104,10 +105,10 @@ function readUrl(q: URLSearchParams, p: Protocol) {
 }
 
 function writeUrl() {
-  const q = new URLSearchParams({ p: proto.id });
+  const q = new URLSearchParams();
   const d = defaults(proto);
   for (const [k, v] of Object.entries(params)) if (v !== d[k]) q.set(k, v);
-  history.replaceState(history.state, '', `?${q}`);
+  history.replaceState(history.state, '', pageUrl(proto.id, q.toString()));
 }
 
 // ---- UI ----
@@ -570,7 +571,7 @@ window.addEventListener('resize', () => {
   }, 150);
 });
 
-// ---- routing: ?p=<id> shows that protocol; anything else (including no ?p) shows the guide ----
+// ---- routing: /<id> shows that page (as does the older ?p=<id>); anything else shows the home page ----
 
 const nav = mountNav($('#tabs'), $('#side'), $('#pager'));
 const search = mountSearch($('#top-search'));
@@ -595,7 +596,9 @@ let routing = 0;
  */
 async function route() {
   const q = new URLSearchParams(location.search);
-  const id = q.get('p') ?? '';
+  const id = pageId();
+  // An old ?p= link: show the short address instead.
+  if (q.has('p')) history.replaceState(history.state, '', shortUrl(location.href));
   const p = protocols.find((x) => x.id === id);
   const load = p ? undefined : topics[id];
   const ticket = ++routing;
@@ -756,7 +759,7 @@ function describe(id: string, page: string, p?: Protocol) {
     : entry && !id.endsWith('-start') ? entry.blurb
     : entry ? `${document.title.split(' · ')[0]}: what the section covers, the order to read it in, and the words it uses.`
     : OTHER_DESC[id] ?? HOME_DESC;
-  const url = page === 'home' ? BASE : `${BASE}?p=${id}`;
+  const url = page === 'home' ? BASE : `${BASE}${id}`;
   const set = (sel: string, attr: string, v: string) => document.querySelector(sel)?.setAttribute(attr, v);
   set('meta[name="description"]', 'content', text);
   set('link[rel="canonical"]', 'href', url);
@@ -790,7 +793,7 @@ document.addEventListener('click', (e) => {
   if (a.dataset.path) setActivePath(a.dataset.path);
   clearTimeout(scrollSave);
   saveScroll();
-  history.pushState(null, '', a.href);
+  history.pushState(null, '', shortUrl(a.href));
   current = -1;
   zoom = 'fit';
   // A new page starts at the top, at once: the smooth scroll the stylesheet sets would still be running from the
@@ -813,15 +816,16 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 window.addEventListener('pagehide', saveScroll);
 
+shortenLinks();
 route().then(() => {
   // The home page's opening plays from the top, so only other pages restore a saved position on load.
-  if (new URLSearchParams(location.search).has('p')) restoreScroll();
+  if (pageId()) restoreScroll();
   // The first page is built: show the content and footer, now that the footer has its real position.
   document.documentElement.classList.remove('loading');
 });
 // Fetch a topic page's code as soon as a link to it is pointed at, so opening it is instant.
 document.addEventListener('pointerover', (e) => {
   const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[data-nav]') : null;
-  const id = a && new URL(a.href).searchParams.get('p');
+  const id = a && pageId(new URL(a.href));
   if (id) topics[id]?.();
 }, { passive: true });

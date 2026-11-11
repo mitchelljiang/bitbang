@@ -19,6 +19,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Reading progress: pages read to the end are counted on the home page and ticked on each section overview, kept in the browser only'],
       ['new', '[Glossary](?p=glossary): every term in one list, also found by search'],
       ['improved', 'Each page has its own description for search engines and link previews, and the site has a sitemap'],
+      ['improved', 'Shorter page addresses, such as bitbang.fyi/uart; older ?p= links still work'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },

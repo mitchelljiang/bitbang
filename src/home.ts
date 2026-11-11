@@ -8,6 +8,7 @@ import { areaGlyph, sectionArt } from './art';
 import { PATHS } from './paths';
 import { isRead, lastPage, onProgress, readCount } from './learn';
 import { allCategories } from './allTopics';
+import { pageId } from './url';
 
 /**
  * The protocols that can say "Hi" on the home page, and what each one's trigger waits for. One is picked at random on
@@ -217,7 +218,7 @@ export function mountHome(root: HTMLElement) {
   });
 
   // Only a fresh visit to the home page gets the opening; arriving from another page shows it all at once.
-  let played = new URLSearchParams(location.search).has('p') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let played = pageId() !== '' || matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     show() {
       progress();

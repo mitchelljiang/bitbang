@@ -10,6 +10,7 @@ import { driverTopics } from './drivers';
 import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
+import { pageId } from './url';
 import { areaGlyph } from './art';
 import { isRead, onProgress } from './learn';
 
@@ -233,7 +234,7 @@ export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElemen
         openFor = s;
       }
       for (const a of list.querySelectorAll('a')) {
-        const here = new URL(a.href).searchParams.get('p') === id;
+        const here = pageId(new URL(a.href)) === id;
         a.toggleAttribute('aria-current', here);
         if (here && !side.classList.contains('open')) a.scrollIntoView({ block: 'nearest' });
       }
