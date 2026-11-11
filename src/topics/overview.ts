@@ -7,6 +7,7 @@ import { esc } from '../core/render';
 import { areas } from '../nav';
 import { statusOf } from '../search';
 import { sectionArt } from '../art';
+import { isRead } from '../learn';
 
 interface Term { term: string; def: string; page?: string }
 interface Overview {
@@ -18,7 +19,7 @@ interface Overview {
   terms: Term[];
 }
 
-const OVERVIEWS: Record<string, Overview> = {
+export const OVERVIEWS: Record<string, Overview> = {
   protocols: {
     intro: `A protocol is the agreement two chips share about what the voltages on a few wires mean: when to read the
       line, which bit comes first, how a message starts and ends, and who may talk next. This section draws each one
@@ -286,7 +287,7 @@ export const overview = (id: string) => (root: HTMLElement) => {
             <p>${esc(g.blurb)}</p>
             <ul>${g.entries.map((e) => `
               <li class="${live(e.id) ? '' : open(e.id) ? 'wip' : 'soon'}">${open(e.id)
-                ? `<a href="?p=${e.id}" data-nav><b>${esc(e.name)}</b><span>${esc(e.blurb)}</span></a>`
+                ? `<a href="?p=${e.id}" data-nav${isRead(e.id) ? ' class="read"' : ''}><b>${esc(e.name)}</b><span>${esc(e.blurb)}</span></a>`
                 : `<div><b>${esc(e.name)}</b><span>${esc(e.blurb)}</span></div>`}</li>`).join('')}
             </ul>
           </div>

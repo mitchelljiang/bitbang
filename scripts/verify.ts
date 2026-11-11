@@ -29,6 +29,9 @@ import { CONTROL, FOUR_B_FIVE_B, mlt3, scrambler } from '../src/protocols/fast';
 import { crc5, crc16 } from '../src/protocols/usb';
 import { PAM5 } from '../src/protocols/gigt';
 import { CHANGELOG_TEXT } from '../src/changelog';
+import { PATHS } from '../src/paths';
+import { CHECKS } from '../src/checks';
+import { TERMS as GLOSSARY } from '../src/topics/glossary';
 import { catalog, protocolStart } from '../src/catalog';
 import { bitTopics } from '../src/bits';
 import { memoryTopics } from '../src/memory';
@@ -264,7 +267,7 @@ section('1d. Internal links point to real pages');
   // The changelog escapes HTML and links only [text](?p=id), so a raw tag would show as text on the page.
   const tags = CHANGELOG_TEXT.match(/<[a-z/][^>]*>/gi) ?? [];
   check('changelog entries use [text](?p=id) links, not HTML', tags.length === 0, tags.slice(0, 3).join(' '));
-  const pages = new Set(['basics', 'about', 'changelog', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
+  const pages = new Set(['basics', 'about', 'changelog', 'paths', 'glossary', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
   const sources: [string, string][] = [['guide', SECTIONS], ['changelog', CHANGELOG_TEXT]];
   for (const p of protocols) for (const d of p.deepDive ?? []) for (const para of d.body) sources.push([`${p.id}: ${d.title}`, para]);
   let count = 0;
@@ -275,7 +278,7 @@ section('1d. Internal links point to real pages');
       if (!pages.has(m[1])) broken.push(`${where} → ?p=${m[1]}`);
     }
   }
-  const ids = [...index.map((e) => e.id), 'about', 'changelog'];
+  const ids = [...index.map((e) => e.id), 'about', 'changelog', 'paths', 'glossary'];
   check('page ids are unique across every section and the other pages', new Set(ids).size === ids.length, ids.filter((x, i) => ids.indexOf(x) !== i).join(', '));
   const badRes = Object.entries(RESOURCES).flatMap(([id, list]) => [
     ...(pages.has(id) ? [] : [`${id} is not a page`]),
@@ -283,6 +286,52 @@ section('1d. Internal links point to real pages');
   ]);
   check(`related resources: ${Object.values(RESOURCES).flat().length} entries, all on real pages with https links`, badRes.length === 0, badRes.join('; '));
   check(`${count} links in Going deeper, the guide and the changelog lead to existing pages`, broken.length === 0, broken.join('; '));
+}
+
+section('1e. Learning paths, questions and glossary');
+{
+  const pages1e = new Set(['basics', ...index.filter((e) => e.status !== 'soon').map((e) => e.id)]);
+  const live = new Set(index.filter((e) => e.status === 'live').map((e) => e.id));
+  const badSteps = PATHS.flatMap((p) => [
+    ...p.steps.filter(([id]) => !live.has(id) || id.endsWith('-start')).map(([id]) => `${p.id}: ${id} is not a live page`),
+    ...p.steps.filter(([id], i) => p.steps.findIndex(([x]) => x === id) !== i).map(([id]) => `${p.id}: ${id} appears twice`),
+    ...p.steps.filter(([, why]) => !why.trim().endsWith('.') && !why.trim().endsWith('?')).map(([id]) => `${p.id}: ${id} has no reason`),
+  ]);
+  check(`${PATHS.length} learning paths, ${PATHS.reduce((n, p) => n + p.steps.length, 0)} steps, each a live page listed once with a reason`,
+    badSteps.length === 0 && new Set(PATHS.map((p) => p.id)).size === PATHS.length, badSteps.join('; '));
+  const badChecks = Object.entries(CHECKS).flatMap(([id, list]) => [
+    ...(live.has(id) ? [] : [`${id} is not a live page`]),
+    ...list.flatMap((c, i) => [
+      c.options.length < 3 || c.options.length > 4 ? `${id} #${i + 1}: needs 3 or 4 options` : '',
+      new Set(c.options).size !== c.options.length ? `${id} #${i + 1}: repeated option` : '',
+      !Number.isInteger(c.answer) || c.answer < 0 || c.answer >= c.options.length ? `${id} #${i + 1}: answer out of range` : '',
+      !c.q.trim() || !c.why.trim() ? `${id} #${i + 1}: empty question or explanation` : '',
+      [c.q, c.why, ...c.options].some((t) => (t.match(/`/g) ?? []).length % 2) ? `${id} #${i + 1}: unpaired backtick` : '',
+    ].filter(Boolean)),
+  ]);
+  const nChecks = Object.values(CHECKS).flat().length;
+  check(`${nChecks} check-yourself questions on ${Object.keys(CHECKS).length} live pages, each with one answer among 3 or 4 distinct options`, badChecks.length === 0, badChecks.join('; '));
+  // A few answers that can be computed are recomputed here, independently of the text.
+  const opt = (id: string, i: number) => CHECKS[id][i].options[CHECKS[id][i].answer];
+  const computed: [string, boolean][] = [
+    ['binary: 1011 0010 is 0xB2', opt('binary', 0).includes((0b10110010).toString(16).toUpperCase())],
+    ['binary: bits 7, 5, 4, 1 make 178', opt('binary', 1) === String((1 << 7) | (1 << 5) | (1 << 4) | (1 << 1))],
+    ['twos: 0xFF as int8_t is −1', opt('twos', 0) === `−${-((0xff << 24) >> 24)}`],
+    ['fixed: 0001 1000 in UQ4.4 is 1.5', opt('fixed', 0) === String(0b00011000 / 16)],
+    ['shifts: −78 >> 3 is −10', opt('shifts', 0) === `−${-(-78 >> 3)}`],
+    ['timers: 16 MHz / (16 × 1000) is 1 kHz', opt('timers', 0) === 'PSC = 15, ARR = 999' && 16e6 / ((15 + 1) * (999 + 1)) === 1000],
+    ['pwm: CCR 3 of ARR 9 is 30%', opt('pwm', 0) === '3' && 3 / (9 + 1) === 0.3],
+    ['adc: 3.3 V / 4096 is 0.81 mV', opt('adc', 1) === `${(3300 / 4096).toFixed(2)} mV`],
+    ['uart-driver: 10 bits at 115200 baud is 86.8 µs', opt('uart-driver', 0) === `${(10e6 / 115200).toFixed(1)} µs`],
+    ['uart-driver: 32 bytes is 2.8 ms', opt('uart-driver', 1) === `${(32 * 10e3 / 115200).toFixed(1)} ms`],
+    ['clock-tree: 12 MHz × 125 is 1500 MHz', opt('clock-tree', 0) === `${12 * 125} MHz`],
+    ['battery-life: average is about 110 µA', opt('battery-life', 0) === `About ${Math.round((10000 * 1 + 10 * 99) / 100)} µA`],
+    ['alignment: the struct is 8 bytes', opt('alignment', 0) === '8'],
+    ['spi: three targets need 6 wires', opt('spi', 0) === String(3 + 3)],
+  ];
+  check(`${computed.length} numeric answers match values recomputed here`, computed.every(([, ok]) => ok), computed.filter(([, ok]) => !ok).map(([n]) => n).join('; '));
+  const badTerms = GLOSSARY.filter((t) => t.page && !pages1e.has(t.page)).map((t) => `${t.term} → ${t.page}`);
+  check(`${GLOSSARY.length} glossary terms, each pointing to a real page`, badTerms.length === 0, badTerms.join('; '));
 }
 
 // ---- 2. Walkthroughs ----
@@ -1629,8 +1678,8 @@ section('3n. Shared helpers and site structure');
   const entries = allCategories.flatMap((c) => c.entries.map((e) => e.id));
   const dupes = entries.filter((id, i) => entries.indexOf(id) !== i);
   check('no two sidebar entries share an id', dupes.length === 0, dupes.join(', '));
-  const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id));
-  check('every interactive page and protocol is listed in a sidebar', orphans.length === 0, orphans.join(', '));
+  const orphans = [...Object.keys(topics), ...protocols.map((p) => p.id)].filter((id) => !entries.includes(id) && id !== 'paths' && id !== 'glossary');
+  check('every interactive page and protocol is listed in a sidebar (the learning paths and glossary sit outside the sections)', orphans.length === 0, orphans.join(', '));
 }
 
 section('3h2. The wires, speed and reach strip on protocol pages');

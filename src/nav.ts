@@ -11,6 +11,7 @@ import { catalog, protocolStart, type Category } from './catalog';
 import { esc } from './core/render';
 import { statusOf } from './search';
 import { areaGlyph } from './art';
+import { isRead, onProgress } from './learn';
 
 interface Section {
   id: string;
@@ -97,7 +98,7 @@ function groupsHtml(s: Section) {
     const items = cat.entries.map((e) => {
       const status = statusOf.get(e.id);
       const title = `title="${esc(e.blurb)}"`;
-      if (status === 'live') return `<li><a href="?p=${e.id}" data-nav ${title}>${esc(e.name)}</a></li>`;
+      if (status === 'live') return `<li><a href="?p=${e.id}" data-nav data-page="${e.id}" ${title}>${esc(e.name)}<span class="sr side-read">, read</span></a></li>`;
       if (status === 'wip') return `<li><a class="wip" href="?p=${e.id}" data-nav ${title}>${esc(e.name)}<span class="sr">, in progress</span></a></li>`;
       return `<li class="soon" ${title}>${esc(e.name)}</li>`;
     });
@@ -200,8 +201,15 @@ export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElemen
   });
   let shown: Area | undefined;
   let openFor: Section | undefined;
+  /** Ticks the pages the reader has finished. */
+  const markRead = () => {
+    for (const a of list.querySelectorAll<HTMLElement>('a[data-page]')) a.classList.toggle('read', isRead(a.dataset.page!));
+  };
+  onProgress(markRead);
 
   return {
+    /** Whether page `id` belongs to a section, and so has a sidebar. */
+    has: (id: string) => !!sectionOf(id),
     /** Shows the navigation for page `id`, or none for pages outside any section (the home page, About). */
     show(id: string | null) {
       const s = id ? sectionOf(id) : undefined;
@@ -218,6 +226,7 @@ export function mountNav(tabs: HTMLElement, side: HTMLElement, pager: HTMLElemen
         shown = area;
         openFor = undefined;
       }
+      markRead();
       // Arriving in a section opens its list; the others stay as the reader left them.
       if (s !== openFor) {
         list.querySelector<HTMLDetailsElement>(`.side-sec[data-section="${s.id}"]`)!.open = true;

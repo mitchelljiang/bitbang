@@ -21,6 +21,9 @@ import { TOURS } from './tours';
 import { mountSearch } from './search';
 import { animatePanels } from './topics/motion';
 import { QUICK } from './quick';
+import { mountCheck } from './check';
+import { PATHS, pathById } from './paths';
+import { activePath, isRead, markRead, onProgress, setActivePath, setLastPage } from './learn';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -600,10 +603,15 @@ async function route() {
   const page = p ? 'viz' : load ? 'topic' : wip ? 'wip' : id === 'basics' ? 'guide' : id === 'about' ? 'about' : id === 'changelog' ? 'changelog' : 'home';
   const views = { viz: vizView, wip: wipView, guide: guideView, about: aboutView, changelog: changelogView, home: homeView, topic: topicView };
   for (const [k, v] of Object.entries(views)) v.hidden = k !== page;
-  // The home page, About and the changelog belong to no section, so they have no sidebar.
-  const inSection = page !== 'home' && page !== 'about' && page !== 'changelog';
+  // The home page, About, the changelog, the learning paths and the glossary belong to no section, so they have no sidebar.
+  const inSection = page !== 'home' && page !== 'about' && page !== 'changelog' && nav.has(id);
   nav.show(inSection ? id : null);
   showResources(inSection ? id : null);
+  // Pages with content of their own to read: not the under-construction notes.
+  const readable = inSection && page !== 'wip';
+  check.show(readable ? id : null);
+  showPathBar(readable ? id : null);
+  watchRead(readable ? id : null);
   $('#shell').classList.toggle('no-side', !inSection);
   if (page !== 'viz') {
     stop();
@@ -646,6 +654,7 @@ async function route() {
     readUrl(q, p);
     buildAll();
   }
+  describe(id, page, p);
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   arrive(page === 'topic' ? topicView : views[page], id, page); // the topic view may have just been replaced
 }
@@ -665,6 +674,91 @@ function arrive(view: HTMLElement, id: string, page: string) {
   [...view.children].slice(0, 6).forEach((el, i) => (el as HTMLElement).animate(
     [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
     { duration: 480, delay: i * 70, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'backwards' }));
+}
+
+// ---- learning: questions, the path being followed, and which pages have been read ----
+
+const check = mountCheck($('#check'));
+
+/**
+ * The bar above Previous and Next while the reader follows a learning path and is on one of its pages: where they are
+ * on it and the step after this one. Off the path it hides, and the path stays chosen until they leave it here.
+ */
+const pathBar = $('#path-bar');
+let pathPage: string | null = null;
+function showPathBar(id: string | null) {
+  pathPage = id;
+  const path = pathById(activePath());
+  const i = path && id ? path.steps.findIndex(([s]) => s === id) : -1;
+  pathBar.hidden = i < 0;
+  if (!path || i < 0) return;
+  const next = path.steps[i + 1]?.[0];
+  const name = (x: string) => allCategories.flatMap((c) => c.entries).find((e) => e.id === x)?.name ?? x;
+  pathBar.innerHTML = `
+    <span class="pb-where"><span>Path</span><a href="?p=paths#${path.id}" data-nav>${esc(path.name)}</a><i>${i + 1} of ${path.steps.length}</i></span>
+    ${next ? `<a class="pb-next" href="?p=${next}" data-nav><span>Next on the path</span><b>${esc(name(next))} →</b></a>`
+      : `<a class="pb-next" href="?p=paths#${path.id}" data-nav><span>Last page of the path</span><b>Back to the paths →</b></a>`}
+    <button type="button" class="pb-leave" aria-label="Leave this path" title="Leave this path">×</button>`;
+}
+pathBar.addEventListener('click', (e) => {
+  if ((e.target as Element).closest('.pb-leave')) setActivePath(null);
+});
+onProgress(() => showPathBar(pathPage));
+
+/**
+ * A page counts as read once the reader has been on it for a few seconds and has reached its end (Previous and Next
+ * are on screen). Opening a page and leaving, or skimming to the bottom at once, does not count.
+ */
+const READ_AFTER_MS = 5000;
+let watching: string | null = null, arrivedAt = 0, readTimer = 0;
+function maybeRead() {
+  if (!watching || isRead(watching)) return;
+  const end = $('#pager').getBoundingClientRect();
+  if (end.height === 0 || end.top > window.innerHeight) return;
+  const left = READ_AFTER_MS - (performance.now() - arrivedAt);
+  clearTimeout(readTimer);
+  if (left > 0) readTimer = window.setTimeout(maybeRead, left);
+  else markRead(watching);
+}
+function watchRead(id: string | null) {
+  if (id === watching) return;
+  clearTimeout(readTimer);
+  watching = id;
+  arrivedAt = performance.now();
+  if (!id) return;
+  setLastPage(id);
+  // Once the page has been laid out, in case it is short enough to end on screen without scrolling.
+  readTimer = window.setTimeout(maybeRead, 300);
+}
+window.addEventListener('scroll', maybeRead, { passive: true });
+
+// ---- what search engines and link previews are told about each page ----
+
+const BASE = 'https://bitbang.fyi/';
+const HOME_DESC = document.querySelector<HTMLMetaElement>('meta[name="description"]')!.content;
+const OTHER_DESC: Record<string, string> = {
+  basics: 'The questions every protocol answers: how the receiver keeps time, how bits are signalled, who drives the line, and how a message is framed and checked.',
+  about: 'Who makes bitbang, and why.',
+  changelog: 'What is new on bitbang, release by release.',
+  paths: `${PATHS.length} routes through bitbang for different readers: ${PATHS.map((x) => x.name.toLowerCase()).join(', ')}.`,
+  glossary: 'Embedded systems terms in a sentence each, with an interactive page that shows every one working.',
+};
+/** Sets the description, canonical address and social-card fields for the page on screen. The title is already set. */
+function describe(id: string, page: string, p?: Protocol) {
+  const entry = allCategories.flatMap((c) => c.entries).find((e) => e.id === id);
+  const plain = (s: string) => s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+  const text = page === 'home' ? HOME_DESC
+    : p ? plain(p.summary)
+    : entry && !id.endsWith('-start') ? entry.blurb
+    : entry ? `${document.title.split(' · ')[0]}: what the section covers, the order to read it in, and the words it uses.`
+    : OTHER_DESC[id] ?? HOME_DESC;
+  const url = page === 'home' ? BASE : `${BASE}?p=${id}`;
+  const set = (sel: string, attr: string, v: string) => document.querySelector(sel)?.setAttribute(attr, v);
+  set('meta[name="description"]', 'content', text);
+  set('link[rel="canonical"]', 'href', url);
+  set('meta[property="og:url"]', 'content', url);
+  for (const k of ['og:title', 'twitter:title']) set(`meta[property="${k}"], meta[name="${k}"]`, 'content', document.title);
+  for (const k of ['og:description', 'twitter:description']) set(`meta[property="${k}"], meta[name="${k}"]`, 'content', text);
 }
 
 /** The "Related resources" list at the bottom of every page in a section, grouped by kind. */
@@ -688,6 +782,8 @@ document.addEventListener('click', (e) => {
   const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[data-nav]') : null;
   if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
   e.preventDefault();
+  // A link from a learning path puts the reader on that path.
+  if (a.dataset.path) setActivePath(a.dataset.path);
   clearTimeout(scrollSave);
   saveScroll();
   history.pushState(null, '', a.href);

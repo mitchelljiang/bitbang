@@ -5,6 +5,9 @@
  */
 export type Mount = (root: HTMLElement) => void;
 export const topics: Record<string, () => Promise<Mount>> = {
+  // Pages outside the sections: no sidebar entry, so they are not counted as interactive pages.
+  paths: () => import('./paths').then((m) => m.mountPaths),
+  glossary: () => import('./glossary').then((m) => m.mountGlossary),
   binary: () => import('./numbers').then((m) => m.mountBinary),
   twos: () => import('./numbers').then((m) => m.mountTwos),
   fixed: () => import('./numbers').then((m) => m.mountFixed),

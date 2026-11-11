@@ -5,6 +5,9 @@ import { INTERACTIVE, statusOf } from './search';
 import { protocols } from './protocols';
 import { mountScopeAids } from './cursor';
 import { areaGlyph, sectionArt } from './art';
+import { PATHS } from './paths';
+import { isRead, lastPage, onProgress, readCount } from './learn';
+import { allCategories } from './allTopics';
 
 /**
  * The protocols that can say "Hi" on the home page, and what each one's trigger waits for. One is picked at random on
@@ -34,6 +37,35 @@ const AREA_LINE: Record<string, string> = {
   software: 'The code that runs on it: C, the toolchain, concurrency and drivers.',
 };
 
+/** A section's interactive pages: built, and not its Start here overview. */
+const interactive = (sectionId: string) => pagesOf(areas.flatMap((a) => a.sections).find((s) => s.id === sectionId)!)
+  .filter((p) => statusOf.get(p.id) === 'live' && p.name !== 'Overview').map((p) => p.id);
+/** The line under a section's card: how many pages it has, or how many of them the reader has finished. */
+function countText(sectionId: string) {
+  const ids = interactive(sectionId), done = readCount(ids);
+  if (!ids.length) return 'In progress';
+  return done ? `${done} of ${ids.length} read` : `${ids.length} interactive page${ids.length === 1 ? '' : 's'}`;
+}
+
+/** Where to start: the learning paths, each a link to its route on the paths page. */
+function pathsHtml() {
+  return `
+    <section class="home-area home-paths" aria-labelledby="ha-paths">
+      <header class="home-area-head">
+        <h2 id="ha-paths">Where to start</h2>
+        <p>Pick the route closest to you, or browse by subject below.</p>
+        <a class="home-all" href="?p=paths" data-nav>All paths →</a>
+      </header>
+      <ul class="path-cards">${PATHS.map((p) => `
+        <li><a href="?p=paths#${p.id}" data-nav><b>${esc(p.name)}</b><span>${esc(p.who)}</span><i data-path-count="${p.id}">${pathText(p.id)}</i></a></li>`).join('')}
+      </ul>
+    </section>`;
+}
+function pathText(id: string) {
+  const ids = PATHS.find((p) => p.id === id)!.steps.map(([s]) => s), done = readCount(ids);
+  return done ? `${done} of ${ids.length} read` : `${ids.length} pages`;
+}
+
 /**
  * One row of cards per header area, one card per section, in header-tab order, so a new section appears here
  * automatically. The whole card is the link (its title's link is stretched over it).
@@ -44,13 +76,12 @@ function cardsHtml() {
     const cols = n <= 4 ? n : n % 3 === 0 ? 3 : 4;
     const cards = a.sections.map((s) => {
       const pages = pagesOf(s);
-      const ready = pages.filter((p) => statusOf.get(p.id) === 'live' && p.name !== 'Overview').length;
       return `
         <article class="card">
           <div class="card-art">${sectionArt(s.id)}</div>
           <h3><a href="?p=${pages[0].id}" data-nav>${esc(s.name)}</a></h3>
           <p>${esc(s.blurb)}</p>
-          <p class="card-meta">${ready ? `${ready} interactive page${ready === 1 ? '' : 's'}` : 'In progress'}<span class="card-go" aria-hidden="true">→</span></p>
+          <p class="card-meta"><span data-count="${s.id}">${countText(s.id)}</span><span class="card-go" aria-hidden="true">→</span></p>
         </article>`;
     }).join('');
     return `
@@ -75,14 +106,25 @@ export function mountHome(root: HTMLElement) {
       <h1>Embedded systems, one bit at a time.</h1>
       <p>Interactive diagrams for learning how embedded systems really work: the signals on the wires, the chip that
         sends them, and the code that runs on it.</p>
-      <p class="hero-count"><b>${INTERACTIVE.length}</b> interactive pages across <b>${areas.flatMap((a) => a.sections).length}</b> sections</p>
+      <p class="hero-count"><b>${INTERACTIVE.length}</b> interactive pages across <b>${areas.flatMap((a) => a.sections).length}</b> sections<span class="hero-resume"></span></p>
     </section>
     <section class="demo instrument">
       <div class="readout"></div>
       <div class="scope" tabindex="0" aria-label="${esc(proto.name)} waveform of the text Hi. Use the arrow keys to step through the bits."></div>
       <div class="explain" aria-live="polite">${HINT}</div>
     </section>
-    <div class="home-areas after">${cardsHtml()}</div>`;
+    <div class="home-areas after">${pathsHtml()}${cardsHtml()}</div>`;
+
+  /** What depends on the reader's progress: the link back to their last page, and the counts on the cards. */
+  function progress() {
+    const last = lastPage();
+    const entry = last && statusOf.get(last) === 'live' ? allCategories.flatMap((c) => c.entries).find((e) => e.id === last) : undefined;
+    root.querySelector('.hero-resume')!.innerHTML = entry
+      ? ` · <a href="?p=${entry.id}" data-nav>${isRead(entry.id) ? 'Back to' : 'Continue with'} ${esc(entry.name === 'Overview' ? 'where you were' : entry.name)} →</a>` : '';
+    for (const el of root.querySelectorAll<HTMLElement>('[data-count]')) el.textContent = countText(el.dataset.count!);
+    for (const el of root.querySelectorAll<HTMLElement>('[data-path-count]')) el.textContent = pathText(el.dataset.pathCount!);
+  }
+  onProgress(progress);
 
   const scope = root.querySelector<HTMLElement>('.demo .scope')!;
   const explain = root.querySelector<HTMLElement>('.demo .explain')!;
@@ -178,6 +220,7 @@ export function mountHome(root: HTMLElement) {
   let played = new URLSearchParams(location.search).has('p') || matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     show() {
+      progress();
       draw();
       if (played) return;
       played = true;

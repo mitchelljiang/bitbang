@@ -78,7 +78,7 @@ async function tab() {
 }
 
 /** Every page id: the sidebar entries of every section, plus the pages outside them. */
-const ids = ['', 'about', 'changelog'];
+const ids = ['', 'about', 'changelog', 'paths', 'glossary'];
 for (const [, f] of SECTION_FILES) {
   for (const m of readFileSync(f, 'utf8').matchAll(/\{[ \t]*id:[ \t]*'([a-z0-9-]+)',[ \t]*name:/g)) ids.push(m[1]);
 }

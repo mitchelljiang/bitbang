@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>bitbang</title>
     <meta name="description" content="Interactive, bit-level diagrams of embedded systems: protocols, memory, processors, peripherals, power, and the C and drivers that run on them." />
+    <link rel="canonical" href="https://bitbang.fyi/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="bitbang.fyi" />
     <meta property="og:url" content="https://bitbang.fyi/" />
@@ -133,7 +134,9 @@
         <p class="wip-links" id="wip-links"></p>
       </section>
     </main>
+    <section class="check" id="check" aria-labelledby="check-title" hidden></section>
     <section class="resources" id="resources" aria-labelledby="resources-title" hidden></section>
+    <nav class="path-bar" id="path-bar" aria-label="Learning path" hidden></nav>
     <nav class="pager" id="pager" aria-label="Previous and next" hidden></nav>
     </div>
     </div>
@@ -141,6 +144,8 @@
     <footer>
       <span>bitbang.fyi</span>
       <span class="links">
+        <a href="?p=paths" data-nav>Learning paths</a>
+        <a href="?p=glossary" data-nav>Glossary</a>
         <a href="?p=about" data-nav>About</a>
         <a href="?p=changelog" data-nav>Changelog</a>
         <a id="feedback" href="https://github.com/mitchelljiang/bitbang/issues">Send feedback</a>

@@ -40,6 +40,23 @@ export const index: SearchEntry[] = allCategories.flatMap((cat) =>
   }),
 );
 
+/**
+ * Results that are not pages of a section: the learning paths, the glossary, and every glossary term (which leads to
+ * the page that explains it). The terms live with the Start here pages, so they are fetched the first time the search
+ * box is used and are not part of the first download.
+ */
+const extras: SearchEntry[] = [
+  ['paths', 'Learning paths', 'Routes through the site for different readers: new to embedded, from software, from hardware, board bring-up, real-time software and interview review.'],
+  ['glossary', 'Glossary', 'Every term the site defines, in a sentence each, with the page that explains it.'],
+].map(([id, name, blurb]): SearchEntry => ({ id, name, group: 'Guide', blurb, tags: [], status: 'live', words: tokens(`${id} ${name} ${blurb} start route roadmap definitions terms`) }));
+let termsLoaded: Promise<void> | undefined;
+const loadTerms = () => (termsLoaded ??= import('./topics/glossary').then(({ TERMS }) => {
+  for (const t of TERMS) {
+    extras.push({ id: t.page && statusOf.get(t.page) === 'live' ? t.page : 'glossary', name: t.term, group: `Term · ${t.section}`, blurb: t.def,
+      tags: [], status: 'live', words: tokens(t.term) });
+  }
+}));
+
 /** Built, in progress or soon, by page id: decided once here, so the sidebar, home page and search always agree. */
 export const statusOf = new Map(index.map((e) => [e.id, e.status]));
 
@@ -58,7 +75,7 @@ export const matches = (entry: SearchEntry, query: string) =>
  * carry that tag; a text search matches names, descriptions and tags word by word.
  */
 function resultsHtml(q: string, tag: string | null) {
-  const found = index.filter((e) => (tag ? e.tags.includes(tag) : matches(e, q)))
+  const found = [...index, ...(tag ? [] : extras)].filter((e) => (tag ? e.tags.includes(tag) : matches(e, q)))
     .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1));
   if (!found.length) return `<li class="none">Nothing matches “${esc(q)}”.</li>`;
   return found.map((e) => {
@@ -78,13 +95,13 @@ function resultsHtml(q: string, tag: string | null) {
  */
 export function mountSearch(root: HTMLElement) {
   root.innerHTML = `
-    <input type="search" placeholder="Search by name or tag" aria-label="Search bitbang"
+    <input type="search" placeholder="Search pages and terms" aria-label="Search bitbang"
       aria-controls="search-results" autocomplete="off" spellcheck="false">
     <ul class="search-results" id="search-results" hidden></ul>`;
   const input = root.querySelector('input')!;
   // On a phone the box shares a row with the logo, so the hint is shortened to fit.
   const narrow = matchMedia('(max-width: 600px)');
-  const hint = () => (input.placeholder = narrow.matches ? 'Search' : 'Search by name or tag');
+  const hint = () => (input.placeholder = narrow.matches ? 'Search' : 'Search pages and terms');
   hint();
   narrow.addEventListener('change', hint);
   const results = root.querySelector<HTMLElement>('.search-results')!;
@@ -103,6 +120,8 @@ export function mountSearch(root: HTMLElement) {
     show();
   });
   input.addEventListener('focus', () => {
+    // Glossary terms join the results once fetched; redraw if the reader has already typed.
+    loadTerms().then(() => { if (!results.hidden) show(); });
     if (results.hidden) show();
   });
   input.addEventListener('keydown', (e) => {
