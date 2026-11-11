@@ -4,7 +4,7 @@
  */
 import { esc } from '../core/render';
 import {
-  NUMBER_HELP, binN, bit, bits, code, flips, hex2, hexN, markSeg, nibbles, note, oneOf, page, parseNumber, readHex, row, seg,
+  NUMBER_HELP, binN, bit, bits, code, flips, hex2, hexN, markSeg, note, oneOf, page, parseNumber, readHex, row, seg,
   showValue, status, stepButtons, syncUrl, table, walkthrough, wideRow, wire,
 } from './dbg';
 import { toInt8 } from './numbers';
@@ -497,33 +497,26 @@ export function mountEndian(root: HTMLElement) {
     code(root, endianCode(x, width, little), 8);
 
     const base = 0x20001000;
-    const name = (k: number) => (k === 0 ? 'least' : k === n - 1 ? 'most' : '');
-    const significance = (b: number) => {
-      const k = little ? b : n - 1 - b;
-      return `${name(k) ? `${name(k)} significant byte, ` : ''}bits ${8 * k + 7}–${8 * k} of x`;
-    };
+    const sigName = (sig: number) => (sig === n - 1 ? 'MSB' : sig === 0 ? 'LSB' : `byte ${sig}`);
+    // x as bits, one group per byte, most significant first. Each byte is tinted by its significance, the same tint it
+    // has in the memory table below, so the eye can follow a byte from the value to its address.
     const byteGroups = Array.from({ length: n }, (_, k) => {
       const lo = width - 8 * (k + 1);
       return { hi: lo + 7, lo, foot: hex2((x >>> lo) & 0xff), split: 4 };
     });
     root.querySelector('.vars-wrap')!.innerHTML = table(
       (width === 32 ? wideRow : row)('x', type, `<code class="hex">${hexN(x, width)}</code>`,
-        bits('x', x, width, { groups: byteGroups, tip: (i) => `Bit ${i} of x, in byte ${Math.floor(i / 8)} counting from the least significant.` })) +
-      mem.map((b, k) => row(`byte_ptr[${k}]`, '', `<code class="hex">${hexN(b, 8)}</code> <small>at 0x${(base + k).toString(16).toUpperCase()}</small>`,
-        bits(`m${k}`, b, 8, { groups: nibbles(b, 8, true), tip: () => `The byte at address 0x${(base + k).toString(16).toUpperCase()}: the ${significance(k)}.` }))).join(''),
+        bits('x', x, width, { groups: byteGroups, tip: (i) => `Bit ${i} of x, in ${sigName(Math.floor(i / 8))} (byte ${Math.floor(i / 8)} counting from the least significant).` })),
     );
-    // The same value laid out in memory both ways: one column per address, each byte tinted by its significance so the
-    // reversal shows at a glance. The row for the chosen order is the one the program above reads.
-    const addrs = Array.from({ length: n }, (_, k) => `+${k}`);
+    // What byte_ptr[k] reads: one column per address, little- and big-endian side by side. The row for the chosen order
+    // is lit; it is what the program prints.
     const layout = (le: boolean) => bytesOf(x, width, le).map((b, k) => {
       const sig = le ? k : n - 1 - k;
-      const tag = sig === n - 1 ? 'MSB' : sig === 0 ? 'LSB' : `byte ${sig}`;
-      return `<td><span class="en-byte s${sig}"><b>${hex2(b)}</b><small>${tag}</small></span></td>`;
+      return `<td><span class="en-byte s${sig}" title="${le ? 'Little' : 'Big'}-endian: the byte at 0x${(base + k).toString(16).toUpperCase()} is the ${sigName(sig)} of x"><b>${hex2(b)}</b><small>${sigName(sig)}</small></span></td>`;
     }).join('');
     root.querySelector('.en-mem')!.innerHTML = `
-      <h3>x in memory <small>from address 0x${base.toString(16).toUpperCase()}, lowest on the left</small></h3>
       <table class="en-table">
-        <thead><tr><th scope="col">Address</th>${addrs.map((a) => `<th scope="col">${a}</th>`).join('')}</tr></thead>
+        <thead><tr><th scope="col">x in memory</th>${mem.map((_, k) => `<th scope="col"><code><span class="en-ptr">byte_ptr</span>[${k}]</code><small>0x${(base + k).toString(16).toUpperCase()}</small></th>`).join('')}</tr></thead>
         <tbody>${([true, false] as const).map((le) => `
           <tr class="${le === little ? 'on' : ''}"><th scope="row">${le ? 'Little-endian' : 'Big-endian'}</th>${layout(le)}</tr>`).join('')}
         </tbody>
