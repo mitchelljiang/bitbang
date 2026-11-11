@@ -1,10 +1,10 @@
 import { esc } from './core/render';
 
 /**
- * The changelog page (?p=changelog). Add a release at the top of CHANGES, newest first. Each change is new (pages and
- * features), improved (design and usability) or fixed (bugs and corrections). Write terse fragments, not full
- * sentences, and fold small design fixes into one "Minor UI/UX fixes and updates" line; only big changes get their own.
- * Links use `?p=id`.
+ * The changelog page (?p=changelog). Add a release at the top of CHANGES, newest first. Each change is new (pages,
+ * sections, content), improved (content made better, speed) or fixed (bugs and accuracy). Every UI/UX change (look,
+ * motion, layout, navigation, controls, visual fixes), however big, goes under the release's single "Minor UI/UX fixes
+ * and updates." line and never gets a line of its own. Write terse fragments, not full sentences. Links use `?p=id`.
  */
 type Kind = 'new' | 'improved' | 'fixed';
 
@@ -14,20 +14,14 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     items: [
       ['improved', '[Caches](?p=caches): direct-mapped, 2-way, 4-way and fully associative side by side, with LRU eviction and the same accesses compared on each'],
       ['new', '[Caches](?p=caches): the memory hierarchy from registers through L1–L3, DRAM and Flash, and how a microcontroller differs'],
-      ['fixed', 'No doubled lines behind tables and cache lines on the Memory screens'],
-      ['improved', 'Pages sit on a raised sheet of paper, with the sidebar drawn as circuit traces and the current page lit'],
-      ['improved', '[Endianness](?p=endianness): the byte order table replaces the byte rows, so the whole panel fits on one screen, colored to match x’s bytes'],
+      ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
   {
     date: '2026-11-10',
     items: [
-      ['improved', 'Data, Hardware and Software tabs drop down their sections on hover'],
-      ['improved', 'Home page: sections grouped under Data, Hardware and Software, each drawing acting out its section on hover, and compact cards on phones'],
-      ['improved', 'Protocol pages: wires, speed and reach at the top, and the settings on the scope’s faceplate'],
+      ['improved', 'Protocol pages: wires, speed and reach at a glance'],
       ['improved', '[Endianness](?p=endianness): a table of x in memory, little- and big-endian byte by byte'],
-      ['fixed', 'No pale flash on the diagrams when stepping or changing a setting; Memory controls readable in the dark theme'],
-      ['fixed', '[SRAM, DRAM and Flash](?p=cells): the type switch and panel stay put, with each cell’s actions under it'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -46,9 +40,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     date: '2026-11-08',
     items: [
       ['new', 'C for embedded section: [storage keywords](?p=keywords), [integer types](?p=integers), [structs and bit fields](?p=structs), [pointers](?p=pointers), [functions](?p=functions). Real Clang output for a Cortex-M0+.'],
-      ['improved', 'Pages ease in when opened.'],
-      ['improved', 'Start here pages: each page in the route is a clear button.'],
-      ['fixed', 'Phone menu no longer fades at its top and bottom edges.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -58,13 +49,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Peripherals section: [GPIO](?p=gpio), [debouncing](?p=debounce), [timers](?p=timers), [PWM](?p=pwm), [watchdog](?p=watchdog), [ADC](?p=adc), [DAC](?p=dac), [DMA](?p=dma).'],
       ['new', 'Architecture section, starting with [instruction encoding](?p=instructions) for Arm Thumb, RISC-V and Xtensa, checked against Clang and Capstone.'],
       ['new', 'Compilers section: [preprocessor](?p=preprocess), [compiling](?p=compile), [object files](?p=objects), [linking](?p=linking), [linker scripts](?p=linker-script), [map files](?p=mapfile), [optimization levels](?p=optimize), [volatile](?p=volatile), [undefined behavior](?p=ub). Real Clang and LLD output for a Cortex-M0+.'],
-      ['improved', 'Three tabs: Data, Hardware and Software, with their sections in the sidebar.'],
-      ['improved', 'Icons on the tabs, and a drawing for each section on the home page.'],
       ['new', 'Start here page for every section, such as [Architecture](?p=architecture-start): the route, what to read first, and the words used.'],
-      ['improved', 'Formulas typeset as equations.'],
-      ['improved', 'Phone header matches the desktop one: logo, search and theme on one row, sections below.'],
-      ['fixed', 'Previous and Next open the new page at the top.'],
-      ['fixed', 'Phone: [scheduling](?p=scheduling) policies, [function calls](?p=calls) buttons and the [bus matrix](?p=interconnect) no longer spill out of their panels.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -72,10 +57,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     date: '2026-10-22',
     items: [
       ['improved', 'Faster first load: each page loads on demand.'],
-      ['improved', 'Smooth motion: sliding selections, settling bits, a gliding [memory map](?p=memmap) highlight.'],
-      ['improved', 'Hover and press feedback on buttons.'],
-      ['improved', 'Same step controls everywhere: Back, Step, Play, Restart.'],
-      ['improved', 'Consistent controls; diagrams no longer resize or shift as values change.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -91,7 +72,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Concurrency start page: [Parts and terms](?p=mcu), with a glossary.'],
       ['new', 'Concurrency complete: [priorities](?p=priorities), [context switching](?p=context), [scheduling](?p=scheduling), [races](?p=races), [atomics](?p=atomics), [mutexes and semaphores](?p=locks).'],
       ['new', '[Memory ordering and barriers](?p=barriers): DMB, DSB and ISB.'],
-      ['improved', 'Concurrency traces drawn as a logic analyzer.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -100,7 +80,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
     items: [
       ['new', 'Memory complete: [memory map](?p=memmap), [bus matrix](?p=interconnect), [stack frames](?p=frames), [stack overflow](?p=overflow), [startup](?p=sections), [SRAM, DRAM and Flash](?p=cells), [caches](?p=caches), [virtual memory](?p=vaddr), [paging and the TLB](?p=paging), [MPU and MMU](?p=mpu).'],
       ['new', 'USB 2.0 [start-of-frame packets](?p=usb).'],
-      ['improved', 'Memory diagrams drawn as a bench instrument.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -121,7 +100,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', '[Shifts and rotates](?p=shifts), [masks](?p=masks), [bit tricks](?p=tricks), [read-modify-write](?p=rmw), [endianness](?p=endianness), [overflow and status flags](?p=flags) and [checksums and CRC](?p=crc).'],
       ['new', 'This changelog.'],
       ['improved', 'Bit manipulation is now Bits and bytes.'],
-      ['improved', 'The home page says “Hi” in a random protocol.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
@@ -131,8 +109,6 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', 'Bit manipulation: [binary and hex](?p=binary), [two’s complement](?p=twos), [fixed point](?p=fixed), [floating point](?p=float) and [bitwise logic](?p=bitwise).'],
       ['new', '[WS2812](?p=ws2812) LEDs.'],
       ['new', 'Related resources on every page.'],
-      ['improved', 'Waveforms shown on an oscilloscope.'],
-      ['improved', 'New home page and section navigation.'],
       ['improved', 'Minor UI/UX fixes and updates.'],
     ],
   },
