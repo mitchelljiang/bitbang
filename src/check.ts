@@ -53,7 +53,7 @@ export function mountCheck(box: HTMLElement) {
         <p class="ck-note">${list.length === 1 ? 'One question' : `${list.length} questions`} this page answers. Nothing is scored or saved.</p>
         ${list.map((c, i) => `
         <div class="ck-q" role="group" aria-labelledby="ck-${i}" data-why="${esc(rich(c.why))}">
-          <p class="ck-ask" id="ck-${i}"><span aria-hidden="true">${i + 1}</span>${rich(c.q)}</p>
+          <p class="ck-ask" id="ck-${i}"><span aria-hidden="true">${i + 1}</span><span class="ck-text">${rich(c.q)}</span></p>
           <div class="ck-opts">${shuffled(c.options.map((o, k) => ({ o, right: k === c.answer }))).map(({ o, right }) =>
             `<button type="button" class="ck-opt"${right ? ' data-right' : ''}>${rich(o)}</button>`).join('')}</div>
           <p class="ck-say" aria-live="polite"></p>

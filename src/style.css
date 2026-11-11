@@ -1,24 +1,24 @@
 /*
- * Lab notebook: cool white paper, ink-black traces, one violet accent.
+ * Lab notebook, set as a datasheet: a white sheet on a cool grey desk, ink-black traces, one violet accent.
  * Color is reserved for meaning: bit roles use Okabe–Ito-derived hues so they stay distinct for colorblind readers.
  * Every text color is ≥ 4.5:1 on its background in both themes.
  */
 :root {
-  --bg: #f6f5f9;
-  --desk: #ebe8f2; /* the page sits on a sheet of paper on this desk */
-  --sheet-shadow: 0 1px 2px rgba(30, 20, 60, 0.05), 0 12px 40px -12px rgba(30, 20, 60, 0.14);
+  --bg: #f6f6f9;
+  --desk: #eeeef3; /* the page sits on a sheet of paper on this desk */
+  --sheet-shadow: 0 0 0 1px rgba(23, 22, 28, 0.05), 0 1px 2px rgba(23, 22, 28, 0.04), 0 8px 16px -8px rgba(23, 22, 28, 0.08), 0 32px 64px -32px rgba(23, 22, 28, 0.2);
   --paper: #ffffff;
-  --ink: #1d1828;
-  --muted: #4f4860;
-  --faint: #6b6380;
-  --line: #dcd7e5;
-  --line-soft: #ebe8f0;
+  --ink: #17161c;
+  --muted: #4a4854;
+  --faint: #6a6775;
+  --line: #d9d8e0;
+  --line-soft: #e9e8ee;
   --accent: #6a3fd1;
   --accent-ink: #ffffff;
   --trace: var(--ink);
   --sel: rgba(106, 63, 209, 0.08);
   --error: #b3261e;
-  --shadow: 0 1px 2px rgba(29, 24, 40, 0.06), 0 8px 24px -12px rgba(29, 24, 40, 0.18);
+  --shadow: 0 1px 1px rgba(23, 22, 28, 0.04), 0 2px 4px rgba(23, 22, 28, 0.04), 0 10px 24px -14px rgba(23, 22, 28, 0.22);
 
   --k-start: #0e7a5a;
   --k-addr: #b45f00;
@@ -37,23 +37,27 @@
   /* Motion that shows where something went: quick to start, gentle to settle. */
   --glide: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: light;
+  /* A step nearer than --shadow, for a card under the pointer and for menus. */
+  --shadow-up: 0 1px 1px rgba(23, 22, 28, 0.05), 0 4px 8px rgba(23, 22, 28, 0.05), 0 20px 36px -18px rgba(23, 22, 28, 0.3);
+  --r: 8px;
+  --top-h: 61px; /* the header's height, for what sticks below it */
 }
 
 :root[data-theme='dark'] {
-  --bg: #15111d;
-  --desk: #100c17;
-  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 44px -14px rgba(0, 0, 0, 0.6);
-  --paper: #1c1726;
-  --ink: #ece8f3;
-  --muted: #b4abc4;
-  --faint: #9d93b0;
-  --line: #352d44;
-  --line-soft: #2a2336;
+  --bg: #131217;
+  --desk: #0d0c11;
+  --sheet-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 32px 64px -28px rgba(0, 0, 0, 0.8);
+  --paper: #18171e;
+  --ink: #ecebf1;
+  --muted: #b3b0bf;
+  --faint: #9794a5;
+  --line: #312f3c;
+  --line-soft: #25232d;
   --accent: #b9a0ff;
   --accent-ink: #15111d;
   --sel: rgba(185, 160, 255, 0.1);
   --error: #f4a99a;
-  --shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 10px 24px -12px rgba(0, 0, 0, 0.7);
 
   --k-start: #5fd0a4;
   --k-addr: #f0b45a;
@@ -66,6 +70,7 @@
   --on-k: #15111d;
   --k-tint: 14%;
   color-scheme: dark;
+  --shadow-up: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 20px 36px -16px rgba(0, 0, 0, 0.8);
 }
 
 * { box-sizing: border-box; }
@@ -1923,7 +1928,7 @@ footer a:hover { color: var(--ink); }
 .xb-key { display: flex; gap: 18px; margin: 14px 0 0; font: 12px var(--sans); color: var(--dbg-dim); }
 .xb-key b { font-size: 14px; }
 .xb-key .k-go { color: #5fd0a4; }
-.xb-key .k-wait { color: var(--dbg-pc); }
+.xb-key .k-wait { color: var(--dbg-pc); background: none; }
 @media (max-width: 600px) { .xb-row { grid-template-columns: 84px repeat(4, minmax(0, 1fr)); gap: 4px; } .xb-master small, .xb-slave small { display: none; } .xb-slave .lg { display: none; } .xb-slave .sm { display: inline; } .xb-cell { min-height: 40px; } }
 
 /* Stack frames: a column of frame slots that appear in the prologue and vanish in the epilogue. */
@@ -2228,6 +2233,8 @@ footer a:hover { color: var(--ink); }
 .debugger.mem .dbg-code, .debugger.mem .dbg-vars, .debugger.mem > div table { background-color: var(--screen); }
 /* A screen that holds a table has its own row lines; the graticule behind them would only double them. */
 .debugger.mem > div:has(table) { background-image: none; }
+/* Nor behind a screen whose labels sit straight on the glass: the lines would run through the words. */
+.debugger.mem > :is(.xbar-body, .so-body, .heap-body, .gc-body, .se-body, .vm-body, .pg-body, .mp-body) { background-image: none; }
 /* Explain line: screen glass with the bottom bezel, a fixed height so one- vs two-line text never resizes the panel. */
 .debugger.mem > .dbg-status {
   display: block; min-height: 110px; padding: 14px 18px;
@@ -2822,10 +2829,9 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 
 /* ===== Learning: read marks, learning paths, questions and the glossary ===== */
 
-/* A page read to the end is ticked in the sidebar and on its section's route. */
+/* A page read to the end is ticked on its section's route (the sidebar stays plain). */
 .side-group a:not(.read) .side-read { display: none; }
-.side-group a.read::after, .ov-stop li a.read::after { content: '✓'; color: var(--k-start); }
-.side-group a.read::after { margin-left: auto; padding-left: 8px; font: 600 12px var(--sans); }
+.ov-stop li a.read::after { content: '✓'; color: var(--k-start); }
 .ov-stop li a.read:hover::after { color: var(--k-start); transform: none; }
 
 /* Home: the link back to the reader's last page, and the row of paths above the sections. */
@@ -2897,7 +2903,7 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .ck-note { margin: 0 0 20px; font-size: 15px; color: var(--faint); }
 .ck-q + .ck-q { margin-top: 22px; }
 .ck-ask { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; margin: 0 0 10px; font-weight: 500; color: var(--ink); }
-.ck-ask > span { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; font: 600 13px var(--sans); color: var(--accent); background: var(--sel); border-radius: 50%; }
+.ck-ask > span:first-child { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; font: 600 13px var(--sans); color: var(--accent); background: var(--sel); border-radius: 50%; }
 .check code { font: 0.92em var(--mono); }
 .ck-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-left: 34px; }
 .ck-opt {
@@ -2937,3 +2943,126 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .gl-term dd a { font-weight: 500; color: var(--accent); white-space: nowrap; text-underline-offset: 3px; }
 .gl-none { color: var(--faint); }
 @media (max-width: 600px) { .gl-letter { grid-template-columns: 26px minmax(0, 1fr); gap: 0 8px; } .gl-letter h2 { font-size: 18px; } }
+
+/* ===== Datasheet: the page as a printed reference ===== */
+/* A raised sheet on a desk, hairlines and soft cool shadows, small mono labels, numbered sections, a ruled header
+   that stays at the top, and an "On this page" rail that follows the scroll (src/toc.ts). Three layers, each a step
+   nearer: the desk (header, sidebar, rail), the sheet, and the things on the sheet (cards, instruments, the page
+   turn). These rules come last and restyle the shell above; the instruments keep their own faces and glass. */
+.page-toc { display: none; }
+body { background: var(--paper); }
+#content { padding: 0 0 32px; margin: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+
+/* The header is a ruled strip that stays at the top of the window. */
+.top { max-width: none; padding: 8px max(24px, calc((100vw - 1440px) / 2 + 24px)); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); }
+@media (min-width: 901px) { .top { position: sticky; top: 0; } }
+.tabs a { border-radius: var(--r); font-size: 14px; }
+.tabs a[aria-current] { background: none; box-shadow: inset 0 -2px 0 var(--accent); border-radius: 0; }
+.top-search input, .search-results, .tab-menu, .theme { border-radius: var(--r); }
+.top-search input { min-height: 38px; background: var(--bg); }
+:is(h1, h2, h3, .card, .pager a, .ck-q) { scroll-margin-top: calc(var(--top-h) + 20px); }
+
+/* Three columns: the section's pages, the page, and its headings. */
+.shell { max-width: 1440px; }
+@media (min-width: 901px) { .shell { gap: 44px; } }
+@media (min-width: 1440px) {
+  .shell:not(.no-side) { grid-template-columns: 220px minmax(0, 1fr) 188px; }
+  .page-toc:not([hidden]) { display: block; }
+}
+@media (min-width: 901px) {
+  .side { top: var(--top-h); max-height: calc(100vh - var(--top-h)); padding-right: 20px; border-right: 1px solid var(--line-soft); }
+}
+.side-area { font: 500 11px var(--mono); letter-spacing: 0.1em; }
+.side-sec > summary { font-size: 15px; border-radius: var(--r); }
+.side-group h3 { font: 500 11px var(--mono); letter-spacing: 0.08em; }
+.side-group li { font-size: 14.5px; }
+.side-group a, .side-group .soon { min-height: 30px; border-radius: 0; }
+.side-group a { font-weight: 400; color: var(--muted); }
+.side-group a:hover { color: var(--ink); }
+/* The current page: a rule at the margin, as a marked line in a document. */
+.side-group a[aria-current] { color: var(--ink); font-weight: 600; background: var(--sel); box-shadow: inset 2px 0 0 var(--accent); }
+
+.page-toc { position: sticky; top: var(--top-h); align-self: start; max-height: calc(100vh - var(--top-h)); overflow-y: auto; padding: 40px 0 48px; }
+.page-toc p { margin: 0 0 10px; font: 500 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.page-toc ol { margin: 0; padding: 0; list-style: none; }
+.page-toc a { display: block; padding: 5px 0 5px 14px; font: 13.5px/1.35 var(--sans); color: var(--faint); text-decoration: none; border-left: 1px solid var(--line); transition: color 150ms ease-out, border-color 150ms ease-out; }
+.page-toc a:hover { color: var(--ink); }
+.page-toc a.on { color: var(--ink); font-weight: 500; border-left-color: var(--accent); box-shadow: inset 1px 0 0 var(--accent); }
+.page-toc .page-toc-top { margin-top: 16px; padding-left: 0; border: 0; font-size: 12.5px; }
+.page-toc .page-toc-top::before { content: '↑ '; }
+
+/* Titles: a small mono label, then a lighter, tighter headline. */
+.intro { padding-top: 40px; }
+@media (max-width: 900px) { .intro { padding-top: 24px; } .intro h1 { font-size: 36px; } }
+.intro .crumbs, .ov-kicker { font: 500 12px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.intro h1 { margin-top: 10px; font-weight: 600; font-size: 42px; letter-spacing: -0.03em; }
+.hero h1 { font-weight: 600; }
+.hero-count b { color: var(--ink); }
+
+/* Sections are numbered down the page and ruled off from each other. */
+#content { counter-reset: sec; }
+:is(.prose, .specs, .deep, .extra, .check, .resources) h2 { font-weight: 600; }
+:is(.prose, .specs, .deep, .extra, .check, .resources) h2::before {
+  counter-increment: sec; content: counter(sec, decimal-leading-zero);
+  display: block; margin-bottom: 8px; font: 500 12px var(--mono); letter-spacing: 0.06em; color: var(--accent);
+}
+.prose > * + h2 { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
+.prose h2:first-child { padding-top: 24px; border-top: 1px solid var(--line); }
+.prose p { color: var(--ink); }
+:is(.resources, .check) { border-top-color: var(--line); }
+
+/* Square, flat surfaces: a border is enough. */
+:is(.card, .pager a, .quick, .tag-chip, .ck-opts button, .side-toggle, .path-bar, .ov-stop, .home-paths a) { border-radius: var(--r); box-shadow: none; }
+.card { padding: 16px; }
+.card:hover { transform: none; border-color: var(--ink); box-shadow: none; }
+.card-art, .ov-art { margin: -4px -4px 16px; border-radius: 2px; }
+.card h3 { font-weight: 600; }
+.card .card-meta { font-family: var(--mono); font-size: 12px; }
+.home-area-head h2 { font: 500 12px var(--mono); letter-spacing: 0.12em; }
+.home-area-head { border-bottom-color: var(--ink); }
+.cards { gap: 12px; }
+.pager a:hover { border-color: var(--ink); }
+.pager span { font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.pager b { color: var(--ink); }
+
+/* The instruments keep their face and glass, with the document's corners and no drop edge. */
+:is(.instrument, .bench, .debugger.mem, .trace, .debugger, .diagram) { border-radius: 6px; }
+:is(.instrument, .bench, .debugger.mem, .trace) { box-shadow: none; }
+
+footer { max-width: 1440px; margin-top: 64px; border-top: 1px solid var(--line); font-size: 13px; }
+.progress { height: 2px; top: 0; bottom: auto; z-index: 45; }
+
+/* -- depth: the desk, the sheet, and what lies on it -- */
+/* The desk, and the sheet on it. */
+body { background: var(--desk); }
+#content { margin: 20px 0 28px; padding: 0 36px 40px; background: var(--paper); border-radius: 12px; box-shadow: var(--sheet-shadow); }
+@media (max-width: 900px) { #content { margin-top: 10px; padding: 0 20px 28px; } }
+@media (max-width: 600px) { #content { margin-inline: -6px; padding: 0 14px 24px; border-radius: 10px; } }
+
+/* The header floats over the desk: frosted, with a shadow under it instead of only a rule. */
+.top { background: color-mix(in srgb, var(--desk) 82%, transparent); border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent); box-shadow: 0 8px 20px -16px rgba(23, 22, 28, 0.35); }
+.top-search input { background: var(--paper); box-shadow: 0 1px 2px rgba(23, 22, 28, 0.05); }
+:is(.search-results, .tab-menu) { box-shadow: var(--shadow-up); }
+
+/* The sidebar and the rail lie on the desk; the sheet's edge separates them, so the rule goes. */
+@media (min-width: 901px) { .side { border-right: 0; padding-right: 14px; } .shell { gap: 24px; } }
+.side-group a, .side-group .soon { border-radius: 6px; }
+/* The current page: a small raised slip, nothing more. */
+.side-group a[aria-current] { background: var(--paper); box-shadow: var(--shadow); }
+/* Sidebar text a step larger than the flat Datasheet's. */
+.side-sec > summary { font-size: 16px; }
+.side-group li { font-size: 15.5px; }
+.side-group a, .side-group .soon { min-height: 33px; }
+.side-group h3 { font-size: 12px; }
+.side-area { font-size: 12px; }
+.page-toc { padding-top: 56px; }
+
+/* On the sheet: cards, the page turn and the instruments are one step nearer. */
+:is(.card, .pager a, .home-paths a) { box-shadow: var(--shadow); border-color: var(--line-soft); transition: transform 180ms var(--glide), box-shadow 180ms ease-out, border-color 180ms ease-out; }
+:is(.card, .pager a, .home-paths a):hover { transform: translateY(-1px); border-color: var(--line); box-shadow: var(--shadow-up); }
+.card-art, .ov-art { border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 2px 6px rgba(0, 0, 0, 0.35); }
+:is(.instrument, .bench, .debugger.mem, .trace, .debugger, .diagram) { border-radius: 10px; }
+:is(.bench, main > .instrument, .demo .instrument, .debugger.mem, .trace) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 0 var(--face-edge), var(--shadow); }
+[data-theme='dark'] :is(.bench, main > .instrument, .demo .instrument, .debugger.mem, .trace) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 #12171c, var(--shadow); }
+:is(.debugger:not(.mem), .diagram) { box-shadow: var(--shadow); }
+footer { border-top: 0; margin-top: 32px; }

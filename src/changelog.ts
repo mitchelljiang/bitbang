@@ -16,7 +16,7 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
       ['new', '[Caches](?p=caches): the memory hierarchy from registers through L1–L3, DRAM and Flash, and how a microcontroller differs'],
       ['new', '[Learning paths](?p=paths): six routes across the sections, for readers new to embedded, coming from software or hardware, bringing up a board, moving to an RTOS, or preparing for an interview'],
       ['new', 'Check yourself: questions at the end of 60 pages, such as [Masks](?p=masks) and [Ring buffers](?p=ring-buffer)'],
-      ['new', 'Reading progress: pages read to the end are ticked in the sidebar and counted on the home page, kept in the browser only'],
+      ['new', 'Reading progress: pages read to the end are counted on the home page and ticked on each section overview, kept in the browser only'],
       ['new', '[Glossary](?p=glossary): every term in one list, also found by search'],
       ['improved', 'Each page has its own description for search engines and link previews, and the site has a sitemap'],
       ['improved', 'Minor UI/UX fixes and updates.'],

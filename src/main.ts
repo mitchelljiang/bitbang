@@ -24,6 +24,7 @@ import { QUICK } from './quick';
 import { mountCheck } from './check';
 import { PATHS, pathById } from './paths';
 import { activePath, isRead, markRead, onProgress, setActivePath, setLastPage } from './learn';
+import { mountToc } from './toc';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -585,6 +586,8 @@ mountAbout(aboutView);
 mountChangelog(changelogView);
 const home = mountHome(homeView);
 
+const toc = mountToc($('#shell'));
+
 let routing = 0;
 /**
  * Shows the page in the URL. A topic page's code is fetched first, while the current page stays on screen, so the
@@ -657,6 +660,7 @@ async function route() {
   describe(id, page, p);
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   arrive(page === 'topic' ? topicView : views[page], id, page); // the topic view may have just been replaced
+  toc.routed();
 }
 
 /**
