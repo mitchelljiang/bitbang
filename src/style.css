@@ -2017,16 +2017,35 @@ footer a:hover { color: var(--ink); }
 .cache .dbg-btn small { font: 11px var(--mono); color: var(--dbg-dim); }
 .ca-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; padding: 16px; align-items: start; }
 .ca-cache h4, .ca-side h4 { margin: 0 0 8px; font: 600 12px var(--sans); color: var(--dbg-dim); }
-.ca-lines { display: flex; flex-direction: column; gap: 5px; }
-.ca-line { display: grid; grid-template-columns: 48px 18px 72px 1fr; align-items: center; gap: 8px; padding: 9px 10px; font: 12px var(--mono); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 7px; transition: border-color 150ms ease-out; }
-.ca-line .cl-i { color: var(--dbg-dim); }
-.ca-line .cl-v { color: var(--dbg-dim); text-align: center; }
-.ca-line .cl-tag { color: var(--dbg-dim); }
-.ca-line .cl-holds { color: var(--dbg-dim); }
-.ca-line.valid { background: color-mix(in srgb, #5fd0a4 8%, var(--dbg-bg)); }
-.ca-line.valid .cl-v { color: #5fd0a4; font-weight: 700; }
-.ca-line.valid .cl-tag, .ca-line.valid .cl-holds { color: var(--dbg-text); }
-.ca-line.active { border-color: var(--dbg-pc); box-shadow: 0 0 0 1px var(--dbg-pc); }
+/* Sets as rows, their ways side by side (at most four across; a fully associative set wraps to two rows). Every
+   organization has the same eight lines, and the space is held for direct-mapped's eight rows, so switching never
+   resizes the panel. */
+.ca-acts { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.ca-sets { display: flex; flex-direction: column; gap: 5px; min-height: 351px; }
+.ca-set { display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: center; gap: 8px; }
+.ca-set .cs-i { font: 12px var(--mono); color: var(--dbg-dim); }
+.ca-set.active .cs-i { color: var(--dbg-pc); }
+.cs-ways { display: grid; grid-template-columns: repeat(var(--ways), minmax(0, 1fr)); gap: 5px; }
+.cw { position: relative; display: flex; align-items: baseline; gap: 8px; min-height: 36px; padding: 0 10px; font: 12px var(--mono); background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 7px; transition: border-color 150ms ease-out, background-color 150ms ease-out; align-content: center; flex-wrap: wrap; }
+.cw small { color: var(--dbg-dim); font-size: 11px; }
+.cw b { color: var(--dbg-text); font-weight: 600; }
+.cw.valid { background: color-mix(in srgb, #5fd0a4 8%, var(--dbg-bg)); }
+.cw.hit { border-color: #5fd0a4; box-shadow: 0 0 0 1px #5fd0a4; }
+.cw.fill { border-color: var(--dbg-pc); box-shadow: 0 0 0 1px var(--dbg-pc); }
+.cw i { font: 10.5px var(--sans); font-style: normal; color: #ff9f8c; }
+.cw.lru { border-style: dashed; border-color: color-mix(in srgb, #ff7b66 70%, transparent); }
+/* The cache's lines are boxes of their own, so the screen behind them stays plain. */
+.debugger.mem.cache > div { background-image: none; }
+.cache .dbg-seg { flex-wrap: wrap; }
+.cache .dbg-seg button { white-space: nowrap; }
+.cs-ways[style*='--ways: 2'] .cw, .cs-ways[style*='--ways: 4'] .cw { flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 8px; }
+.ca-cmp { margin: 0 0 12px; }
+.ca-cmp h4 { margin: 0 0 6px; }
+.cc-rows { display: grid; gap: 4px; }
+.cc-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 44px; align-items: center; gap: 8px; font: 12px var(--sans); color: var(--dbg-dim); }
+.cc-row i { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #5fd0a4 calc(var(--f) * 100%), var(--dbg-line) 0); transition: background 200ms ease-out; }
+.cc-row b { font: 600 12px var(--mono); color: var(--dbg-dim); text-align: right; }
+.cc-row.on, .cc-row.on b { color: var(--dbg-text); }
 .ca-break { padding: 10px 12px; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-radius: 8px; }
 .cb-addr { font: 600 14px var(--mono); color: var(--dbg-text); }
 .cb-addr small { font: 400 12px var(--mono); color: var(--dbg-dim); margin-left: 6px; }
@@ -2047,7 +2066,25 @@ footer a:hover { color: var(--ink); }
 .ca-log li.hit b { color: #5fd0a4; }
 .ca-log li.miss b { color: #ff9f8c; }
 .ca-log .ca-none { color: var(--dbg-dim); justify-content: flex-start; }
-@media (max-width: 680px) { .ca-body { grid-template-columns: minmax(0, 1fr); } .ca-line { grid-template-columns: 44px 16px 64px 1fr; gap: 6px; } }
+/* The memory hierarchy: a stack of bars, narrow and fast at the top, wide and slow at the bottom, colored by what each
+   level is built from, with its size, access time and place beside it. */
+.hier { margin: 20px 0 8px; display: grid; gap: 8px; }
+.hier-row { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); align-items: center; gap: 18px; }
+.hier-bar { justify-self: center; width: var(--w); min-width: 120px; display: flex; flex-direction: column; align-items: center; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 14%, var(--paper)); text-align: center; }
+.hier-bar b { font: 600 14px var(--sans); color: var(--ink); }
+.hier-bar small { font: 12px var(--mono); color: var(--muted); }
+.hier-bar.ff { --c: #8b7fb0; } .hier-bar.sram { --c: #2f9e78; } .hier-bar.dram { --c: #3f74d8; } .hier-bar.flash { --c: #d9822b; }
+.hier-facts { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; margin: 0; font-size: 14px; line-height: 1.4; }
+.hier-facts dt { font: 600 11px var(--sans); letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); }
+.hier-facts dd { margin: 2px 0 0; color: var(--ink); }
+.hier-row + .hier-row .hier-facts dt { display: none; }
+.hier figcaption { margin-top: 10px; font-size: 15px; color: var(--muted); }
+@media (max-width: 700px) {
+  .hier-row { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .hier-bar { justify-self: start; }
+  .hier-row + .hier-row .hier-facts dt { display: block; }
+}
+@media (max-width: 680px) { .ca-body { grid-template-columns: minmax(0, 1fr); } }
 
 /* Virtual memory: process A and B virtual spaces either side of the shared physical frames. */
 .vmem .vm-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; padding: 16px; align-items: start; }
@@ -2185,7 +2222,9 @@ footer a:hover { color: var(--ink); }
   border-radius: 10px 10px 0 0;
 }
 /* Content panes keep a solid screen fill so the graticule reads as background, not through the text. */
-.debugger.mem .dbg-code, .debugger.mem .dbg-vars { background: var(--screen); }
+.debugger.mem .dbg-code, .debugger.mem .dbg-vars, .debugger.mem > div table { background-color: var(--screen); }
+/* A screen that holds a table has its own row lines; the graticule behind them would only double them. */
+.debugger.mem > div:has(table) { background-image: none; }
 /* Explain line: screen glass with the bottom bezel, a fixed height so one- vs two-line text never resizes the panel. */
 .debugger.mem > .dbg-status {
   display: block; min-height: 110px; padding: 14px 18px;
@@ -2230,7 +2269,7 @@ footer a:hover { color: var(--ink); }
 .diagram .dg-status { min-height: 92px; }
 .diagram .bus-log { min-height: 52px; }
 .ca-break { min-height: 92px; }
-.ca-log { min-height: 210px; }
+.ca-log { min-height: 128px; }
 .pg-tlb-rows { min-height: 62px; }
 
 /* Context switching: the CPU's registers and both task stacks on the glass below the lanes. Values are colored by the

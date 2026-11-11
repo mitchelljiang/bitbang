@@ -12,6 +12,9 @@ const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
     date: '2026-11-11',
     items: [
+      ['improved', '[Caches](?p=caches): direct-mapped, 2-way, 4-way and fully associative side by side, with LRU eviction and the same accesses compared on each'],
+      ['new', '[Caches](?p=caches): the memory hierarchy from registers through L1–L3, DRAM and Flash, and how a microcontroller differs'],
+      ['fixed', 'No doubled lines behind tables and cache lines on the Memory screens'],
       ['improved', 'Pages sit on a raised sheet of paper, with the sidebar drawn as circuit traces and the current page lit'],
       ['improved', '[Endianness](?p=endianness): the byte order table replaces the byte rows, so the whole panel fits on one screen, colored to match x’s bytes'],
     ],

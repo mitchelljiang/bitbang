@@ -82,7 +82,7 @@ import { MASTERS, arbitrate } from '../src/topics/interconnect';
 import { SLOTS as FRAME_SLOTS, presentAt, spAt } from '../src/topics/frames';
 import { overflowed, spForDepth } from '../src/topics/overflow';
 import { SYMS, sramValue } from '../src/topics/sections';
-import { access as cacheAccess, fields as cacheFields, type Line } from '../src/topics/caches';
+import { ACCESSES as CACHE_ACCESSES, access as cacheAccess, fields as cacheFields, hitsFor, newCache } from '../src/topics/caches';
 import { PROCS, translate } from '../src/topics/vaddr';
 import { I_MAX, R_PULL, VDD as GP_VDD, idrOf, level as gpioLevel, solve as gpioSolve, type Pin as GpioPin } from '../src/topics/gpio';
 import { timer as runTimer, updateHz } from '../src/topics/timers';
@@ -1717,16 +1717,36 @@ section('3j. Memory: map, bus matrix, frames, overflow, startup');
 section('3k. Memory: cache, virtual memory, paging, MPU');
 {
   // Direct-mapped cache: cold miss, then a hit on the same line, then a conflict eviction, then a thrash miss.
-  const lines: Line[] = Array.from({ length: 4 }, () => ({ valid: false, tag: 0 }));
-  const r1 = cacheAccess(lines, 0x100); // cold miss
-  const r2 = cacheAccess(lines, 0x104); // same line, hit
-  const r3 = cacheAccess(lines, 0x140); // same index, different tag: evict
-  const r4 = cacheAccess(lines, 0x100); // evicted, miss again
+  const dm = newCache('direct');
+  const r1 = cacheAccess(dm, 'direct', 0x100, 1); // cold miss
+  const r2 = cacheAccess(dm, 'direct', 0x104, 2); // same line, hit
+  const r3 = cacheAccess(dm, 'direct', 0x180, 3); // same index, different tag: evict
+  const r4 = cacheAccess(dm, 'direct', 0x100, 4); // evicted, miss again
   check('cache: cold miss, same-line hit, conflict eviction, thrash miss',
-    !r1.hit && r2.hit && r3.evicted && !r4.hit);
-  check('cache: a[0] and a[1] share a line; b conflicts with it',
-    cacheFields(0x100).index === cacheFields(0x104).index
-    && cacheFields(0x140).index === cacheFields(0x100).index && cacheFields(0x140).tag !== cacheFields(0x100).tag);
+    !r1.hit && r2.hit && r3.evicted === 0x100 && !r4.hit);
+  // The address split, worked by hand for 0x180 (0b0001_1000_0000) with 16-byte lines and 8 lines in total:
+  // direct-mapped has 3 index bits, 2-way 2, 4-way 1 and fully associative none.
+  check('cache: 0x180 splits by hand for every organization',
+    JSON.stringify(cacheFields(0x180, 'direct')) === JSON.stringify({ offset: 0, index: 0, tag: 0x3 })
+    && JSON.stringify(cacheFields(0x180, '2way')) === JSON.stringify({ offset: 0, index: 0, tag: 0x6 })
+    && JSON.stringify(cacheFields(0x180, '4way')) === JSON.stringify({ offset: 0, index: 0, tag: 0xC })
+    && JSON.stringify(cacheFields(0x18C, 'full')) === JSON.stringify({ offset: 12, index: 0, tag: 0x18 }));
+  // Every button but s competes for set 0 in all four organizations; s lands elsewhere, so the comparison is fair.
+  const comp = CACHE_ACCESSES.filter((a) => a.label !== 's' && a.label !== 'a[1]');
+  check('cache: the competing buttons share set 0 everywhere, with distinct tags, and s does not',
+    (['direct', '2way', '4way'] as const).every((o) => comp.every((a) => cacheFields(a.addr, o).index === 0)
+      && new Set(comp.map((a) => cacheFields(a.addr, o).tag)).size === comp.length
+      && cacheFields(0x150, o).index !== 0));
+  // a[0] b c d e a[0]: five blocks fighting for one set. Hand-traced with LRU, the final a[0] only survives where a set
+  // holds five: direct-mapped and 2-way and 4-way miss all six, fully associative hits once.
+  const seq = [0x100, 0x180, 0x200, 0x280, 0x300, 0x100];
+  check('cache: a[0] b c d e a[0] hits 0, 0, 0 and 1 times as associativity grows',
+    hitsFor('direct', seq) === 0 && hitsFor('2way', seq) === 0 && hitsFor('4way', seq) === 0 && hitsFor('full', seq) === 1);
+  // a[0] b a[0] b: two blocks in one set thrash a direct-mapped cache but fit in a 2-way set (LRU, traced by hand).
+  const pair = [0x100, 0x180, 0x100, 0x180, 0x100];
+  check('cache: two conflicting blocks thrash direct-mapped but fit 2-way', hitsFor('direct', pair) === 0 && hitsFor('2way', pair) === 3);
+  // LRU, not FIFO: in a 2-way set, re-touching a[0] makes b the victim when c arrives, so a[0] still hits.
+  check('cache: LRU keeps the recently touched line', hitsFor('2way', [0x100, 0x180, 0x100, 0x200, 0x100]) === 2);
 
   // Virtual memory: the same virtual address maps to different frames per process; an unmapped page faults.
   const a = PROCS[0], b = PROCS[1];
