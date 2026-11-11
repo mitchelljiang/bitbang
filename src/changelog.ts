@@ -10,12 +10,18 @@ type Kind = 'new' | 'improved' | 'fixed';
 
 const CHANGES: { date: string; items: [Kind, string][] }[] = [
   {
+    date: '2026-11-11',
+    items: [
+      ['improved', 'Pages sit on a raised sheet of paper, with the sidebar drawn as circuit traces and the current page lit'],
+      ['improved', '[Endianness](?p=endianness): the byte order table replaces the byte rows, so the whole panel fits on one screen, colored to match x’s bytes'],
+    ],
+  },
+  {
     date: '2026-11-10',
     items: [
       ['improved', 'Data, Hardware and Software tabs drop down their sections on hover'],
       ['improved', 'Home page: sections grouped under Data, Hardware and Software, each drawing acting out its section on hover, and compact cards on phones'],
       ['improved', 'Protocol pages: wires, speed and reach at the top, and the settings on the scope’s faceplate'],
-      ['improved', 'A thin line at the top of the window shows how far down the page you are'],
       ['improved', '[Endianness](?p=endianness): a table of x in memory, little- and big-endian byte by byte'],
       ['fixed', 'No pale flash on the diagrams when stepping or changing a setting; Memory controls readable in the dark theme'],
       ['fixed', '[SRAM, DRAM and Flash](?p=cells): the type switch and panel stay put, with each cell’s actions under it'],

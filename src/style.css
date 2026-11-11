@@ -5,6 +5,8 @@
  */
 :root {
   --bg: #f6f5f9;
+  --desk: #ebe8f2; /* the page sits on a sheet of paper on this desk */
+  --sheet-shadow: 0 1px 2px rgba(30, 20, 60, 0.05), 0 12px 40px -12px rgba(30, 20, 60, 0.14);
   --paper: #ffffff;
   --ink: #1d1828;
   --muted: #4f4860;
@@ -39,6 +41,8 @@
 
 :root[data-theme='dark'] {
   --bg: #15111d;
+  --desk: #100c17;
+  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 44px -14px rgba(0, 0, 0, 0.6);
   --paper: #1c1726;
   --ink: #ece8f3;
   --muted: #b4abc4;
@@ -105,10 +109,17 @@ body {
   display: flex;
   flex-direction: column;
   color: var(--ink);
-  background: var(--bg);
+  background: var(--desk);
   font: 400 17px/1.6 var(--sans);
 }
 #content { flex: 1; outline: none; }
+/* Paper on a desk: each page is a raised sheet; the header, sidebar and footer sit on the desk around it. */
+#content {
+  min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+  padding: 8px 28px 32px; margin-bottom: 24px; box-shadow: var(--sheet-shadow);
+}
+@media (max-width: 900px) { #content { margin-top: 10px; padding: 4px 20px 28px; border-radius: 14px; } }
+@media (max-width: 600px) { #content { margin-inline: -6px; padding: 2px 14px 24px; } }
 
 ::selection { background: var(--accent); color: var(--accent-ink); }
 
@@ -139,20 +150,6 @@ main, .top, footer {
 
 /* ---- header ---- */
 
-/* A thin line at the top of the window that fills as the page scrolls (not on the home page). */
-.read-progress { display: none; }
-@supports (animation-timeline: scroll()) {
-  .read-progress {
-    display: block;
-    position: fixed; inset: 0 0 auto; height: 2px; z-index: 50;
-    background: var(--accent);
-    transform-origin: left; transform: scaleX(0);
-    animation: read-progress linear both; animation-timeline: scroll(root);
-    pointer-events: none;
-  }
-  body:has(#home:not([hidden])) .read-progress { display: none; }
-}
-@keyframes read-progress { to { transform: scaleX(1); } }
 
 .top {
   position: relative;
@@ -373,6 +370,8 @@ main, .top, footer {
 }
 .side-key { display: flex; align-items: center; gap: 8px; margin: 20px 0 0; font-size: 13px; color: var(--faint); }
 .side-key i { margin-left: 0; }
+/* The current page is a small raised sheet, like the page itself. */
+.side-group a[aria-current] { background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 4px 12px -6px rgba(30, 20, 60, 0.25); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Related resources: sources and further reading, at the bottom of every page in a section. */
@@ -1035,27 +1034,40 @@ table.vars th, table.vars td { padding: 8px 14px 8px 0; text-align: left; vertic
 table.vars th small, table.vars td small { font-size: 12px; color: var(--dbg-dim); }
 table.vars th code { font-weight: 700; }
 table.vars .hex { font-weight: 600; }
-/* Endianness: the value's bytes at each address, little- and big-endian side by side. Each byte keeps its significance
-   color in both rows, so the same colors appear in reverse order. The row for the chosen order is lit. */
-.en-mem { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--dbg-line); }
-.en-mem h3 { margin: 0 0 10px; font: 600 13px var(--sans); color: var(--dbg-text); }
-.en-mem h3 small { margin-left: 6px; font-weight: 400; color: var(--dbg-dim); }
-.en-table { border-collapse: separate; border-spacing: 6px 4px; margin: 0 -6px; font: 13px var(--mono); }
-.en-table th { padding: 0 8px 0 0; text-align: left; font: 500 12px var(--sans); color: var(--dbg-dim); white-space: nowrap; }
-.en-table thead th { font: 12px var(--mono); text-align: center; padding: 0 0 2px; }
-.en-table thead th:first-child { text-align: left; font-family: var(--sans); }
+/* Endianness: what byte_ptr[k] reads at each address, little- and big-endian side by side. Each byte keeps its
+   significance color in both rows and in x's bit row above, so the same colors appear in reverse order. The row for the
+   chosen order is lit. */
+.en-mem { margin-top: 6px; }
+.en-table { border-collapse: separate; border-spacing: 6px 4px; margin: 0 -6px 0 0; font: 13px var(--mono); }
+/* The labels line up with the variable names above; the spacing only goes between the byte columns. */
+.en-table th:first-child { padding-left: 0; }
+.en-table th { padding: 0 10px 0 0; text-align: left; font: 500 12px var(--sans); color: var(--dbg-dim); white-space: nowrap; }
+.en-table thead th { padding: 0 0 2px; text-align: center; }
+.en-table thead th:first-child { text-align: left; vertical-align: bottom; font-weight: 600; color: var(--dbg-text); }
+.en-table thead code { display: block; font: 600 12px var(--mono); color: var(--dbg-text); }
+.en-table thead small { display: block; font: 11px var(--mono); color: var(--dbg-dim); }
 .en-table td { padding: 0; }
 .en-table tr > * { transition: opacity 150ms ease-out; }
 .en-table tbody tr:not(.on) > * { opacity: 0.45; }
 .en-table tbody tr.on th { color: var(--dbg-text); }
-.en-byte { display: grid; justify-items: center; gap: 2px; min-width: 66px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.en-byte { display: grid; justify-items: center; gap: 2px; min-width: 92px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
 .en-byte b { font-weight: 700; color: var(--dbg-text); }
 .en-byte small { font: 11px var(--sans); color: var(--c); }
+/* Significance colors, most significant pink, least green. A 16-bit value has only bytes 1 and 0. */
 .en-byte.s3 { --c: #ec5a92; } .en-byte.s2 { --c: #ff9f5a; } .en-byte.s1 { --c: #2bb7e3; } .en-byte.s0 { --c: #5fd0a4; }
 .en-table:has(td:nth-child(3):last-child) .en-byte.s1 { --c: #ec5a92; }
+/* x's bytes in the bit row carry the same colors, under their hex. */
+.debugger:has(.en-mem) .vars-wrap .grp-foot { color: var(--c); font-weight: 700; }
+.debugger:has(.en-mem) .vars-wrap .grp { --c: #5fd0a4; }
+.debugger:has(.en-mem) .vars-wrap .grp:nth-last-child(2) { --c: #2bb7e3; }
+.debugger:has(.en-mem) .vars-wrap .grp:nth-last-child(3) { --c: #ff9f5a; }
+.debugger:has(.en-mem) .vars-wrap .grp:nth-last-child(4) { --c: #ec5a92; }
+.debugger:has(.en-mem) .vars-wrap .bitrow:has(> .grp:nth-child(2):last-child) > .grp:first-child { --c: #ec5a92; }
 @media (max-width: 600px) {
-  .en-table { width: calc(100% + 8px); table-layout: fixed; border-spacing: 4px; margin: 0 -4px; }
+  .en-table { width: calc(100% + 4px); table-layout: fixed; border-spacing: 4px; margin: 0 -4px 0 0; }
   .en-table th:first-child { width: 64px; white-space: normal; }
+  .en-ptr { display: none; }
+  .en-table thead small { font-size: 9.5px; }
   .en-byte { min-width: 0; padding: 5px 2px; }
 }
 /*
@@ -2671,6 +2683,8 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .addressing .dbg-controls, .pipe .dbg-controls, .brn .dbg-controls { flex-wrap: wrap; }
 .addressing .dbg-seg button, .pipe .dbg-seg button, .brn .dbg-seg button { white-space: nowrap; }
 .registers .cc-status, .addressing .cc-status, .pipe .cc-status, .brn .cc-status { min-height: 0; }
+/* On a phone the longest pattern's code takes two lines; every pattern keeps that room, so switching never resizes. */
+@media (max-width: 600px) { .brn .br-code { min-height: 44px; } }
 .rg-code .ln.lab { padding-left: 14px; color: var(--dbg-dim); }
 .rg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .rg-cell { display: grid; gap: 1px; min-width: 0; padding: 6px 8px; font: 12px var(--mono); color: var(--dbg-text); text-align: left; background: var(--dbg-bg); border: 1px solid var(--dbg-line); border-left: 3px solid var(--dbg-dim); border-radius: 6px; cursor: pointer; }
@@ -2757,4 +2771,8 @@ table.vars:has(.wide-bits) th[scope='row'] { width: 1px; }
 .dd-track i { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; } .dd-track .fill { background: #6fcbf2; opacity: 0.55; } .dd-track .proc { background: #5fd0a4; } .dd-track .proc.late { background: #ff7b66; } .dd-track b { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--dbg-pc); }
 .dd-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0 0; font: 12px var(--mono); color: var(--dbg-dim); } .dd-key i { width: 14px; height: 10px; margin-left: 10px; border-radius: 2px; } .dd-key .fill { background: #6fcbf2; opacity: 0.55; } .dd-key .proc { background: #5fd0a4; } .dd-key .dl { width: 2px; background: var(--dbg-pc); }
 @media (max-width: 760px) { .slp-body { grid-template-columns: minmax(0, 1fr); } .rb-c { height: 34px; font-size: 13px; } .rb-mark { font-size: 9.5px; } }
+/* The readouts sit on a fixed grid, so a longer value never wraps them onto another line and resizes the panel. */
+.ud-read { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.ud-read > span { white-space: nowrap; }
 @media (max-width: 900px) { .ud-read, .dd-read { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
