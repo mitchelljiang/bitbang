@@ -451,6 +451,8 @@ main, .top, footer {
 .hero { padding: 48px 0 28px; max-width: 900px; }
 .hero h1 { margin: 0 0 14px; font: 700 48px/1.08 var(--sans); letter-spacing: -0.035em; }
 .hero p { margin: 0; font-size: 18px; color: var(--muted); max-width: 62ch; }
+.hero .hero-count { margin-top: 14px; font-size: 15px; color: var(--faint); }
+.hero-count b { font: 600 15px var(--mono); color: var(--accent); }
 .demo { margin-top: 0; }
 .demo .scope { position: relative; }
 /* The beam at the leading edge of the opening sweep. */

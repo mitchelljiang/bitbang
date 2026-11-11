@@ -1,7 +1,7 @@
 import { GUTTER, esc, groupSteps, readout, render, stepNodes, type Rendered, type Step } from './core/render';
 import { defaults } from './core/util';
 import { areas, pagesOf } from './nav';
-import { statusOf } from './search';
+import { INTERACTIVE, statusOf } from './search';
 import { protocols } from './protocols';
 import { mountScopeAids } from './cursor';
 import { areaGlyph, sectionArt } from './art';
@@ -75,6 +75,7 @@ export function mountHome(root: HTMLElement) {
       <h1>Embedded systems, one bit at a time.</h1>
       <p>Interactive diagrams for learning how embedded systems really work: the signals on the wires, the chip that
         sends them, and the code that runs on it.</p>
+      <p class="hero-count"><b>${INTERACTIVE.length}</b> interactive pages across <b>${areas.flatMap((a) => a.sections).length}</b> sections</p>
     </section>
     <section class="demo instrument">
       <div class="readout"></div>

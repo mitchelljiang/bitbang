@@ -37,7 +37,7 @@ import { peripheralTopics } from '../src/peripherals';
 import { architectureTopics } from '../src/architecture';
 import { compilerTopics } from '../src/compilers';
 import { allCategories } from '../src/allTopics';
-import { statusOf } from '../src/search';
+import { INTERACTIVE, statusOf } from '../src/search';
 import { C } from '../src/topics/cdata';
 import { whereItLives } from '../src/topics/keywords';
 import { pieces, STRUCT_CASES } from '../src/topics/structs';
@@ -249,6 +249,16 @@ section('1c. Every setting has an explanation');
 }
 
 // ---- 1d. Links ----
+section('1c2. The home page counts its interactive pages');
+{
+  // Counted from the modules themselves, not the page index: every protocol, and every topic page that is not a
+  // start-here overview, must be in the count, and nothing else.
+  const expected = new Set([...protocols.map((p) => p.id), ...Object.keys(topics).filter((id) => !id.endsWith('-start'))]
+    .filter((id) => statusOf.has(id)));
+  check(`the count (${INTERACTIVE.length}) is every protocol and topic page with a diagram`,
+    INTERACTIVE.length === expected.size && INTERACTIVE.every((id) => expected.has(id)), [...expected].filter((id) => !INTERACTIVE.includes(id)).join(', '));
+}
+
 section('1d. Internal links point to real pages');
 {
   // The changelog escapes HTML and links only [text](?p=id), so a raw tag would show as text on the page.
